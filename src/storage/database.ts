@@ -47,10 +47,12 @@ export async function migrateDatabase(db: SQLiteDatabase): Promise<void> {
   if (version > 3) throw new Error('This app version cannot read a newer Eonward database.');
   if (version === 3) return;
 
-  await db.withExclusiveTransactionAsync(async (tx) => {
-    if (version === 0) await tx.execAsync(INITIAL_SCHEMA);
-    if (version <= 1) await tx.execAsync(V2_SCHEMA);
-    if (version <= 2) await tx.execAsync(V3_SCHEMA);
-    await tx.execAsync('PRAGMA user_version = 3;');
+  // Startup migration runs before app queries begin. Keep it on the opened connection;
+  // Expo Go's second connection for withExclusiveTransactionAsync can report a lock here.
+  await db.withTransactionAsync(async () => {
+    if (version === 0) await db.execAsync(INITIAL_SCHEMA);
+    if (version <= 1) await db.execAsync(V2_SCHEMA);
+    if (version <= 2) await db.execAsync(V3_SCHEMA);
+    await db.execAsync('PRAGMA user_version = 3;');
   });
 }
