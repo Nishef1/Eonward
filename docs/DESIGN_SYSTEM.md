@@ -51,3 +51,14 @@ Each feature design must specify: loading/initializing, empty, ready, editing, s
 - Component catalog: cards, typography, input, dialogs, filters, banners.
 - Gesture matrix with accessible fallbacks and Android back behavior.
 - Real-device screenshots and an interaction review checklist.
+
+## Android UI review — 2026-10-14
+
+- Reduced the vertical distance between brand and headline to restore visual rhythm on short screens.
+- Removed redundant top-right date chip, avoiding collision with developer/emulator overlays and keeping the status area calm.
+- Primary horizon chips and period navigation controls use at least 48dp hit areas.
+- Progress track hides when a horizon has no goals, to avoid showing a misleading empty progress bar.
+- A first-use action is shown next to an explanatory empty-state message.
+- Goal editing has a structured hierarchy: title, horizon, period, parent, notes and primary save action.
+- Child goals are navigable instead of only being completion toggles; completion has its own touch target.
+- These changes are source-level work until re-captured and checked on the Android emulator.

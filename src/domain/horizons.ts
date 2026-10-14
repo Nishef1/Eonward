@@ -82,3 +82,65 @@ export function periodLabel(horizon: Horizon, date: Date): string {
     case 'life': return 'The bigger picture';
   }
 }
+
+/**
+ * Resolve a saved period back to a local date at noon, avoiding midnight DST
+ * boundaries and retaining the original period while editing/rescheduling.
+ */
+export function dateFromPeriodKey(horizon: Horizon, key: string, fallback: Date): Date {
+  let match: RegExpMatchArray | null;
+  switch (horizon) {
+    case 'day': {
+      match = key.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+      if (!match) break;
+      const year = Number(match[1]);
+      const month = Number(match[2]);
+      const day = Number(match[3]);
+      const candidate = noon(year, month - 1, day);
+      if (candidate.getFullYear() === year && candidate.getMonth() === month - 1 && candidate.getDate() === day) return candidate;
+      break;
+    }
+    case 'week': {
+      match = key.match(/^(\d{4})-W(\d{2})$/);
+      if (!match) break;
+      const isoYear = Number(match[1]);
+      const week = Number(match[2]);
+      if (week < 1 || week > 53) break;
+      const fourth = noon(isoYear, 0, 4);
+      const monday = startOfWeek(fourth);
+      monday.setDate(monday.getDate() + (week - 1) * 7);
+      if (isoWeekKey(monday) === key) return monday;
+      break;
+    }
+    case 'month': {
+      match = key.match(/^(\d{4})-(\d{2})$/);
+      if (!match) break;
+      const m = Number(match[2]);
+      if (m >= 1 && m <= 12) return noon(Number(match[1]), m - 1, 1);
+      break;
+    }
+    case 'quarter': {
+      match = key.match(/^(\d{4})-Q([1-4])$/);
+      if (match) return noon(Number(match[1]), (Number(match[2]) - 1) * 3, 1);
+      break;
+    }
+    case 'year':
+    case 'decade': {
+      match = key.match(/^\d{4}$/);
+      if (match) return noon(Number(key), 0, 1);
+      break;
+    }
+    case 'life':
+      return new Date(fallback.getTime());
+  }
+  return new Date(fallback.getTime());
+}
+
+/** Parse YYYY-MM-DD as a real local calendar date, not as UTC midnight. */
+export function parseDateInput(value: string): Date | null {
+  const match = value.trim().match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (!match) return null;
+  const [year, month, day] = match.slice(1).map(Number);
+  const date = noon(year, month - 1, day);
+  return date.getFullYear() === year && date.getMonth() === month - 1 && date.getDate() === day ? date : null;
+}

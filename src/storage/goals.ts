@@ -63,10 +63,30 @@ export async function createGoal(db: SQLiteDatabase, input: GoalInput): Promise<
 }
 
 export async function editGoal(db: SQLiteDatabase, id: string, input: GoalInput): Promise<void> {
-  await db.runAsync(
-    `UPDATE goals SET title = ?, notes = ?, horizon = ?, period_key = ?, updated_at = ? WHERE id = ?`,
-    [normalizeGoalTitle(input.title), input.notes.trim(), input.horizon, input.periodKey, new Date().toISOString(), id],
-  );
+  const title = normalizeGoalTitle(input.title);
+  const parentId = input.parentId ?? null;
+  if (id === parentId) throw new Error('A goal cannot be its own parent.');
+  await db.withExclusiveTransactionAsync(async (tx) => {
+    const existing = await tx.getFirstAsync<{ id: string }>('SELECT id FROM goals WHERE id = ?', [id]);
+    if (!existing) throw new Error('The goal no longer exists.');
+    if (parentId) {
+      const parent = await tx.getFirstAsync<{ id: string }>('SELECT id FROM goals WHERE id = ?', [parentId]);
+      if (!parent) throw new Error('The selected parent no longer exists.');
+      const cycle = await tx.getFirstAsync<{ id: string }>(
+        `WITH RECURSIVE descendants(id) AS (
+          SELECT id FROM goals WHERE id = ?
+          UNION
+          SELECT g.id FROM goals g INNER JOIN descendants d ON g.parent_id = d.id
+        ) SELECT id FROM descendants WHERE id = ? LIMIT 1`,
+        [id, parentId],
+      );
+      if (cycle) throw new Error('A goal cannot belong to one of its own next steps.');
+    }
+    await tx.runAsync(
+      'UPDATE goals SET title = ?, notes = ?, horizon = ?, period_key = ?, parent_id = ?, updated_at = ? WHERE id = ?',
+      [title, input.notes.trim(), input.horizon, input.periodKey, parentId, new Date().toISOString(), id],
+    );
+  });
 }
 
 export async function setGoalCompleted(db: SQLiteDatabase, id: string, completed: boolean): Promise<void> {
@@ -80,3 +100,22 @@ export async function removeGoal(db: SQLiteDatabase, id: string): Promise<void> 
   // Descendants become independent goals; ON DELETE SET NULL avoids destroying their history.
   await db.runAsync('DELETE FROM goals WHERE id = ?', [id]);
 }
+
+/** Query a single goal independently of its current horizon. */
+export async function getGoal(db: SQLiteDatabase, id: string): Promise<Goal | null> {
+  const row = await db.getFirstAsync<GoalRow>(
+    `${SELECT_GOALS} WHERE g.id = ?`,
+    [id],
+  );
+  return row ? toGoal(row) : null;
+}
+
+/** Parent picker can display any saved goal, across horizons. */
+export async function listAllGoals(db: SQLiteDatabase): Promise<Goal[]> {
+  const rows = await db.getAllAsync<GoalRow>(
+    `${SELECT_GOALS} ORDER BY g.created_at DESC`,
+  );
+  return rows.map(toGoal);
+}
+
+

@@ -74,3 +74,11 @@ Prefer platform/Expo primitives; introduce a third-party library only after chec
 2. Test persistence across process restarts and upgrades.
 3. Validate touch/drag interactions on midrange Android hardware.
 4. Only then scale the feature to notes, boards, and calendar.
+
+## Horizons 2.0 work-in-progress
+
+- The editor can select a parent across horizons and can change the planning period without moving the item through another screen.
+- The schema remains v1: one stored placement per goal. This is not yet Timestripe-style multi-placement.
+- Goal editing uses an exclusive transaction with recursive descendant inspection to reject cyclic parent changes.
+- The available-parent filter is pure domain logic; it helps UX but database validation remains mandatory.
+- Nested detail navigation is UI state (back stack); there are no duplicate records.

@@ -3,8 +3,8 @@ import { ActivityIndicator, Alert, FlatList, Pressable, StyleSheet, Text, useCol
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useSQLiteContext } from 'expo-sqlite';
 import { HORIZONS, HORIZON_TITLES, periodKey, periodLabel, shiftPeriod, type Horizon } from '../../domain/horizons';
-import type { Goal, GoalInput } from '../../domain/goals';
-import { createGoal, editGoal, listChildGoals, listGoals, removeGoal, setGoalCompleted } from '../../storage/goals';
+import { availableGoalParents, type Goal, type GoalInput } from '../../domain/goals';
+import { createGoal, editGoal, getGoal, listAllGoals, listChildGoals, listGoals, removeGoal, setGoalCompleted } from '../../storage/goals';
 import { colors, radius, spacing } from '../../theme/tokens';
 import { GoalDetails } from './GoalDetails';
 import { GoalEditor } from './GoalEditor';
@@ -65,7 +65,9 @@ export function HorizonsScreen() {
   const [failure, setFailure] = useState<string | null>(null);
   const [revision, setRevision] = useState(0);
   const [working, setWorking] = useState(false);
-  const [details, setDetails] = useState<Goal | null>(null);
+  const [detailStack, setDetailStack] = useState<Goal[]>([]);
+  const details = detailStack[detailStack.length - 1] ?? null;
+  const [parentOptions, setParentOptions] = useState<Goal[]>([]);
   const [children, setChildren] = useState<Goal[]>([]);
   const [editorVisible, setEditorVisible] = useState(false);
   const [editing, setEditing] = useState<Goal | null>(null);
@@ -105,21 +107,47 @@ export function HorizonsScreen() {
     }
   }
 
-  function openCreate() {
-    setEditing(null);
-    setParent(null);
-    setEditorVisible(true);
+  async function openEditor(initial: Goal | null, selectedParent: Goal | null) {
+    try {
+      const options = await listAllGoals(db);
+      setParentOptions(availableGoalParents(options, initial?.id ?? null));
+      setEditing(initial);
+      setParent(selectedParent);
+      setDetailStack([]);
+      setEditorVisible(true);
+    } catch (error) {
+      Alert.alert('Cannot open editor', error instanceof Error ? error.message : 'Please try again.');
+    }
   }
 
-  async function openDetails(goal: Goal) {
-    setDetails(goal);
-    setChildren([]);
+  function openCreate() {
+    void openEditor(null, null);
+  }
+
+  async function openDetails(goal: Goal, nested = false) {
     try {
-      const nextSteps = await listChildGoals(db, goal.id);
+      const [latest, nextSteps] = await Promise.all([getGoal(db, goal.id), listChildGoals(db, goal.id)]);
+      if (!latest) {
+        Alert.alert('Goal unavailable', 'This goal may have been deleted.');
+        return;
+      }
+      setDetailStack((current) => nested ? [...current, latest] : [latest]);
       setChildren(nextSteps);
     } catch (error) {
-      Alert.alert('Could not load steps', error instanceof Error ? error.message : 'Please try again.');
+      Alert.alert('Could not load goal', error instanceof Error ? error.message : 'Please try again.');
     }
+  }
+
+  function backToParent() {
+    const parentGoal = detailStack[detailStack.length - 2];
+    if (!parentGoal) {
+      setDetailStack([]);
+      return;
+    }
+    setDetailStack((items) => items.slice(0, -1));
+    void listChildGoals(db, parentGoal.id).then(setChildren).catch(() => {
+      Alert.alert('Could not load steps', 'Please try again.');
+    });
   }
 
   async function saveGoal(input: GoalInput) {
@@ -137,17 +165,11 @@ export function HorizonsScreen() {
   }
 
   function editSelected() {
-    setEditing(details);
-    setParent(null);
-    setDetails(null);
-    setEditorVisible(true);
+    if (details) void openEditor(details, null);
   }
 
   function addChild() {
-    setParent(details);
-    setEditing(null);
-    setDetails(null);
-    setEditorVisible(true);
+    if (details) void openEditor(null, details);
   }
 
   async function toggle(goal: Goal) {
@@ -155,7 +177,7 @@ export function HorizonsScreen() {
     const completed = !goal.completed;
     await perform(async () => {
       await setGoalCompleted(db, goal.id, completed);
-      setDetails((current) => current?.id === goal.id ? { ...current, completed } : current);
+      setDetailStack((items) => items.map((item) => item.id === goal.id ? { ...item, completed } : item));
       setChildren((items) => items.map((item) => item.id === goal.id ? { ...item, completed } : item));
     });
   }
@@ -173,7 +195,7 @@ export function HorizonsScreen() {
           style: 'destructive',
           onPress: () => void perform(async () => {
             await removeGoal(db, id);
-            setDetails(null);
+            setDetailStack([]);
             setChildren([]);
           }),
         },
@@ -188,9 +210,7 @@ export function HorizonsScreen() {
           <View style={[styles.brandMark, { backgroundColor: palette.accent }]} />
           <Text style={[styles.brand, { color: palette.foreground }]}>EONWARD</Text>
         </View>
-        <Text style={[styles.today, { color: palette.muted }]}>
-          {new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric' }).format(new Date())}
-        </Text>
+
       </View>
       <Text style={[styles.eyebrow, { color: palette.accent }]}>YOUR TIME, IN PERSPECTIVE</Text>
       <Text style={[styles.heroTitle, { color: palette.foreground }]}>Horizons<Text style={{ color: palette.accent }}>.</Text></Text>
@@ -248,10 +268,12 @@ export function HorizonsScreen() {
             </View>
           ) : null}
         </View>
-        <View style={[styles.progressTrack, { backgroundColor: palette.border }]}>
-          <View style={[styles.progressFill, { backgroundColor: palette.accent, width: goals.length ? `${doneCount / goals.length * 100}%` : '0%' }]} />
-        </View>
-        <View style={styles.progressRow}>
+        {goals.length > 0 ? (
+          <View style={[styles.progressTrack, { backgroundColor: palette.border }]}>
+            <View style={[styles.progressFill, { backgroundColor: palette.accent, width: `${doneCount / goals.length * 100}%` }]} />
+          </View>
+        ) : null}
+        <View style={[styles.progressRow, goals.length === 0 && { marginTop: 18 }]}>
           <Text style={[styles.progressLabel, { color: palette.muted }]}>{goals.length === 0 ? 'Start with one meaningful goal' : `${goals.length - doneCount} open · ${doneCount} completed`}</Text>
           <Pressable onPress={() => setAnchor(new Date())} accessibilityRole="button" accessibilityLabel="Return to current period">
             <Text style={[styles.jumpToday, { color: palette.accent }]}>NOW ↗</Text>
@@ -302,8 +324,12 @@ export function HorizonsScreen() {
               </View>
               <Text style={[styles.emptyTitle, { color: palette.foreground }]}>Space for something good.</Text>
               <Text style={[styles.emptyBody, { color: palette.muted }]}>
-                Every meaningful plan begins with a single intention.
+                A small intention today can change the bigger picture.
               </Text>
+              <Pressable onPress={openCreate} accessibilityRole="button"
+                style={[styles.emptyCta, { backgroundColor: palette.surface, borderColor: palette.border }]}>
+                <Text style={[styles.emptyCtaText, { color: palette.accent }]}>Create your first goal  ↗</Text>
+              </Pressable>
             </View>
           )
         }
@@ -326,7 +352,10 @@ export function HorizonsScreen() {
         goal={details}
         children={children}
         palette={palette}
-        onClose={() => setDetails(null)}
+        onClose={() => setDetailStack([])}
+        onBack={backToParent}
+        canGoBack={detailStack.length > 1}
+        onOpenChild={(child) => void openDetails(child, true)}
         onEdit={editSelected}
         onAddStep={addChild}
         onToggle={(goal) => void toggle(goal)}
@@ -336,8 +365,9 @@ export function HorizonsScreen() {
         visible={editorVisible}
         initial={editing}
         parent={parent}
+        parentOptions={parentOptions}
         defaultHorizon={parent ? 'day' : horizon}
-        anchorDate={parent ? new Date() : anchor}
+        anchorDate={anchor}
         palette={palette}
         saving={working}
         onDismiss={() => { if (!working) setEditorVisible(false); }}
@@ -350,17 +380,17 @@ export function HorizonsScreen() {
 const styles = StyleSheet.create({
   screen: { flex: 1 },
   listContent: { paddingHorizontal: spacing.lg, paddingBottom: 32 },
-  brandRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 16, marginBottom: 35 },
+  brandRow: { flexDirection: 'row', justifyContent: 'flex-start', alignItems: 'center', marginTop: 2, marginBottom: 27 },
   brandBlock: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   brandMark: { height: 15, width: 15, borderTopLeftRadius: 8, borderBottomRightRadius: 8, transform: [{ rotate: '45deg' }] },
   brand: { fontSize: 13, fontWeight: '800', letterSpacing: 3 },
   today: { fontSize: 12, fontWeight: '600' },
   eyebrow: { fontSize: 11, fontWeight: '700', letterSpacing: 1.8, marginBottom: 6 },
-  heroTitle: { fontSize: 42, fontWeight: '700', letterSpacing: -2, lineHeight: 52 },
+  heroTitle: { fontSize: 38, fontWeight: '700', letterSpacing: -1.5, lineHeight: 46 },
   heroSubtitle: { fontSize: 14, lineHeight: 22, marginTop: 2 },
-  horizonList: { marginTop: 30, marginHorizontal: -spacing.lg, marginBottom: spacing.lg },
+  horizonList: { marginTop: 24, marginHorizontal: -spacing.lg, marginBottom: spacing.lg },
   horizonItems: { paddingHorizontal: spacing.lg, gap: 8 },
-  horizonChip: { minHeight: 43, minWidth: 61, paddingHorizontal: 15, borderRadius: radius.full, alignItems: 'center', justifyContent: 'center', borderWidth: 1 },
+  horizonChip: { minHeight: 48, minWidth: 64, paddingHorizontal: 15, borderRadius: radius.full, alignItems: 'center', justifyContent: 'center', borderWidth: 1 },
   horizonChipText: { fontSize: 13, fontWeight: '600' },
   periodPanel: { borderRadius: radius.xl, padding: spacing.lg, borderWidth: 1 },
   periodLine: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: 8 },
@@ -368,13 +398,13 @@ const styles = StyleSheet.create({
   periodEyebrow: { fontSize: 10, letterSpacing: 1.2, fontWeight: '700' },
   periodText: { fontSize: 20, fontWeight: '700', letterSpacing: -0.3 },
   periodActions: { flexDirection: 'row', gap: 6 },
-  periodButton: { borderWidth: 1, borderRadius: radius.md, height: 40, width: 38, justifyContent: 'center', alignItems: 'center' },
+  periodButton: { borderWidth: 1, borderRadius: radius.md, height: 48, width: 48, justifyContent: 'center', alignItems: 'center' },
   periodArrow: { fontSize: 29, lineHeight: 32 },
   progressTrack: { height: 5, borderRadius: 3, marginTop: 22, overflow: 'hidden' },
   progressFill: { height: '100%', borderRadius: 3 },
   progressRow: { flexDirection: 'row', justifyContent: 'space-between', gap: 6, marginTop: 12 },
   progressLabel: { fontSize: 11 },
-  jumpToday: { fontSize: 11, fontWeight: '800', letterSpacing: 0.7 },
+  jumpToday: { fontSize: 12, fontWeight: '800', letterSpacing: 0.7, paddingVertical: 8, paddingLeft: 12 },
   sectionHeader: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 29, marginBottom: 13 },
   sectionTitle: { fontSize: 19, fontWeight: '700', letterSpacing: -0.5 },
   sectionCount: { fontSize: 12 },
@@ -387,11 +417,13 @@ const styles = StyleSheet.create({
   goalSubtitle: { fontSize: 12 },
   chevronTouch: { width: 33, height: 48, alignItems: 'center', justifyContent: 'center' },
   chevron: { fontSize: 29 },
-  empty: { paddingTop: 45, alignItems: 'center', gap: 13, paddingHorizontal: spacing.md },
+  empty: { paddingTop: 38, alignItems: 'center', gap: 13, paddingHorizontal: spacing.md },
   emptySymbol: { height: 68, width: 68, borderRadius: 34, alignItems: 'center', justifyContent: 'center', borderWidth: 1 },
   emptySpark: { fontSize: 28 },
   emptyTitle: { fontSize: 17, fontWeight: '700', textAlign: 'center', letterSpacing: -0.4 },
   emptyBody: { fontSize: 13, lineHeight: 22, textAlign: 'center', maxWidth: 240 },
+  emptyCta: { marginTop: 9, borderWidth: 1, borderRadius: radius.full, minHeight: 48, paddingHorizontal: 21, alignItems: 'center', justifyContent: 'center' },
+  emptyCtaText: { fontSize: 13, fontWeight: '700' },
   wait: { marginTop: 60 },
   retry: { padding: 10, fontWeight: '700', fontSize: 14 },
   footer: { borderTopWidth: 1, paddingHorizontal: spacing.lg, paddingVertical: 15, flexDirection: 'row', alignItems: 'center', gap: 12 },

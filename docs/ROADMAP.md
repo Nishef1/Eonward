@@ -59,14 +59,15 @@ This inventory records committed implementation, **not completion of the M1/M2 e
 **Priority:** complete the relationship and scheduling foundations before introducing Boards or Calendar.
 
 - [ ] Verify create/edit/complete/reopen/delete and persistence across emulator restarts.
-- [ ] Make child goals navigable and editable at arbitrary depth, including breadcrumb/back navigation.
-- [ ] Allow explicit parent selection/reparenting with cycle prevention and database integrity checks.
-- [ ] Add explicit period selection and rescheduling, not just assigning the current visible period.
+- [x] Implement child-goal navigation with back-stack and editable nested goal details in source; Android interaction verification pending.
+- [x] Implement parent selection/reparenting with recursive-cycle validation inside a SQLite exclusive transaction; device verification pending.
+- [x] Implement period stepper, current-period jump and precise YYYY-MM-DD entry for daily goals; device verification pending.
 - [ ] Ensure a single goal remains one record across horizon and parent contexts; choose a migration strategy before multiple placements.
 - [ ] Add an optional contextual multi-horizon overview suited for phones.
-- [ ] Improve first-use empty state with a meaningful guided first-goal action.
-- [ ] Validate Android status/system bars, keyboard, touch targets and modal behavior.
-- [ ] Add unit/integration tests for hierarchy, period moves and persistence; confirm CI.
+- [x] Add actionable empty-state guidance and align core action/touch-target dimensions in source.
+- [ ] Validate Android status/system bars, keyboard, touch targets and modal behavior after new UI changes (not yet run on device).
+- [x] Add pure unit tests for saved-period parsing, date input and parent-option descendant exclusion; integration/device tests still pending.
+- [ ] Add SQLite integration tests for reparenting transactions and persistence.
 - [ ] Run the entire workflow on the Android emulator and record findings.
 
 **Exit gate:** create a Life goal, link smaller goals in multiple horizons, move and edit them without duplication, and reopen the app with the structure intact. No placeholder screen counts as complete.
@@ -150,9 +151,9 @@ This inventory records committed implementation, **not completion of the M1/M2 e
 
 ## Next three actions
 
-1. Verify goal CRUD, modal/keyboard behavior and data retention on the running Android emulator.
-2. Implement navigable multi-level subgoals, safe parent reassignment and explicit period selection/rescheduling.
-3. Add a compact multi-horizon perspective, validate interactions on Android and update the acceptance checklist.
+1. Verify the latest CI checks and run the new Editor/Details flows on the emulator, including keyboard and Back navigation.
+2. Validate goal CRUD, nested goals, reparenting, period changes and force-close persistence using docs/ANDROID_QA.md.
+3. Fix device findings, then add a compact multi-horizon overview and hierarchy/placement improvements.
 
 ## Progress log
 
@@ -163,3 +164,5 @@ This inventory records committed implementation, **not completion of the M1/M2 e
 | 2026-10-14 | Dependency conflict fixed by pinning React DOM 19.2.3 and Worklets 0.10.1; lockfile regenerated. | Expo alignment, typecheck and Android Metro export passed. |
 | 2026-10-14 | Final lockfile-based CI run verified. | npm ci, Expo alignment, typecheck, Android Metro export and domain tests all passed; native APK/device testing remains. |
 | 2026-10-14 | Initial Horizons shell shown running on Android emulator; Horizons 2.0 priorities set. | User-provided screenshot verifies emulator launch only; goal CRUD, hierarchy and persistence still require runtime testing. |
+
+| 2026-10-14 | Horizons 2.0 initial implementation: nested navigation, reparenting validation, period editor and visual refinements. | Source committed; CI and Android UI QA required before full acceptance. |
