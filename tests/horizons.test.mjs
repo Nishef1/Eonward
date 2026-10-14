@@ -4,6 +4,7 @@ import { isoWeekKey, periodKey, shiftPeriod, startOfWeek, periodLabel, dateFromP
 import { normalizeGoalTitle, availableGoalParents } from '../src/domain/goals.ts';
 import { buildPerspectiveSections } from '../src/domain/perspective.ts';
 import { layoutBlocks, localDayBounds, localDayKey, timeRangeFromInput } from '../src/domain/timeblocks.ts';
+import { formatFocusTime, getFocusDurationMs, getFocusRemainingMs } from '../src/domain/focus.ts';
 
 test('all seven horizon keys use independent periods', () => {
   const date = new Date(2026, 9, 14, 12);
@@ -119,4 +120,22 @@ test('overlapping time blocks split their timeline lanes, consecutive blocks reu
   assert.deepEqual(placed.map((b) => b.lanes), [2, 2, 1]);
   assert.deepEqual(placed.map((b) => b.lane), [0, 1, 0]);
   assert.equal(placed[0].top, 9 * 64);
+});
+
+test('focus time uses an absolute deadline and stays correct after delayed ticks or app suspension', () => {
+  const session = { status: 'running', deadlineMs: 185000, remainingMs: 65000 };
+  assert.equal(getFocusRemainingMs(session, 120000), 65000);
+  assert.equal(getFocusRemainingMs(session, 170001), 14999);
+  assert.equal(getFocusRemainingMs(session, 190000), 0);
+  assert.equal(getFocusRemainingMs({ ...session, status: 'paused', remainingMs: 32000 }, 300000), 32000);
+  assert.equal(formatFocusTime(65000), '01:05');
+  assert.equal(formatFocusTime(3_661_000), '1:01:01');
+  assert.equal(formatFocusTime(0), '00:00');
+});
+
+test('timebox duration matches the actual scheduled instants and rejects invalid limits', () => {
+  assert.equal(getFocusDurationMs('2026-10-14T09:00:00.000Z', '2026-10-14T10:30:00.000Z'), 90 * 60000);
+  assert.throws(() => getFocusDurationMs('2026-10-14T10:00:00.000Z', '2026-10-14T09:00:00.000Z'));
+  assert.throws(() => getFocusDurationMs('bad', '2026-10-14T09:00:00.000Z'));
+  assert.throws(() => getFocusDurationMs('2026-10-14T09:00:00.000Z', '2026-10-16T09:00:00.000Z'));
 });

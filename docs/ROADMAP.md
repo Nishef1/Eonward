@@ -265,11 +265,30 @@ The initial Create Goal form was appearing partially scrolled in a screenshot; i
 
 **Self-critique:** the original Calendar buried its essential 24-hour schedule after a large header and long agenda in one enormous scrolling page. It looked like an afterthought. The new hierarchy puts visual scheduling first; List is an intentional fallback for short items, not a second copy of goals. Premium means clear time geometry and reliable actions, not more decoration.
 
+## Persistent focus session and primary navigation — schema v5
+
+**Why this slice:** Calendar, Horizons and Boards are now equally important destinations, but the existing interface required header-level navigation and Timeboxes did not execute. This slice makes daily focus usable, not merely scheduled.
+
+- [x] Add one **persistent three-destination bottom dock** for Horizons, Calendar and Boards in the shared app layout.
+- [x] Remove redundant header shortcuts and leave the bottom inset to the shared dock.
+- [x] Add additive SQLite v4→v5 `focus_session` table; **do not reset existing goals/boards/blocks**.
+- [x] Start a real focus countdown from a saved Timebox in Calendar List or its editor.
+- [x] Persist timer deadlines, pause state and remaining time in SQLite; only one session can run at a time.
+- [x] Keep a compact timer visible while switching pages, with expandable pause/resume/end controls.
+- [x] Use absolute wall-clock deadlines so returning from background or reopening the app yields accurate remaining time.
+- [x] Separate ending a focus session from marking its goal complete (no implicit goal changes).
+- [x] Adapt existing database migration checks and add **two focused domain cases**, keeping **16/20** total.
+- [ ] Verify v4→v5 upgrade, navigation, modal safe areas, pause/resume and process restart on Android emulator.
+- [ ] Provide native notifications and optional foreground-service integration only after real device testing; there is no background alert or sound in this slice.
+- [ ] Record completed focus-session history after checking what Insights should count as a meaningful session.
+
+**Engineering self-critique:** This root-level dock corrects page isolation, but it is not yet a native tab navigator with per-tab state preservation. The timer is accurate across pauses/background because it stores its deadline, but the JavaScript rendering loop is not guaranteed to run while Android suspends the app. Do not claim notifications, a background service, or an enforced stopping alarm. Color, typography and touch targets still need screenshot-based QA; CI is not UI acceptance.
+
 ## Next three actions
 
-1. Review light/dark Android screenshots with overlapping and 15-minute blocks, week strip and Now marker.
-2. Test tap-to-schedule, edits, List fallback and existing Horizons/Boards links across app restart.
-3. Fix device UX issues before adding countdown timers or drag/resizing gestures.
+1. Upgrade an existing populated v4 Android install to v5 without reinstalling; start a 15-minute Timebox from Calendar, switch to Horizons and Boards, and force-close/reopen.
+2. Test pause/resume and automatic deadline expiry after backgrounding the app, modal safe areas and global bottom-dock navigation in both themes.
+3. Resolve real interaction findings before adding session history, background notifications, Insights or drag-and-drop.
 
 ## Progress log
 
@@ -291,3 +310,5 @@ The initial Create Goal form was appearing partially scrolled in a screenshot; i
 | 2026-10-14 | Added connected Calendar/Time Block and Timebox slice, schema v4, day timeline, and navigation from existing goals. | Source implementation committed pending CI/device verification; 14/20 tests. |
 
 | 2026-10-14 | Rebuilt Calendar as a visible premium day canvas with stable seven-day header, live Now, goal color, quick hour scheduling and separate List. | Source and CI pending, emulator visual and interaction QA required; 14/20 tests. |
+
+| 2026-10-14 | Introduced root-level mobile dock and local, deadline-based persistent Timebox focus sessions (SQLite v5). | Source and CI pending; physical/emulator focus lifecycle acceptance remains open. |

@@ -5,6 +5,8 @@ import { ActivityIndicator, View } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { SQLiteProvider } from 'expo-sqlite';
 import { migrateDatabase } from '../src/storage/database';
+import { FocusProvider } from '../src/features/focus/FocusProvider';
+import { AppDock } from '../src/features/shell/AppDock';
 import { colors } from '../src/theme/tokens';
 
 function LoadingDatabase() {
@@ -21,7 +23,12 @@ export default function RootLayout() {
       <StatusBar style="auto" />
       <Suspense fallback={<LoadingDatabase />}>
         <SQLiteProvider databaseName="eonward.db" onInit={migrateDatabase} useSuspense>
-          <Stack screenOptions={{ headerShown: false }} />
+          <FocusProvider>
+            <View style={{ flex: 1 }}>
+              <Stack screenOptions={{ headerShown: false }} />
+            </View>
+            <AppDock />
+          </FocusProvider>
         </SQLiteProvider>
       </Suspense>
     </SafeAreaProvider>

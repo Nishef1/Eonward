@@ -107,3 +107,11 @@ The Focus goal card has an Android-safe organization action sheet (Move Up, Move
 - Exact timestamps and goal title appear within adequate-height blocks. Short blocks have condensed text with the separate accessible List view as a clear fallback.
 - Tap any empty hour to open Time Block Editor with start/end prefilled; tap an event to edit; hold to open the canonical goal.
 - Avoid stacking long explanatory copy above the schedule and avoid adding gesture libraries until basic Android QA succeeds.
+
+## Shared navigation and Focus Timer
+
+- Three labeled mobile dock destinations: Horizons, Calendar, Boards. Do not add extra primary tabs before their hierarchy is justified.
+- Timer lives above the dock as a small, tappable strip only during an active session; goal name and remaining time use tabular numerals.
+- Expanded focus view uses one deliberate timer hero, compact Pause/Resume and End controls, and explicit separation from completing a goal.
+- An elapsed Timebox shows Time's up without alarm-like claims; expiry does not silently modify a goal.
+- Avoid decorative gradients, massive glows and fake analytics. Validate root-layout, modal/safe-area and disabled controls on Android.

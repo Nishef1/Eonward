@@ -110,3 +110,12 @@ Creating a new goal inside a board uses the existing goal-creation transaction w
 - Calendar UI uses existing React Native components; no calendar/drag package, sync layer or server introduced.
 
 **Remaining data modeling work:** due dates are **not** schedule start times; recurring occurrences, travel/timezone UX, availability/conflicts and an active Timebox countdown need separately defined contracts.
+
+## Focus session v5 and global app shell
+
+- The existing SQLiteProvider still owns local data; FocusProvider is mounted once above the Stack and bottom dock so route changes cannot reset a running focus session.
+- A single-record `focus_session` table references one existing Timebox ID and stores running/paused status, original duration, deadline and frozen paused remainder in integer milliseconds. No duplicate goal record or cross-device service.
+- Exclusive SQLite transactions start, pause and resume; the current session is reread from SQLite on app foreground. Session replacement is explicit and confirmed.
+- The app-level mini-bar survives navigation. When the background freezes JS, elapsed time is recomputed from the stored deadline on return, not accumulated per timer tick. An expired session remains visible until explicitly finished.
+- Ending the timer is not equal to completing a goal or logging a finished work interval. Notifications, background execution, activity tracking and history are not yet implemented.
+- The labeled dock currently mounts next to the Expo Router Stack. It replaces redundant per-screen shortcut buttons but needs Android checks for bottom insets and deep-link back-stack behavior.

@@ -188,7 +188,7 @@ export function BoardsScreen() {
 
   const controlColor = palette.foreground;
   return (
-    <SafeAreaView edges={['top', 'bottom', 'left', 'right']} style={[styles.screen, { backgroundColor: palette.background }]}>
+    <SafeAreaView edges={['top', 'left', 'right']} style={[styles.screen, { backgroundColor: palette.background }]}>
       <ScrollView contentContainerStyle={styles.page} keyboardShouldPersistTaps="handled">
         <View style={styles.topRow}>
           <Pressable onPress={() => current ? setCurrent(null) : router.back()}
@@ -197,10 +197,7 @@ export function BoardsScreen() {
             <Text style={[styles.backText, { color: controlColor }]}>‹</Text>
           </Pressable>
           <Text style={[styles.brand, { color: palette.foreground }]}>EONWARD  /  BOARDS</Text>
-          <Pressable onPress={() => router.push('/calendar')} accessibilityRole="button"
-            style={[styles.calendarShortcut, { backgroundColor: palette.surface, borderColor: palette.border }]}>
-            <Text style={[styles.calendarText, { color: palette.accent }]}>Calendar ↗</Text>
-          </Pressable>
+
         </View>
 
         <Text style={[styles.eyebrow, { color: palette.accent }]}>ORGANIZE YOUR IDEAS</Text>

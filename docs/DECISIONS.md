@@ -45,6 +45,10 @@ Record significant decisions and reversals here. A future change should cite its
 | 2026-10-14 | Store scheduled instants in UTC; render local time and reject spring-forward gaps | Avoid ambiguous naive stored clock text and preserve events across device timezone changes | Initial support; fall-back disambiguation future work |
 | 2026-10-14 | Allow overlapping planned blocks with split lanes, no heavyweight calendar library | Keep visual behavior correct for simple conflicts without overengineering | Initial timeline implemented |
 
+| 2026-10-14 | Persistent labeled three-destination bottom navigation outside route Stack | Essential app destinations must be discoverable and available with one tap | Source implemented, emulator review pending |
+| 2026-10-14 | Store one focus session with absolute deadline in SQLite v5 | Timer must remain correct across route changes and app suspension without a background JS loop | Implemented in source, Android lifecycle verification pending |
+| 2026-10-14 | Do not automatically complete goals or claim background alarms on timer expiry | Focus time and outcome are distinct, and native notification reliability requires separate work | Product boundary documented |
+
 ## Open decisions
 
 - Calendar rendering package vs dedicated implementation: verify on device.

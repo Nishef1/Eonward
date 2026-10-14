@@ -16,7 +16,7 @@ function fakeDatabase(version) {
   return { db, queries, get transactionCalls() { return transactionCalls; } };
 }
 
-test('new database installs goals, boards and time blocks in one migration', async () => {
+test('new database installs all goal, board, calendar and focus schemas atomically', async () => {
   const fake = fakeDatabase(0);
   await migrateDatabase(fake.db);
   assert.equal(fake.transactionCalls, 1);
@@ -28,10 +28,11 @@ test('new database installs goals, boards and time blocks in one migration', asy
   assert.ok(fake.queries.some((sql) => sql.includes('PRIMARY KEY (board_id, goal_id)')));
   assert.ok(fake.queries.some((sql) => sql.includes('CREATE TABLE IF NOT EXISTS time_blocks')));
   assert.ok(fake.queries.some((sql) => sql.includes('REFERENCES goals(id) ON DELETE CASCADE')));
-  assert.ok(fake.queries.some((sql) => sql.includes('PRAGMA user_version = 4')));
+  assert.ok(fake.queries.some((sql) => sql.includes('CREATE TABLE IF NOT EXISTS focus_session')));
+  assert.ok(fake.queries.some((sql) => sql.includes('PRAGMA user_version = 5')));
 });
 
-test('existing v1/v2/v3 data upgrades to v4 without recreating goals', async () => {
+test('existing v1–v4 data upgrades to v5 without recreating goals', async () => {
   const old = fakeDatabase(1);
   await migrateDatabase(old.db);
   assert.equal(old.transactionCalls, 1);
@@ -50,13 +51,19 @@ test('existing v1/v2/v3 data upgrades to v4 without recreating goals', async () 
   assert.ok(v3.queries.some((sql) => sql.includes('CREATE TABLE IF NOT EXISTS time_blocks')));
   assert.equal(v3.queries.some((sql) => sql.includes('CREATE TABLE IF NOT EXISTS boards')), false);
 
-  const upgraded = fakeDatabase(4);
+  const v4 = fakeDatabase(4);
+  await migrateDatabase(v4.db);
+  assert.equal(v4.transactionCalls, 1);
+  assert.ok(v4.queries.some((sql) => sql.includes('CREATE TABLE IF NOT EXISTS focus_session')));
+  assert.equal(v4.queries.some((sql) => sql.includes('CREATE TABLE IF NOT EXISTS time_blocks')), false);
+
+  const upgraded = fakeDatabase(5);
   await migrateDatabase(upgraded.db);
   assert.equal(upgraded.transactionCalls, 0);
 });
 
 test('newer database is rejected rather than overwritten', async () => {
-  const fake = fakeDatabase(5);
+  const fake = fakeDatabase(6);
   await assert.rejects(() => migrateDatabase(fake.db), /newer Eonward database/);
   assert.equal(fake.transactionCalls, 0);
 });

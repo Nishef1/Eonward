@@ -56,18 +56,31 @@ const V4_SCHEMA = `
   CREATE INDEX IF NOT EXISTS time_blocks_by_goal ON time_blocks(goal_id, start_at);
 `;
 
+const V5_SCHEMA = `
+  CREATE TABLE IF NOT EXISTS focus_session (
+    id INTEGER PRIMARY KEY NOT NULL CHECK (id = 1),
+    block_id TEXT NOT NULL REFERENCES time_blocks(id) ON DELETE CASCADE,
+    status TEXT NOT NULL CHECK (status IN ('running', 'paused')),
+    duration_ms INTEGER NOT NULL CHECK (duration_ms > 0),
+    remaining_ms INTEGER NOT NULL CHECK (remaining_ms >= 0),
+    deadline_ms INTEGER NOT NULL,
+    updated_at_ms INTEGER NOT NULL
+  );
+`;
+
 export async function migrateDatabase(db: SQLiteDatabase): Promise<void> {
   await db.execAsync('PRAGMA foreign_keys = ON; PRAGMA journal_mode = WAL;');
   const result = await db.getFirstAsync<{ user_version: number }>('PRAGMA user_version');
   const version = result?.user_version ?? 0;
-  if (version > 4) throw new Error('This app version cannot read a newer Eonward database.');
-  if (version === 4) return;
+  if (version > 5) throw new Error('This app version cannot read a newer Eonward database.');
+  if (version === 5) return;
 
   await db.withExclusiveTransactionAsync(async (tx) => {
     if (version === 0) await tx.execAsync(INITIAL_SCHEMA);
     if (version <= 1) await tx.execAsync(V2_SCHEMA);
     if (version <= 2) await tx.execAsync(V3_SCHEMA);
     if (version <= 3) await tx.execAsync(V4_SCHEMA);
-    await tx.execAsync('PRAGMA user_version = 4;');
+    if (version <= 4) await tx.execAsync(V5_SCHEMA);
+    await tx.execAsync('PRAGMA user_version = 5;');
   });
 }

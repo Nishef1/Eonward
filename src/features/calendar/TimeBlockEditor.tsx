@@ -18,8 +18,9 @@ interface Props {
   saving: boolean;
   onCancel: () => void;
   onSave: (input: BlockInput) => Promise<void>;
+  onStartFocus: (block: TimeBlock) => void;
 }
-export function TimeBlockEditor({ visible, date, goals, initial, suggestedGoalId, suggestedStartHour, palette, saving, onCancel, onSave }: Props) {
+export function TimeBlockEditor({ visible, date, goals, initial, suggestedGoalId, suggestedStartHour, palette, saving, onCancel, onSave, onStartFocus }: Props) {
   const [goalId, setGoalId] = useState<string | null>(null);
   const [showGoals, setShowGoals] = useState(false);
   const [search, setSearch] = useState('');
@@ -139,6 +140,12 @@ export function TimeBlockEditor({ visible, date, goals, initial, suggestedGoalId
               {validation ? <Text style={styles.validation}>{validation}</Text> : null}
             </ScrollView>
             <SafeAreaView edges={['bottom']} style={[styles.footer, { borderTopColor: palette.border, backgroundColor: palette.background }]}>
+              {initial?.kind === 'box' && kind === 'box' ? (
+                <Pressable accessibilityRole="button" onPress={() => onStartFocus(initial)}
+                  style={[styles.focusAction, { backgroundColor: palette.surface, borderColor: palette.border }]}>
+                  <Text style={[styles.focusActionText, { color: palette.accent }]}>◷  Start saved timebox</Text>
+                </Pressable>
+              ) : null}
               <Pressable disabled={!valid} accessibilityRole="button" accessibilityState={{ disabled: !valid }}
                 onPress={() => { if (valid && goalId) void onSave({ goalId, date: dayText, start, end, kind, intention }); }}
                 style={[styles.save, { backgroundColor: palette.accent, opacity: valid ? 1 : 0.45 }]}>
@@ -179,6 +186,8 @@ const styles = StyleSheet.create({
   notes: { height: 85, paddingTop: 13, textAlignVertical: 'top' },
   validation: { fontSize: 12, color: '#B34F4F' },
   footer: { borderTopWidth: 1, paddingTop: 12, paddingHorizontal: spacing.lg, paddingBottom: 8 },
+  focusAction: { minHeight: 50, borderRadius: radius.lg, borderWidth: 1, alignItems: 'center', justifyContent: 'center', marginBottom: 9 },
+  focusActionText: { fontSize: 14, fontWeight: '700' },
   save: { minHeight: 54, borderRadius: radius.lg, justifyContent: 'center', alignItems: 'center' },
   saveText: { color: '#FFFFFF', fontSize: 15, fontWeight: '700' },
 });

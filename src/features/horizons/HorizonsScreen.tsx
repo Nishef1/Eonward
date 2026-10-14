@@ -368,18 +368,7 @@ export function HorizonsScreen() {
           <View style={[styles.brandMark, { backgroundColor: palette.accent }]} />
           <Text style={[styles.brand, { color: palette.foreground }]}>EONWARD</Text>
         </View>
-        <View style={styles.headerActions}>
-          <Pressable accessibilityRole="button" accessibilityLabel="Open Calendar"
-            style={[styles.boardsShortcut, { backgroundColor: palette.surface, borderColor: palette.border }]}
-            onPress={() => router.push('/calendar')}>
-            <Text style={[styles.boardsShortcutText, { color: palette.accent }]}>Calendar</Text>
-          </Pressable>
-          <Pressable accessibilityRole="button" accessibilityLabel="Open Boards"
-            style={[styles.boardsShortcut, { backgroundColor: palette.surface, borderColor: palette.border }]}
-            onPress={() => router.push('/boards')}>
-            <Text style={[styles.boardsShortcutText, { color: palette.accent }]}>Boards</Text>
-          </Pressable>
-        </View>
+
       </View>
       <Text style={[styles.eyebrow, { color: palette.accent }]}>YOUR TIME, IN PERSPECTIVE</Text>
       <Text style={[styles.heroTitle, { color: palette.foreground }]}>Horizons<Text style={{ color: palette.accent }}>.</Text></Text>
@@ -509,7 +498,7 @@ export function HorizonsScreen() {
   );
 
   return (
-    <SafeAreaView style={[styles.screen, { backgroundColor: palette.background }]} edges={['top', 'left', 'right', 'bottom']}>
+    <SafeAreaView style={[styles.screen, { backgroundColor: palette.background }]} edges={['top', 'left', 'right']}>
       <FlatList
         data={view === 'focus' && !loading && !failure ? goals : []}
         keyExtractor={(item) => item.id}

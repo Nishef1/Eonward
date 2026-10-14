@@ -11,6 +11,7 @@ import { getGoal, listAllGoals } from '../../storage/goals';
 import { listDayBlocks, removeBlock, saveBlock } from '../../storage/timeblocks';
 import { colors, radius, spacing } from '../../theme/tokens';
 import { DayTimeline } from './DayTimeline';
+import { useFocusSession } from '../focus/FocusProvider';
 import { TimeBlockEditor } from './TimeBlockEditor';
 
 type Palette = typeof colors.light | typeof colors.dark;
@@ -33,6 +34,7 @@ function durationLabel(minutes: number) {
 
 export function CalendarScreen() {
   const db = useSQLiteContext();
+  const focus = useFocusSession();
   const router = useRouter();
   const { goalId } = useLocalSearchParams<{ goalId?: string }>();
   const palette: Palette = useColorScheme() === 'dark' ? colors.dark : colors.light;
@@ -132,19 +134,32 @@ export function CalendarScreen() {
       { text: 'Cancel', style: 'cancel' },
       { text: 'Remove time', style: 'destructive', onPress: () => void write(async () => {
         await removeBlock(db, block.id);
+        await focus.refresh();
       }) },
     ]);
   }
+  function startFocus(block: TimeBlock) {
+    if (focus.busy) return;
+    const begin = (replace = false) => {
+      void focus.begin(block.id, replace).then(() => setEditorOpen(false))
+        .catch((error: unknown) => {
+          Alert.alert('Could not start focus', error instanceof Error ? error.message : 'Try again.');
+        });
+    };
+    if (focus.session) {
+      Alert.alert('Replace current focus?', 'Starting this Timebox will end your existing focus session. Its goal remains unchanged.', [
+        { text: 'Cancel', style: 'cancel' },
+        { text: 'Start new timebox', onPress: () => begin(true) },
+      ]);
+    } else begin();
+  }
   const foreground = palette.foreground;
   return (
-    <SafeAreaView edges={['top', 'bottom', 'left', 'right']}
+    <SafeAreaView edges={['top', 'left', 'right']}
       style={[styles.screen, { backgroundColor: palette.background }]}>
       <View style={styles.top}>
         <View style={styles.navigation}>
-          <Pressable onPress={() => router.back()} accessibilityRole="button" accessibilityLabel="Back"
-            style={[styles.back, { borderColor: palette.border, backgroundColor: palette.surface }]}>
-            <Text style={[styles.backArrow, { color: foreground }]}>‹</Text>
-          </Pressable>
+
           <View style={styles.brandGroup}>
             <Text style={[styles.brand, { color: foreground }]}>EONWARD</Text>
             <Text style={[styles.brandSub, { color: palette.muted }]}>CALENDAR</Text>
@@ -261,6 +276,12 @@ export function CalendarScreen() {
                 </Text>
               </Pressable>
               <View style={styles.listActions}>
+                {block.kind === 'box' && !block.goalCompleted ? (
+                  <Pressable accessibilityRole="button" accessibilityLabel={`Start focus timer for ${block.goalTitle}`}
+                    disabled={focus.busy} onPress={() => startFocus(block)} style={styles.startFocus}>
+                    <Text style={[styles.startFocusLabel, { color: palette.accent }]}>Start</Text>
+                  </Pressable>
+                ) : null}
                 <Pressable accessibilityRole="button" accessibilityLabel={`Open ${block.goalTitle}`}
                   onPress={() => router.push({ pathname: '/', params: { goalId: block.goalId } })} style={styles.action}>
                   <Text style={[styles.actionGlyph, { color: palette.accent }]}>↗</Text>
@@ -279,7 +300,7 @@ export function CalendarScreen() {
         suggestedStartHour={suggestedHour}
         palette={palette} saving={busy}
         onCancel={() => { if (!busy) { setEditorOpen(false); setEditingBlock(null); } }}
-        onSave={save} />
+        onSave={save} onStartFocus={startFocus} />
     </SafeAreaView>
   );
 }
@@ -337,7 +358,9 @@ const styles = StyleSheet.create({
   listTime: { fontSize: 12, fontWeight: '700', fontVariant: ['tabular-nums'] },
   listIntention: { fontSize: 12, lineHeight: 18 },
   listType: { fontSize: 9, fontWeight: '700', letterSpacing: 0.9 },
-  listActions: { gap: 2 },
+  listActions: { gap: 2, alignItems: 'center' },
+  startFocus: { minHeight: 43, minWidth: 50, justifyContent: 'center', alignItems: 'center' },
+  startFocusLabel: { fontSize: 12, fontWeight: '800' },
   action: { width: 43, minHeight: 42, alignItems: 'center', justifyContent: 'center' },
   actionGlyph: { fontSize: 21 },
 });
