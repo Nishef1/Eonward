@@ -335,3 +335,11 @@ The initial Create Goal form was appearing partially scrolled in a screenshot; i
 - [x] Add **two** focused time-boundary tests, reaching **19/20** total. No new third-party dependency or schema change.
 - [ ] Test the existing-data calendar screens on an Android device through midnight and DST changes in different configured time zones.
 - [ ] Drag/resize gestures, month navigation, recurrence and local notifications still require separate implementation and verification.
+
+## Monthly overview — source implemented (2026-10-14)
+
+- [x] Access the calendar month grid from the visible date heading without adding a fifth root navigation destination or hiding the daily timeline.
+- [x] Browse adjacent months with month-correct arrows and open any date straight into its day timeline.
+- [x] Aggregate actual overlapping month-day windows, display per-day activity bars and summarize planned hours/active days.
+- [x] Reuse the existing `time_blocks` data and v6 schema; no new package or additional automated test.
+- [ ] Verify month/year boundaries, small-screen grids and navigation return states in Android emulator.

@@ -36,3 +36,5 @@ Legend:
 - Week overview with per-day planned duration, overlap count and direct access to the corresponding daily canvas.
 - Explicit next-day end times, chronological overlap queries, day clipping for overnight timeline entries and DST ambiguity rejection.
 - Pending: monthly calendar, native reminders, recurring schedule, drag-to-move/resize and multi-day blocks beyond one midnight.
+
+- Month overview: 5–6 week grid with daily activity, previous/next month navigation and drill-down into Daily Timeline.

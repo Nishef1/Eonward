@@ -12,6 +12,7 @@ import { listDayBlocks, listRangeBlocks, removeBlock, saveBlock } from '../../st
 import { colors, radius, spacing } from '../../theme/tokens';
 import { DayTimeline } from './DayTimeline';
 import { WeekOverview } from './WeekOverview';
+import { MonthOverview } from './MonthOverview';
 import { useFocusSession } from '../focus/FocusProvider';
 import { TimeBlockEditor } from './TimeBlockEditor';
 
@@ -42,6 +43,7 @@ export function CalendarScreen() {
   const [day, setDay] = useState(() => new Date());
   const [blocks, setBlocks] = useState<TimeBlock[]>([]);
   const [weekBlocks, setWeekBlocks] = useState<TimeBlock[]>([]);
+  const [monthBlocks, setMonthBlocks] = useState<TimeBlock[]>([]);
   const [goals, setGoals] = useState<Goal[]>([]);
   const [loading, setLoading] = useState(true);
   const [failure, setFailure] = useState<string | null>(null);
@@ -51,7 +53,7 @@ export function CalendarScreen() {
   const [editingBlock, setEditingBlock] = useState<TimeBlock | null>(null);
   const [chosenGoal, setChosenGoal] = useState<string | null>(null);
   const [suggestedHour, setSuggestedHour] = useState<number | null>(null);
-  const [mode, setMode] = useState<'timeline' | 'week' | 'list'>('timeline');
+  const [mode, setMode] = useState<'timeline' | 'week' | 'month' | 'list'>('timeline');
   const usedGoalParam = useRef<string | null>(null);
   const key = localDayKey(day);
   const week = useMemo(() => weekOf(day), [key]);
@@ -64,11 +66,15 @@ export function CalendarScreen() {
     setLoading(true);
     const weekFrom = localDayBounds(week[0]).from;
     const weekTo = localDayBounds(week[6]).to;
-    void Promise.all([listDayBlocks(db, day), listRangeBlocks(db, weekFrom, weekTo), listAllGoals(db)])
-      .then(([saved, weekSaved, all]) => {
+    const monthFrom = localDayBounds(new Date(day.getFullYear(), day.getMonth(), 1, 12)).from;
+    const monthTo = localDayBounds(new Date(day.getFullYear(), day.getMonth() + 1, 1, 12)).from;
+    void Promise.all([listDayBlocks(db, day), listRangeBlocks(db, weekFrom, weekTo),
+      listRangeBlocks(db, monthFrom, monthTo), listAllGoals(db)])
+      .then(([saved, weekSaved, monthSaved, all]) => {
       if (!active) return;
       setBlocks(saved);
       setWeekBlocks(weekSaved);
+      setMonthBlocks(monthSaved);
       setGoals(all);
       setFailure(null);
     }).catch((error: unknown) => {
@@ -101,6 +107,11 @@ export function CalendarScreen() {
   const totalMinutes = blocks.reduce((sum, block) =>
     sum + Math.max(0, Math.min(Date.parse(block.endAt), Date.parse(dayBounds.to)) -
       Math.max(Date.parse(block.startAt), Date.parse(dayBounds.from))) / 60000, 0);
+  const monthFromMs = new Date(day.getFullYear(), day.getMonth(), 1).getTime();
+  const monthToMs = new Date(day.getFullYear(), day.getMonth() + 1, 1).getTime();
+  const monthTotalMinutes = monthBlocks.reduce((sum, block) => sum + Math.max(0,
+    Math.min(Date.parse(block.endAt), monthToMs) - Math.max(Date.parse(block.startAt), monthFromMs),
+  ) / 60000, 0);
   const completed = blocks.filter((block) => block.goalCompleted).length;
   async function write(action: () => Promise<void>) {
     if (busy) return;
@@ -182,22 +193,33 @@ export function CalendarScreen() {
           </Pressable>
         </View>
         <View style={styles.dateTitleRow}>
-          <View style={styles.dateTitleGroup}>
-            <Text style={[styles.dateEyebrow, { color: palette.accent }]}>MAKE EVERY HOUR COUNT</Text>
-            <Text numberOfLines={1} style={[styles.dateTitle, { color: foreground }]}>{dateHeading(day)}</Text>
-          </View>
+          <Pressable accessibilityRole="button" accessibilityLabel="Show monthly calendar"
+            onPress={() => setMode('month')} style={styles.dateTitleGroup}>
+            <Text style={[styles.dateEyebrow, { color: palette.accent }]}>
+              {mode === 'month' ? 'MONTH OVERVIEW' : 'MAKE EVERY HOUR COUNT · MONTH ↗'}
+            </Text>
+            <Text numberOfLines={1} style={[styles.dateTitle, { color: foreground }]}>
+              {mode === 'month'
+                ? new Intl.DateTimeFormat('en-US', { month: 'long', year: 'numeric' }).format(day)
+                : dateHeading(day)}
+            </Text>
+          </Pressable>
           <View style={styles.weekArrows}>
-            <Pressable style={styles.weekArrow} accessibilityRole="button" accessibilityLabel="Previous week"
-              onPress={() => setDay((current) => shiftLocalDay(current, -7))}>
+            <Pressable style={styles.weekArrow} accessibilityRole="button" accessibilityLabel={mode === "month" ? "Previous month" : "Previous week"}
+              onPress={() => setDay((current) => mode === 'month'
+                ? new Date(current.getFullYear(), current.getMonth() - 1, 1, 12)
+                : shiftLocalDay(current, -7))}>
               <Text style={[styles.weekArrowGlyph, { color: foreground }]}>‹</Text>
             </Pressable>
-            <Pressable style={styles.weekArrow} accessibilityRole="button" accessibilityLabel="Next week"
-              onPress={() => setDay((current) => shiftLocalDay(current, 7))}>
+            <Pressable style={styles.weekArrow} accessibilityRole="button" accessibilityLabel={mode === "month" ? "Next month" : "Next week"}
+              onPress={() => setDay((current) => mode === 'month'
+                ? new Date(current.getFullYear(), current.getMonth() + 1, 1, 12)
+                : shiftLocalDay(current, 7))}>
               <Text style={[styles.weekArrowGlyph, { color: foreground }]}>›</Text>
             </Pressable>
           </View>
         </View>
-        <View style={styles.weekStrip}>
+        {mode !== 'month' ? <View style={styles.weekStrip}>
           {week.map((date, index) => {
             const selected = localDayKey(date) === key;
             const today = localDayKey(date) === todayKey;
@@ -216,14 +238,16 @@ export function CalendarScreen() {
               </Pressable>
             );
           })}
-        </View>
+        </View> : null}
         <View style={[styles.summaryRow, { borderColor: palette.border }]}>
           <View style={styles.summaryStats}>
-            <Text style={[styles.summaryValue, { color: foreground }]}>{durationLabel(totalMinutes)}
+            <Text style={[styles.summaryValue, { color: foreground }]}>{durationLabel(mode === 'month' ? monthTotalMinutes : totalMinutes)}
               <Text style={[styles.summaryLabel, { color: palette.muted }]}> planned</Text>
             </Text>
             <Text style={[styles.summarySecond, { color: palette.muted }]}>
-              {blocks.length} {blocks.length === 1 ? 'block' : 'blocks'} · {completed} done
+              {mode === 'month' ? monthBlocks.length : blocks.length} {
+                (mode === 'month' ? monthBlocks.length : blocks.length) === 1 ? 'block' : 'blocks'
+              } · {mode === 'month' ? 'this month' : completed + ' done'}
             </Text>
           </View>
           <View style={[styles.viewToggle, { backgroundColor: palette.surface, borderColor: palette.border }]}>
@@ -258,6 +282,9 @@ export function CalendarScreen() {
       ) : mode === 'week' ? (
         <WeekOverview days={week} blocks={weekBlocks} selectedDay={key} palette={palette}
           onSelectDay={(selected) => { setDay(selected); setMode('timeline'); }} />
+      ) : mode === 'month' ? (
+        <MonthOverview month={day} blocks={monthBlocks} todayKey={todayKey} selectedKey={key}
+          palette={palette} onSelectDay={(selected) => { setDay(selected); setMode('timeline'); }} />
       ) : (
         <ScrollView style={styles.listScroll} contentContainerStyle={styles.listContent}>
           <Text style={[styles.listHeading, { color: foreground }]}>Your time, at a glance</Text>
