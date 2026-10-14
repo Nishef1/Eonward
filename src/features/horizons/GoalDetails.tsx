@@ -1,4 +1,5 @@
 import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import { HORIZON_TITLES } from '../../domain/horizons';
 import type { Goal } from '../../domain/goals';
 import { colors, radius, spacing } from '../../theme/tokens';
@@ -25,10 +26,11 @@ export function GoalDetails({
   goal, children, ancestors, canGoBack, palette, onClose, onBack, onEdit, onAddStep, onOpenChild, onOpenAncestor, onToggle, onArchive,
 }: GoalDetailsProps) {
   return (
-    <Modal visible={goal !== null} animationType="slide" transparent onRequestClose={canGoBack ? onBack : onClose}>
+    <Modal visible={goal !== null} animationType="slide" transparent statusBarTranslucent navigationBarTranslucent onRequestClose={canGoBack ? onBack : onClose}>
+      <SafeAreaProvider>
       <View style={styles.overlay}>
         <Pressable style={StyleSheet.absoluteFill} onPress={onClose} accessibilityLabel="Close details" />
-        <View style={[styles.sheet, { backgroundColor: palette.background }]}>
+        <SafeAreaView edges={['bottom']} style={[styles.sheet, { backgroundColor: palette.background }]}>
           <View style={[styles.grabber, { backgroundColor: palette.border }]} />
           <View style={styles.header}>
             {canGoBack ? (
@@ -122,8 +124,9 @@ export function GoalDetails({
               </View>
             </ScrollView>
           ) : null}
-        </View>
+        </SafeAreaView>
       </View>
+      </SafeAreaProvider>
     </Modal>
   );
 }

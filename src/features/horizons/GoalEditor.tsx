@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import { dateFromPeriodKey, HORIZONS, HORIZON_TITLES, parseDateInput, periodKey, periodLabel, shiftPeriod, type Horizon } from '../../domain/horizons';
 import type { Goal, GoalInput } from '../../domain/goals';
 import { colors, radius, spacing } from '../../theme/tokens';
@@ -78,7 +79,8 @@ export function GoalEditor({
   }
 
   return (
-    <Modal visible={visible} animationType="slide" transparent onRequestClose={onDismiss}>
+    <Modal visible={visible} animationType="slide" transparent statusBarTranslucent navigationBarTranslucent onRequestClose={onDismiss}>
+      <SafeAreaProvider>
       <KeyboardAvoidingView style={styles.overlay} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         <Pressable style={StyleSheet.absoluteFill} onPress={onDismiss} accessibilityLabel="Dismiss editor" />
         <View style={[styles.sheet, { backgroundColor: palette.background }]}>
@@ -94,7 +96,7 @@ export function GoalEditor({
               <Text style={[styles.close, { color: palette.muted }]}>×</Text>
             </Pressable>
           </View>
-          <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={styles.form} showsVerticalScrollIndicator={false}>
+          <ScrollView style={styles.formScroll} keyboardShouldPersistTaps="handled" contentContainerStyle={styles.form} showsVerticalScrollIndicator={false}>
             <Text style={[styles.label, { color: palette.muted }]}>GOAL</Text>
             <TextInput
               autoFocus={!initial}
@@ -204,21 +206,24 @@ export function GoalEditor({
               style={[styles.notesInput, { backgroundColor: palette.surface, borderColor: palette.border, color: palette.foreground }]}
               accessibilityLabel="Goal notes"
             />
+          </ScrollView>
+          <SafeAreaView edges={['bottom']} style={[styles.saveFooter, { backgroundColor: palette.background, borderTopColor: palette.border }]}>
             <Pressable accessibilityRole="button" accessibilityState={{ disabled: !isValid || saving }}
               disabled={!isValid || saving} onPress={submit}
               style={[styles.save, { backgroundColor: palette.accent, opacity: isValid && !saving ? 1 : 0.45 }]}>
               <Text style={styles.saveText}>{saving ? 'Saving…' : initial ? 'Save changes' : 'Create goal'}</Text>
             </Pressable>
-          </ScrollView>
+          </SafeAreaView>
         </View>
       </KeyboardAvoidingView>
+      </SafeAreaProvider>
     </Modal>
   );
 }
 
 const styles = StyleSheet.create({
   overlay: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(9, 22, 18, 0.42)' },
-  sheet: { maxHeight: '94%', borderTopLeftRadius: 28, borderTopRightRadius: 28, paddingTop: 10 },
+  sheet: { maxHeight: '92%', borderTopLeftRadius: 28, borderTopRightRadius: 28, paddingTop: 10, overflow: 'hidden' },
   grabber: { height: 4, width: 36, alignSelf: 'center', borderRadius: 10, marginBottom: 18 },
   header: { paddingHorizontal: spacing.lg, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   headerCopy: { flex: 1, gap: 5 },
@@ -226,7 +231,8 @@ const styles = StyleSheet.create({
   heading: { fontSize: 24, fontWeight: '700', letterSpacing: -0.7 },
   closeButton: { minHeight: 48, minWidth: 48, justifyContent: 'center', alignItems: 'center' },
   close: { fontSize: 28 },
-  form: { paddingHorizontal: spacing.lg, paddingBottom: 42, paddingTop: spacing.lg, gap: spacing.md },
+  formScroll: { flexShrink: 1 },
+  form: { paddingHorizontal: spacing.lg, paddingBottom: 22, paddingTop: spacing.lg, gap: spacing.md },
   label: { fontSize: 11, letterSpacing: 1.15, fontWeight: '700', marginTop: spacing.sm },
   titleInput: { borderWidth: 1, borderRadius: radius.lg, fontSize: 16, padding: spacing.md, minHeight: 56 },
   notesInput: { borderWidth: 1, borderRadius: radius.lg, fontSize: 15, padding: spacing.md, minHeight: 110 },
@@ -251,6 +257,7 @@ const styles = StyleSheet.create({
   search: { borderBottomWidth: 1, minHeight: 44, paddingHorizontal: 8 },
   parentChoice: { minHeight: 48, justifyContent: 'center', paddingHorizontal: 10 },
   parentOptionText: { fontSize: 14 },
-  save: { minHeight: 56, borderRadius: radius.lg, alignItems: 'center', justifyContent: 'center', marginTop: spacing.md },
+  saveFooter: { borderTopWidth: 1, paddingHorizontal: spacing.lg, paddingTop: 12, paddingBottom: 10 },
+  save: { minHeight: 54, borderRadius: radius.lg, alignItems: 'center', justifyContent: 'center' },
   saveText: { color: '#FFFFFF', fontSize: 16, fontWeight: '700' },
 });

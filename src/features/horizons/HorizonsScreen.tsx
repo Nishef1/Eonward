@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, Alert, FlatList, Modal, Pressable, StyleSheet, Text, useColorScheme, View } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import { useSQLiteContext } from 'expo-sqlite';
 import { dateFromPeriodKey, HORIZONS, HORIZON_TITLES, periodKey, periodLabel, shiftPeriod, type Horizon } from '../../domain/horizons';
 import { availableGoalParents, type Goal, type GoalInput } from '../../domain/goals';
@@ -346,20 +346,30 @@ export function HorizonsScreen() {
         Make room for what matters, today and beyond.
       </Text>
 
-      <View style={[styles.modeSwitch, { backgroundColor: palette.surface, borderColor: palette.border }]}>
-        {(['focus', 'perspective', 'archive'] as const).map((item) => {
-          const selected = view === item;
-          return (
-            <Pressable key={item} accessibilityRole="button" accessibilityState={{ selected }}
-              accessibilityLabel={item === 'focus' ? 'Focus view' : item === 'perspective' ? 'Perspective view' : 'Archive view'}
-              onPress={() => setView(item)}
-              style={[styles.modeButton, selected && { backgroundColor: palette.foreground }]}>
-              <Text style={[styles.modeText, { color: selected ? palette.background : palette.muted }]}>
-                {item === 'focus' ? 'Focus' : item === 'perspective' ? 'Perspective' : 'Archive'}
-              </Text>
-            </Pressable>
-          );
-        })}
+      <View style={styles.modeRow}>
+        <View style={[styles.modeSwitch, { backgroundColor: palette.surface, borderColor: palette.border }]}>
+          {(['focus', 'perspective'] as const).map((item) => {
+            const selected = view === item;
+            return (
+              <Pressable key={item} accessibilityRole="button" accessibilityState={{ selected }}
+                accessibilityLabel={item === 'focus' ? 'Focus view' : 'Perspective view'}
+                onPress={() => setView(item)}
+                style={[styles.modeButton, selected && { backgroundColor: palette.foreground }]}>
+                <Text style={[styles.modeText, { color: selected ? palette.background : palette.muted }]}>
+                  {item === 'focus' ? 'Focus' : 'Perspective'}
+                </Text>
+              </Pressable>
+            );
+          })}
+        </View>
+        <Pressable accessibilityRole="button" accessibilityState={{ selected: view === 'archive' }}
+          accessibilityLabel="Archived goals"
+          onPress={() => setView(view === 'archive' ? 'focus' : 'archive')}
+          style={[styles.archiveShortcut, { backgroundColor: view === 'archive' ? palette.foreground : palette.surface, borderColor: palette.border }]}>
+          <Text style={[styles.archiveShortcutText, { color: view === 'archive' ? palette.background : palette.muted }]}>
+            Archive
+          </Text>
+        </Pressable>
       </View>
 
       {view === 'focus' ? (
@@ -496,15 +506,14 @@ export function HorizonsScreen() {
               <Text style={[styles.emptyBody, { color: palette.muted }]}>
                 A small intention today can change the bigger picture.
               </Text>
-              <Pressable onPress={openCreate} accessibilityRole="button"
-                style={[styles.emptyCta, { backgroundColor: palette.surface, borderColor: palette.border }]}>
-                <Text style={[styles.emptyCtaText, { color: palette.accent }]}>Create your first goal  ↗</Text>
-              </Pressable>
+              <Text style={[styles.emptyHint, { color: palette.accent }]}>
+                Use New goal below to begin.
+              </Text>
             </View>
           )
         )}
       />
-      {view !== 'archive' ? (
+      {view === 'focus' ? (
       <View style={[styles.footer, { borderColor: palette.border, backgroundColor: palette.background }]}>
         <View style={styles.footerCopy}>
           <Text style={[styles.footerStrong, { color: palette.foreground }]}>One step at a time</Text>
@@ -520,12 +529,13 @@ export function HorizonsScreen() {
         </Pressable>
       </View>
       ) : null}
-      <Modal visible={organizing !== null} transparent animationType="fade"
+      <Modal visible={organizing !== null} transparent statusBarTranslucent navigationBarTranslucent animationType="fade"
         onRequestClose={() => setOrganizing(null)}>
+        <SafeAreaProvider>
         <View style={styles.organizeOverlay}>
           <Pressable style={StyleSheet.absoluteFill} onPress={() => setOrganizing(null)}
             accessibilityLabel="Close organization menu" />
-          <View style={[styles.organizePanel, { backgroundColor: palette.background }]}>
+          <SafeAreaView edges={['bottom']} style={[styles.organizePanel, { backgroundColor: palette.background }]}>
             <Text style={[styles.organizeTitle, { color: palette.foreground }]}>Organize goal</Text>
             <Text numberOfLines={2} style={[styles.organizeSubtitle, { color: palette.muted }]}>
               {organizing?.title}
@@ -550,8 +560,9 @@ export function HorizonsScreen() {
               style={styles.organizeCancel}>
               <Text style={[styles.organizeCancelText, { color: palette.muted }]}>Cancel</Text>
             </Pressable>
-          </View>
+          </SafeAreaView>
         </View>
+        </SafeAreaProvider>
       </Modal>
       <GoalDetails
         goal={details}
@@ -594,8 +605,8 @@ const styles = StyleSheet.create({
   organizeCancel: { minHeight: 48, alignItems: 'center', justifyContent: 'center', marginTop: 5 },
   organizeCancelText: { fontSize: 14, fontWeight: '600' },
   screen: { flex: 1 },
-  listContent: { paddingHorizontal: spacing.lg, paddingBottom: 32 },
-  brandRow: { flexDirection: 'row', justifyContent: 'flex-start', alignItems: 'center', marginTop: 2, marginBottom: 27 },
+  listContent: { paddingHorizontal: spacing.lg, paddingBottom: 28, flexGrow: 1 },
+  brandRow: { flexDirection: 'row', justifyContent: 'flex-start', alignItems: 'center', marginTop: 2, marginBottom: 24 },
   brandBlock: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   brandMark: { height: 15, width: 15, borderTopLeftRadius: 8, borderBottomRightRadius: 8, transform: [{ rotate: '45deg' }] },
   brand: { fontSize: 13, fontWeight: '800', letterSpacing: 3 },
@@ -603,8 +614,11 @@ const styles = StyleSheet.create({
   eyebrow: { fontSize: 11, fontWeight: '700', letterSpacing: 1.8, marginBottom: 6 },
   heroTitle: { fontSize: 38, fontWeight: '700', letterSpacing: -1.5, lineHeight: 46 },
   heroSubtitle: { fontSize: 14, lineHeight: 22, marginTop: 2 },
-  modeSwitch: { flexDirection: 'row', gap: 5, padding: 5, borderWidth: 1, borderRadius: radius.full, marginTop: 22 },
-  modeButton: { flex: 1, minHeight: 43, borderRadius: radius.full, alignItems: 'center', justifyContent: 'center' },
+  modeRow: { flexDirection: 'row', alignItems: 'center', gap: 9, marginTop: 20 },
+  modeSwitch: { flex: 1, flexDirection: 'row', gap: 5, padding: 5, borderWidth: 1, borderRadius: radius.full },
+  archiveShortcut: { minHeight: 54, paddingHorizontal: 16, borderWidth: 1, borderRadius: radius.full, alignItems: 'center', justifyContent: 'center' },
+  archiveShortcutText: { fontSize: 12, fontWeight: '700' },
+  modeButton: { flex: 1, minHeight: 46, borderRadius: radius.full, alignItems: 'center', justifyContent: 'center' },
   modeText: { fontSize: 12, fontWeight: '700' },
   horizonList: { marginTop: 20, marginHorizontal: -spacing.lg, marginBottom: spacing.lg },
   horizonItems: { paddingHorizontal: spacing.lg, gap: 8 },
@@ -623,7 +637,7 @@ const styles = StyleSheet.create({
   progressRow: { flexDirection: 'row', justifyContent: 'space-between', gap: 6, marginTop: 12 },
   progressLabel: { fontSize: 11 },
   jumpToday: { fontSize: 12, fontWeight: '800', letterSpacing: 0.7, paddingVertical: 8, paddingLeft: 12 },
-  sectionHeader: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 29, marginBottom: 13 },
+  sectionHeader: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 24, marginBottom: 12 },
   sectionTitle: { fontSize: 19, fontWeight: '700', letterSpacing: -0.5 },
   sectionCount: { fontSize: 12 },
   goalCard: { borderWidth: 1, borderRadius: radius.lg, marginBottom: 10, flexDirection: 'row', alignItems: 'center', minHeight: 76, padding: 11 },
@@ -635,16 +649,15 @@ const styles = StyleSheet.create({
   goalSubtitle: { fontSize: 12 },
   chevronTouch: { width: 44, height: 48, alignItems: 'center', justifyContent: 'center' },
   chevron: { fontSize: 29 },
-  empty: { paddingTop: 38, alignItems: 'center', gap: 13, paddingHorizontal: spacing.md },
+  empty: { paddingTop: 29, paddingBottom: 25, alignItems: 'center', gap: 13, paddingHorizontal: spacing.md },
   emptySymbol: { height: 68, width: 68, borderRadius: 34, alignItems: 'center', justifyContent: 'center', borderWidth: 1 },
   emptySpark: { fontSize: 28 },
   emptyTitle: { fontSize: 17, fontWeight: '700', textAlign: 'center', letterSpacing: -0.4 },
   emptyBody: { fontSize: 13, lineHeight: 22, textAlign: 'center', maxWidth: 240 },
-  emptyCta: { marginTop: 9, borderWidth: 1, borderRadius: radius.full, minHeight: 48, paddingHorizontal: 21, alignItems: 'center', justifyContent: 'center' },
-  emptyCtaText: { fontSize: 13, fontWeight: '700' },
+  emptyHint: { fontSize: 12, lineHeight: 20, fontWeight: '600', textAlign: 'center', marginTop: 3 },
   wait: { marginTop: 60 },
   retry: { padding: 10, fontWeight: '700', fontSize: 14 },
-  footer: { borderTopWidth: 1, paddingHorizontal: spacing.lg, paddingVertical: 15, flexDirection: 'row', alignItems: 'center', gap: 12 },
+  footer: { borderTopWidth: 1, paddingHorizontal: spacing.lg, paddingVertical: 11, flexDirection: 'row', alignItems: 'center', gap: 12 },
   footerCopy: { flex: 1, gap: 4 },
   footerStrong: { fontSize: 12, fontWeight: '700' },
   footerHint: { fontSize: 11 },

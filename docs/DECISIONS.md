@@ -32,6 +32,10 @@ Record significant decisions and reversals here. A future change should cite its
 | 2026-10-14 | Archive active subtrees and restore only the same archive group | Preserve hierarchical context without resurrecting previously archived items | Implemented in source, SQL sanity checked |
 | 2026-10-14 | Reorder with Move Up/Down before drag gestures | Accessible, deterministic and no new dependency | Implemented in source, Android UX QA pending |
 
+| 2026-10-14 | Use a sticky Save footer and safe-area-aware modals | Existing form action clipped against Android system navigation area | Implemented in source, emulator verification pending |
+| 2026-10-14 | Reduce empty-state and multi-horizon duplicate CTAs | Improve action clarity and preserve vertical screen space | Implemented in source |
+| 2026-10-14 | Separate Archive from primary Focus/Perspective modes | Archive is a utility destination, not a planning mode | Implemented in source; user experience review pending |
+
 ## Open decisions
 
 - Calendar rendering package vs dedicated implementation: verify on device.

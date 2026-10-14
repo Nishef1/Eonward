@@ -58,7 +58,7 @@ Each feature design must specify: loading/initializing, empty, ready, editing, s
 - Removed redundant top-right date chip, avoiding collision with developer/emulator overlays and keeping the status area calm.
 - Primary horizon chips and period navigation controls use at least 48dp hit areas.
 - Progress track hides when a horizon has no goals, to avoid showing a misleading empty progress bar.
-- A first-use action is shown next to an explanatory empty-state message.
+- A single visible New goal action is retained in Focus; the duplicate first-use button was removed after the screenshot exposed clipping.
 - Goal editing has a structured hierarchy: title, horizon, period, parent, notes and primary save action.
 - Child goals are navigable instead of only being completion toggles; completion has its own touch target.
 - These changes are source-level work until re-captured and checked on the Android emulator.
@@ -72,4 +72,13 @@ Each feature design must specify: loading/initializing, empty, ready, editing, s
 
 ## Archive and ordering UI — v2
 
-The Focus goal card has an Android-safe organization action sheet (Move Up, Move Down, Archive, Cancel) rather than permanent buttons crowding a narrow screen. Goal Details uses Archive instead of destructive Delete. Archive is a third lightweight mode next to Focus and Perspective with contextual Restore actions. Android emulator QA still required before calling spacing, labels and modal behavior polished.
+The Focus goal card has an Android-safe organization action sheet (Move Up, Move Down, Archive, Cancel) rather than permanent buttons crowding a narrow screen. Goal Details uses Archive instead of destructive Delete. Archive now has a distinct utility shortcut next to the two primary Focus/Perspective modes, with contextual Restore actions. Android emulator QA still required before calling spacing, labels and modal behavior polished.
+
+## Screenshot review — safe areas and action hierarchy
+
+- The existing empty-state CTA fell behind the fixed bottom bar on a Pixel-like emulator. Keep only the persistent New goal button in Focus, with brief instructional copy in the empty state.
+- Move Create/Edit Goal's Save control out of the scrolling form and into a bottom SafeAreaView footer. The form remains scrollable above the action when the keyboard appears.
+- React Native modals require separate system-bar attention; use translucency flags and modal-local SafeAreaProvider/SafeAreaView. Do not claim keyboard success until checked on a device.
+- Perspective has per-horizon Add goal actions; a global sticky New goal bar there is redundant and costs vertical screen space.
+- Archive is secondary to Focus/Perspective; style its shortcut accordingly rather than treating three destinations as equal primary navigation.
+- No UI dependency added. Screenshots of empty states cannot verify persistence, submit actions or migration.

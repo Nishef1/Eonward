@@ -196,11 +196,26 @@ React Native Android Alert supports at most three actions. The first proposed fo
 - [ ] Verify these workflows and migrations on Android with an actual v1 populated database (SQL sanity verification completed separately; emulator QA outstanding).
 - [ ] Review performance/visual clarity with a large goal list, then assess whether drag-to-reorder is worth adding.
 
+## Screenshot-based mobile UX cleanup — October 14
+
+**Evidence received:** Android emulator screenshots show all three empty states and the Create Goal sheet; they do not establish that goal persistence, migration or archive/restore interactions succeed.
+
+- [x] Move Create/Edit Goal's primary Save action outside the scrolling form into a persistent bottom safe-area footer; leave inputs scrollable.
+- [x] Add safe-area-aware modal layouts for Editor, Details and Organize actions without adding dependencies.
+- [x] Remove the repeated empty-state CTA that was partially hidden under the Focus bottom action bar; keep one consistent New goal action.
+- [x] Hide the redundant bottom New goal bar in Perspective (each horizon already offers Add goal).
+- [x] Keep Focus/Perspective as primary modes; demote Archive into a separately styled utility shortcut.
+- [x] Condense Android manual QA to ten meaningful scenarios instead of continuing a sprawling repetitive checklist.
+- [ ] **Verify these layout changes with fresh screenshots on the Android emulator**, both with and without the keyboard.
+- [ ] Test real goal CRUD, archive/restore, ordering and data persistence; screenshots of an empty state do not prove these.
+
+**Self-critique:** Our earlier modal design relied on a long scroll to reach Save, and even duplicated a first-goal call-to-action below a fixed footer. Both are avoidable design errors; fixing layout and action hierarchy is more valuable than another feature screen. The grey/blue floating Tools gear in the screenshot is not rendered anywhere by Eonward's source; investigate the emulator/development overlay separately if it interferes with testing.
+
 ## Next three actions
 
-1. On the existing Android emulator, verify upgrading an existing v1 database and preserving its goals.
-2. Test Archive/Restore including an already archived descendant; test Move Up/Down after force-close and re-open.
-3. Confirm Focus/Perspective/Goal Path and editor UX on Android, fix findings, then decide whether drag gestures are justified.
+1. On the emulator, enter a goal with the keyboard open, scroll its form, and ensure the persistent Save button stays above the system navigation bar.
+2. Create a parent and child, verify Focus/Perspective/Archive and stored changes after force-close; verify existing v1 data upgrades to schema v2 without reset.
+3. Report actual Android interaction findings, fix them, then implement independent due dates/time blocks before expanding to Calendar.
 
 ## Progress log
 
@@ -215,3 +230,4 @@ React Native Android Alert supports at most three actions. The first proposed fo
 | 2026-10-14 | Built Focus/Perspective mode with local seven-period overview and test-budget enforcement. | CI passed on `2c1f8e8`: 12/20 tests passed, zero failures; npm ci, Expo alignment, TypeScript and Android Metro export passed. Emulator UX pending. |
 | 2026-10-14 | Added a goal ancestor trail, immediate-parent hints and destination-following edits; reviewed sequencing and gaps. | Code committed pending CI; Android UX pending; still 12 core tests. |
 | 2026-10-14 | Added schema v2, archive/restore UI and stored ordering; updated existing migration tests. | GitHub Actions domain and app checks passed on `8b5e606`; Android migration/interaction QA pending; 12/20 tests. |
+| 2026-10-14 | Refined Focus/Perspective/Archive hierarchy and modal safe-area/footer behavior based on four emulator screenshots. | Source changes, CI and fresh Android screenshots pending; 12/20 automated tests unchanged. |
