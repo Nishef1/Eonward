@@ -40,6 +40,11 @@ Record significant decisions and reversals here. A future change should cite its
 | 2026-10-14 | Additive SQLite schema v3 | Board deletion should never destroy underlying goal records or require new backend services | Committed; upgrade verification pending |
 | 2026-10-14 | Remove automatic goal-title keyboard focus | Form appeared partially scrolled in emulator screenshot; preserve top-of-form context first | Committed; screenshot recheck pending |
 
+| 2026-10-14 | Separate scheduled time blocks from Horizon placement in SQLite v4 | A life/year goal can reserve hours today without moving or duplicating its goal | Implemented in source, Android QA pending |
+| 2026-10-14 | Support flexible blocks and fixed-limit timeboxes with a shared goal ID | Distinct user workflows; calendar scheduling must work across Horizons and Boards | Implemented in source, not an enforced timer |
+| 2026-10-14 | Store scheduled instants in UTC; render local time and reject spring-forward gaps | Avoid ambiguous naive stored clock text and preserve events across device timezone changes | Initial support; fall-back disambiguation future work |
+| 2026-10-14 | Allow overlapping planned blocks with split lanes, no heavyweight calendar library | Keep visual behavior correct for simple conflicts without overengineering | Initial timeline implemented |
+
 ## Open decisions
 
 - Calendar rendering package vs dedicated implementation: verify on device.

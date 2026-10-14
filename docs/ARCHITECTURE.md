@@ -98,3 +98,15 @@ Archiving an active parent also archives its currently active descendants as one
 - SQLite migration v3 preserves the existing v2 schema and is executed in the current exclusive transaction. Android upgrade verification remains mandatory.
 
 Creating a new goal inside a board uses the existing goal-creation transaction with an optional board ID; the goal insertion and membership insertion succeed or roll back together. This prevents an unlinked orphan goal if adding board membership fails.
+
+## Time scheduling v4
+
+- Goals remain single canonical entities with stable UUIDs, no copies per page. `time_blocks` has `id`, `goal_id`, ISO UTC `start_at`/`end_at`, `kind` (block or box), optional `intention` and timestamps.
+- Migration is additive v3→v4 in the existing exclusive transaction. Goal FK uses `ON DELETE CASCADE`; archived goals' blocks are hidden until restored, preserving planned times.
+- Multiple blocks can reference one goal and one goal can appear in several boards. Completing a goal from any view updates the same database record.
+- SQLite stores absolute instants, while daily navigation, captions and input show device-local times. Day bounds are computed from adjacent local midnights rather than adding 24 hours, so 23/25-hour DST days can be queried.
+- Local calendar input rejects impossible civil dates and non-existent spring-forward clock times. Fall-back repeated clocks are currently resolved by the platform's default; explicit timezone/offset selection remains future work.
+- Initial Time Blocks and Timeboxes must fit within one local calendar date. Overlap is permitted and laid out in horizontal lanes, with no silent overwrite.
+- Calendar UI uses existing React Native components; no calendar/drag package, sync layer or server introduced.
+
+**Remaining data modeling work:** due dates are **not** schedule start times; recurring occurrences, travel/timezone UX, availability/conflicts and an active Timebox countdown need separately defined contracts.

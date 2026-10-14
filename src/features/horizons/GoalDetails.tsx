@@ -20,10 +20,11 @@ interface GoalDetailsProps {
   onOpenAncestor: (ancestor: Goal) => void;
   onToggle: (goal: Goal) => void;
   onArchive: () => void;
+  onSchedule: () => void;
 }
 
 export function GoalDetails({
-  goal, children, ancestors, canGoBack, palette, onClose, onBack, onEdit, onAddStep, onOpenChild, onOpenAncestor, onToggle, onArchive,
+  goal, children, ancestors, canGoBack, palette, onClose, onBack, onEdit, onAddStep, onOpenChild, onOpenAncestor, onToggle, onArchive, onSchedule,
 }: GoalDetailsProps) {
   return (
     <Modal visible={goal !== null} animationType="slide" transparent statusBarTranslucent navigationBarTranslucent onRequestClose={canGoBack ? onBack : onClose}>
@@ -114,6 +115,10 @@ export function GoalDetails({
               <Pressable accessibilityRole="button" onPress={onAddStep} style={[styles.addStep, { borderColor: palette.border }]}>
                 <Text style={[styles.addStepText, { color: palette.accent }]}>＋  Add next step</Text>
               </Pressable>
+              <Pressable accessibilityRole="button" onPress={onSchedule}
+                style={[styles.planTime, { backgroundColor: palette.surface, borderColor: palette.border }]}>
+                <Text style={[styles.planTimeText, { color: palette.accent }]}>◷  Plan time in Calendar →</Text>
+              </Pressable>
               <View style={styles.actions}>
                 <Pressable accessibilityRole="button" onPress={onEdit} style={[styles.actionButton, { backgroundColor: palette.accent }]}>
                   <Text style={styles.primaryAction}>Edit goal</Text>
@@ -170,6 +175,8 @@ const styles = StyleSheet.create({
   navigateIcon: { fontSize: 27 },
   addStep: { minHeight: 50, borderRadius: radius.lg, borderWidth: 1, alignItems: 'center', justifyContent: 'center', borderStyle: 'dashed' },
   addStepText: { fontSize: 14, fontWeight: '700' },
+  planTime: { minHeight: 52, borderRadius: radius.lg, borderWidth: 1, alignItems: 'center', justifyContent: 'center', marginTop: 12 },
+  planTimeText: { fontWeight: '700', fontSize: 14 },
   actions: { flexDirection: 'row', gap: spacing.sm, marginTop: spacing.lg },
   actionButton: { flex: 1, minHeight: 52, borderRadius: radius.lg, alignItems: 'center', justifyContent: 'center' },
   primaryAction: { color: '#FFFFFF', fontSize: 15, fontWeight: '700' },

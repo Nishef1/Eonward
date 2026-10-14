@@ -1,0 +1,181 @@
+import { useEffect, useMemo, useState } from 'react';
+import { KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
+import type { Goal } from '../../domain/goals';
+import { localClock, localDayKey, timeRangeFromInput, type BlockInput, type BlockKind, type TimeBlock } from '../../domain/timeblocks';
+import { colors, radius, spacing } from '../../theme/tokens';
+
+type Palette = typeof colors.light | typeof colors.dark;
+
+interface Props {
+  visible: boolean;
+  date: Date;
+  goals: Goal[];
+  initial: TimeBlock | null;
+  suggestedGoalId: string | null;
+  palette: Palette;
+  saving: boolean;
+  onCancel: () => void;
+  onSave: (input: BlockInput) => Promise<void>;
+}
+export function TimeBlockEditor({ visible, date, goals, initial, suggestedGoalId, palette, saving, onCancel, onSave }: Props) {
+  const [goalId, setGoalId] = useState<string | null>(null);
+  const [showGoals, setShowGoals] = useState(false);
+  const [search, setSearch] = useState('');
+  const [dayText, setDayText] = useState('');
+  const [start, setStart] = useState('09:00');
+  const [end, setEnd] = useState('10:00');
+  const [kind, setKind] = useState<BlockKind>('block');
+  const [intention, setIntention] = useState('');
+  useEffect(() => {
+    if (!visible) return;
+    const begin = initial ? new Date(initial.startAt) : date;
+    setGoalId(initial?.goalId ?? suggestedGoalId ?? null);
+    setDayText(localDayKey(begin));
+    setStart(initial ? localClock(new Date(initial.startAt)) : '09:00');
+    setEnd(initial ? localClock(new Date(initial.endAt)) : '10:00');
+    setKind(initial?.kind ?? 'block');
+    setIntention(initial?.intention ?? '');
+    setShowGoals(false);
+    setSearch('');
+  }, [visible, initial?.id, suggestedGoalId, date.getTime()]);
+  const filtered = useMemo(() => goals.filter((goal) =>
+    goal.title.toLowerCase().includes(search.toLowerCase().trim())).slice(0, 25), [goals, search]);
+  const goal = goals.find((g) => g.id === goalId);
+  let validation: string | null = null;
+  try { timeRangeFromInput({ date: dayText, start, end }); }
+  catch (error) { validation = error instanceof Error ? error.message : 'Invalid time.'; }
+  const valid = !!goalId && !validation && !saving;
+
+  return (
+    <Modal visible={visible} animationType="slide" transparent statusBarTranslucent navigationBarTranslucent onRequestClose={onCancel}>
+      <SafeAreaProvider>
+        <KeyboardAvoidingView style={styles.overlay} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+          <Pressable style={StyleSheet.absoluteFill} onPress={onCancel} accessibilityLabel="Close time editor" />
+          <View style={[styles.sheet, { backgroundColor: palette.background }]}>
+            <View style={[styles.grabber, { backgroundColor: palette.border }]} />
+            <View style={styles.header}>
+              <View style={styles.headerText}>
+                <Text style={[styles.eyebrow, { color: palette.accent }]}>MAKE TIME FOR WHAT MATTERS</Text>
+                <Text style={[styles.heading, { color: palette.foreground }]}>
+                  {initial ? 'Edit time block' : 'Plan a time block'}
+                </Text>
+              </View>
+              <Pressable style={styles.close} onPress={onCancel} accessibilityRole="button" accessibilityLabel="Close">
+                <Text style={[styles.closeGlyph, { color: palette.muted }]}>×</Text>
+              </Pressable>
+            </View>
+            <ScrollView keyboardShouldPersistTaps="handled" keyboardDismissMode="on-drag" contentContainerStyle={styles.form}>
+              <Text style={[styles.label, { color: palette.muted }]}>GOAL</Text>
+              <Pressable onPress={() => setShowGoals(!showGoals)} accessibilityRole="button"
+                style={[styles.select, { backgroundColor: palette.surface, borderColor: palette.border }]}>
+                <Text numberOfLines={2} style={[styles.selectText, { color: palette.foreground }]}>
+                  {goal?.title ?? 'Choose a goal'}
+                </Text>
+                <Text style={{ color: palette.muted }}>{showGoals ? '⌃' : '⌄'}</Text>
+              </Pressable>
+              {showGoals ? (
+                <View style={[styles.choices, { backgroundColor: palette.surface, borderColor: palette.border }]}>
+                  <TextInput value={search} onChangeText={setSearch}
+                    placeholder="Search existing goals" placeholderTextColor={palette.muted}
+                    style={[styles.input, { color: palette.foreground, borderColor: palette.border }]} />
+                  {filtered.length ? filtered.map((item) => (
+                    <Pressable key={item.id} accessibilityRole="button" style={styles.choice}
+                      onPress={() => { setGoalId(item.id); setShowGoals(false); }}>
+                      <Text numberOfLines={1} style={[styles.choiceText, { color: palette.foreground }]}>
+                        {item.id === goalId ? '✓  ' : '○  '}{item.title}
+                      </Text>
+                    </Pressable>
+                  )) : <Text style={[styles.hint, { color: palette.muted }]}>No matching goals. Create one in Horizons or Boards first.</Text>}
+                </View>
+              ) : null}
+              <Text style={[styles.label, { color: palette.muted }]}>PLANNING STYLE</Text>
+              <View style={[styles.switch, { backgroundColor: palette.surface, borderColor: palette.border }]}>
+                {(['block', 'box'] as const).map((item) => (
+                  <Pressable key={item} onPress={() => setKind(item)} accessibilityRole="button"
+                    accessibilityState={{ selected: kind === item }}
+                    style={[styles.switchButton, kind === item && { backgroundColor: palette.foreground }]}>
+                    <Text style={[styles.switchText, { color: kind === item ? palette.background : palette.muted }]}>
+                      {item === 'block' ? 'Time Block' : 'Timebox'}
+                    </Text>
+                  </Pressable>
+                ))}
+              </View>
+              <Text style={[styles.hint, { color: palette.muted }]}>
+                {kind === 'box' ? 'A fixed work limit. Stop or reassess when it ends.' :
+                  'A protected time window you can rearrange as plans change.'}
+              </Text>
+              <Text style={[styles.label, { color: palette.muted }]}>DATE (YYYY-MM-DD)</Text>
+              <TextInput value={dayText} onChangeText={setDayText} maxLength={10}
+                keyboardType="numbers-and-punctuation" placeholder="YYYY-MM-DD"
+                placeholderTextColor={palette.muted} accessibilityLabel="Scheduled date"
+                style={[styles.input, styles.field, { backgroundColor: palette.surface, borderColor: palette.border, color: palette.foreground }]} />
+              <View style={styles.times}>
+                <View style={styles.half}>
+                  <Text style={[styles.label, { color: palette.muted }]}>START</Text>
+                  <TextInput value={start} onChangeText={setStart} maxLength={5} selectTextOnFocus
+                    placeholder="09:00" keyboardType="numbers-and-punctuation" accessibilityLabel="Start time"
+                    placeholderTextColor={palette.muted}
+                    style={[styles.input, styles.field, { backgroundColor: palette.surface, borderColor: palette.border, color: palette.foreground }]} />
+                </View>
+                <View style={styles.half}>
+                  <Text style={[styles.label, { color: palette.muted }]}>END</Text>
+                  <TextInput value={end} onChangeText={setEnd} maxLength={5} selectTextOnFocus
+                    placeholder="10:00" keyboardType="numbers-and-punctuation" accessibilityLabel="End time"
+                    placeholderTextColor={palette.muted}
+                    style={[styles.input, styles.field, { backgroundColor: palette.surface, borderColor: palette.border, color: palette.foreground }]} />
+                </View>
+              </View>
+              <Text style={[styles.label, { color: palette.muted }]}>
+                {kind === 'box' ? 'WHAT SHOULD BE DONE BEFORE TIME IS UP?' : 'FOCUS (OPTIONAL)'}
+              </Text>
+              <TextInput value={intention} onChangeText={setIntention} multiline maxLength={500}
+                placeholder={kind === 'box' ? 'Define an outcome for this timebox…' : 'What will you focus on?'}
+                placeholderTextColor={palette.muted} accessibilityLabel="Time block intention"
+                style={[styles.input, styles.notes, { backgroundColor: palette.surface, borderColor: palette.border, color: palette.foreground }]} />
+              {validation ? <Text style={styles.validation}>{validation}</Text> : null}
+            </ScrollView>
+            <SafeAreaView edges={['bottom']} style={[styles.footer, { borderTopColor: palette.border, backgroundColor: palette.background }]}>
+              <Pressable disabled={!valid} accessibilityRole="button" accessibilityState={{ disabled: !valid }}
+                onPress={() => { if (valid && goalId) void onSave({ goalId, date: dayText, start, end, kind, intention }); }}
+                style={[styles.save, { backgroundColor: palette.accent, opacity: valid ? 1 : 0.45 }]}>
+                <Text style={styles.saveText}>{saving ? 'Saving…' : initial ? 'Save changes' : 'Schedule time'}</Text>
+              </Pressable>
+            </SafeAreaView>
+          </View>
+        </KeyboardAvoidingView>
+      </SafeAreaProvider>
+    </Modal>
+  );
+}
+const styles = StyleSheet.create({
+  overlay: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(9,22,18,0.44)' },
+  sheet: { maxHeight: '94%', borderTopLeftRadius: 28, borderTopRightRadius: 28, paddingTop: 12, overflow: 'hidden' },
+  grabber: { height: 4, width: 38, borderRadius: 8, alignSelf: 'center', marginBottom: 13 },
+  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: spacing.lg },
+  headerText: { flex: 1, gap: 6 },
+  eyebrow: { fontSize: 10, fontWeight: '700', letterSpacing: 1.3 },
+  heading: { fontSize: 23, fontWeight: '700', letterSpacing: -0.5 },
+  close: { width: 48, minHeight: 48, justifyContent: 'center', alignItems: 'center' },
+  closeGlyph: { fontSize: 27 },
+  form: { gap: 13, paddingHorizontal: spacing.lg, paddingTop: 20, paddingBottom: 22 },
+  label: { fontSize: 10, fontWeight: '700', letterSpacing: 1.2, marginTop: 8 },
+  select: { borderRadius: radius.lg, borderWidth: 1, minHeight: 55, flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 15 },
+  selectText: { flex: 1, fontSize: 15, fontWeight: '600' },
+  choices: { borderWidth: 1, borderRadius: radius.lg, padding: 9, maxHeight: 300 },
+  input: { borderWidth: 1, minHeight: 49, borderRadius: radius.md, paddingHorizontal: 13, fontSize: 15 },
+  choice: { minHeight: 44, justifyContent: 'center', paddingHorizontal: 10 },
+  choiceText: { fontSize: 13 },
+  field: { minHeight: 51 },
+  switch: { borderWidth: 1, padding: 5, flexDirection: 'row', gap: 6, borderRadius: radius.full },
+  switchButton: { flex: 1, minHeight: 45, borderRadius: radius.full, alignItems: 'center', justifyContent: 'center' },
+  switchText: { fontSize: 13, fontWeight: '700' },
+  hint: { fontSize: 12, lineHeight: 19 },
+  times: { flexDirection: 'row', gap: 12 },
+  half: { flex: 1, gap: 8 },
+  notes: { height: 85, paddingTop: 13, textAlignVertical: 'top' },
+  validation: { fontSize: 12, color: '#B34F4F' },
+  footer: { borderTopWidth: 1, paddingTop: 12, paddingHorizontal: spacing.lg, paddingBottom: 8 },
+  save: { minHeight: 54, borderRadius: radius.lg, justifyContent: 'center', alignItems: 'center' },
+  saveText: { color: '#FFFFFF', fontSize: 15, fontWeight: '700' },
+});

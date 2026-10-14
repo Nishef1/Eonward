@@ -11,6 +11,7 @@ interface GoalRow {
   period_key: string;
   parent_id: string | null;
   parent_title: string | null;
+  next_block_at: string | null;
   completed: number;
   archived_at: string | null;
   sort_rank: number;
@@ -22,7 +23,10 @@ interface GoalRow {
 const SELECT_GOALS = `
   SELECT g.*,
     (SELECT count(*) FROM goals children WHERE children.parent_id = g.id AND children.archived_at IS NULL) AS children_count,
-    parent.title AS parent_title
+    parent.title AS parent_title,
+    (SELECT tb.start_at FROM time_blocks tb
+      WHERE tb.goal_id = g.id AND tb.end_at > strftime('%Y-%m-%dT%H:%M:%fZ', 'now')
+      ORDER BY tb.start_at ASC LIMIT 1) AS next_block_at
   FROM goals g LEFT JOIN goals parent ON parent.id = g.parent_id
 `;
 
@@ -35,6 +39,7 @@ function toGoal(row: GoalRow): Goal {
     periodKey: row.period_key,
     parentId: row.parent_id,
     parentTitle: row.parent_title,
+    nextBlockAt: row.next_block_at ?? null,
     completed: row.completed === 1,
     archivedAt: row.archived_at,
     sortRank: row.sort_rank,

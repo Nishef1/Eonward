@@ -19,6 +19,7 @@ export interface BoardGoal {
   periodKey: string;
   completed: boolean;
   parentTitle: string | null;
+  nextBlockAt: string | null;
 }
 
 interface BoardRow {
@@ -37,6 +38,7 @@ interface BoardGoalRow {
   period_key: string;
   completed: number;
   parent_title: string | null;
+  next_block_at: string | null;
 }
 
 function cleanTitle(title: string): string {
@@ -98,7 +100,10 @@ export async function deleteBoard(db: SQLiteDatabase, boardId: string): Promise<
 export async function listBoardGoals(db: SQLiteDatabase, boardId: string): Promise<BoardGoal[]> {
   const rows = await db.getAllAsync<BoardGoalRow>(`
     SELECT g.id, g.title, g.horizon, g.period_key, g.completed,
-      parent.title AS parent_title
+      parent.title AS parent_title,
+      (SELECT tb.start_at FROM time_blocks tb
+        WHERE tb.goal_id = g.id AND tb.end_at > strftime('%Y-%m-%dT%H:%M:%fZ', 'now')
+        ORDER BY tb.start_at ASC LIMIT 1) AS next_block_at
     FROM board_goals bg
     JOIN goals g ON g.id = bg.goal_id
     LEFT JOIN goals parent ON parent.id = g.parent_id
@@ -108,6 +113,7 @@ export async function listBoardGoals(db: SQLiteDatabase, boardId: string): Promi
   return rows.map((row) => ({
     id: row.id, title: row.title, horizon: row.horizon,
     periodKey: row.period_key, completed: row.completed === 1, parentTitle: row.parent_title,
+    nextBlockAt: row.next_block_at,
   }));
 }
 

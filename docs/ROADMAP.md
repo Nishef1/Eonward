@@ -22,7 +22,7 @@ This file is the single source of truth for **planned vs completed** work. It is
 | M0 — Foundation | Documentation, repository hygiene, Expo shell | Complete — emulator screenshot + CI | Clean install, typecheck, successful device startup |
 | M1 — Product UX | Information architecture, design tokens, prototypes | In progress | Approved screen map and verified interactions |
 | M2 — Goals & horizons | Persistent data, hierarchy, seven horizons | In progress | End-to-end offline goal management |
-| M3 — Planning views | Boards, calendar, time blocks, fast capture | In progress — Boards source | Consistent updates across every view |
+| M3 — Planning views | Boards, calendar, time blocks, fast capture | In progress — Boards + Calendar/Time Block source | Consistent updates across every view |
 | M4 — Personal systems | Notes, repeating items, habits, templates, reviews | Planned | All workflows persist and survive restart |
 | M5 — Mobile integration | Notifications, widgets, localization, backup | Planned | Real-device acceptance and restore test |
 | M6 — Quality & release | Performance, accessibility, testing, release build | Planned | Release checklist signed off |
@@ -91,7 +91,7 @@ This inventory records committed implementation, **not completion of the M1/M2 e
 - [ ] Support Day, Week, Month, Quarter, Year, Decade and Life horizons.
 - [ ] Implement zoom/navigation and moving items between horizons.
 - [ ] Prevent hierarchy cycles and accidental duplicate records.
-- [ ] Distinguish horizon placement, due date and scheduled time block.
+- [x] Separate Horizon and scheduled time blocks in SQLite v4; explicit due dates remain unimplemented.
 - [ ] Test date boundaries, leap years, DST, changing time zones and week starts.
 - [ ] Restore saved data after force-close and restart.
 
@@ -234,11 +234,30 @@ The new Board route is a **functional source implementation** rather than a plac
 
 The initial Create Goal form was appearing partially scrolled in a screenshot; initial autofocus has been removed, scroll position resets when opened, and empty parent-option lists no longer reveal a pointless selector.
 
+## Calendar and focused time — schema v4
+
+**Product principle:** a time block is a scheduled occurrence *of an existing goal*, not an additional goal entity. The same goal ID is displayed in Horizons, Boards and Calendar. This is local on-device navigation/data-sharing, not cloud/device sync.
+
+- [x] Add additive SQLite v3 → v4 `time_blocks` migration with goal FK, UTC start/end instants, kind and optional intention. Existing goals/boards preserved by design.
+- [x] Schedule, edit and unschedule multiple local-day time blocks against the same active goal; no new dependency.
+- [x] Separate flexible Time Block from fixed-limit Timebox, with a written target for the latter; no active timer or alert yet.
+- [x] Add day navigation, daily agenda and visually sized time blocks in a 24-hour calendar timeline, including overlapping lanes.
+- [x] Link Calendar from Horizons and Boards; open original goals from scheduled blocks.
+- [x] Display the next active time block in relevant Focus, Perspective and Board goal cards.
+- [x] Add two meaningful domain tests (strict date/time and overlap lanes); update the existing migration checks. Total **14 of 20**.
+- [ ] Test v3 → v4 migration on a populated Android emulator **without uninstalling**.
+- [ ] Verify saving, changing and unscheduling across all three views plus force-close/restart.
+- [ ] Test daylight-saving transitions on a device/time-zone change, including ambiguous fall-back times.
+- [ ] Add explicit due date separately from scheduled time; handle overnight/multi-day blocks in a later slice.
+- [ ] Add a real focus timer/stop reminder for Timebox when Android and background behavior are verified.
+
+**Self-critique:** the previous roadmap delayed scheduling until Boards was fully polished, despite time blocking being an important part of the user's desired workflow. This slice makes shared scheduling functional before adding animations or secondary features. It is *not* a mature calendar: week/month grid, drag-to-resize, reminders, recurrence, due dates and external calendar integrations are still missing.
+
 ## Next three actions
 
 1. On Android verify board creation, membership across horizons, completion and returning to original goal details; do not uninstall the existing v2 database.
 2. Check that deleting a board preserves original goals and archiving a linked goal hides it from board views without deleting membership.
-3. Fix actual interaction issues; then implement separate due dates/time blocks and the first Calendar view.
+3. Verify Calendar/Time Block/Timebox scheduling and cross-screen updates, then address due dates and real-world feedback.
 
 ## Progress log
 
@@ -256,3 +275,5 @@ The initial Create Goal form was appearing partially scrolled in a screenshot; i
 | 2026-10-14 | Refined Focus/Perspective/Archive hierarchy and modal safe-area/footer behavior based on four emulator screenshots. | Source changes, CI and fresh Android screenshots pending; 12/20 automated tests unchanged. |
 
 | 2026-10-14 | Board workspace added: schema v3 with reusable goal references and atomic in-board goal creation; fixed goal editor initial scroll/parent selector. | Final code commit `f8c3fd1`: 12/20 domain tests, npm ci, Expo version checks, TypeScript and Android Metro all passed; Android board interaction and migration QA pending. |
+
+| 2026-10-14 | Added connected Calendar/Time Block and Timebox slice, schema v4, day timeline, and navigation from existing goals. | Source implementation committed pending CI/device verification; 14/20 tests. |

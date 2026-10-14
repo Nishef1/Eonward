@@ -105,6 +105,11 @@ export function PerspectiveView({
                               ↳ {goal.parentTitle}
                             </Text>
                           ) : null}
+                          {goal.nextBlockAt ? (
+                            <Text numberOfLines={1} style={[styles.parentHint, { color: palette.accent }]}>
+                              ◷ {new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }).format(new Date(goal.nextBlockAt))}
+                            </Text>
+                          ) : null}
                         </View>
                         {goal.childrenCount ? (
                           <Text style={[styles.stepCount, { color: palette.muted }]}>{goal.childrenCount} ↳</Text>

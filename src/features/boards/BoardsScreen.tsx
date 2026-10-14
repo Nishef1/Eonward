@@ -197,6 +197,10 @@ export function BoardsScreen() {
             <Text style={[styles.backText, { color: controlColor }]}>‹</Text>
           </Pressable>
           <Text style={[styles.brand, { color: palette.foreground }]}>EONWARD  /  BOARDS</Text>
+          <Pressable onPress={() => router.push('/calendar')} accessibilityRole="button"
+            style={[styles.calendarShortcut, { backgroundColor: palette.surface, borderColor: palette.border }]}>
+            <Text style={[styles.calendarText, { color: palette.accent }]}>Calendar ↗</Text>
+          </Pressable>
         </View>
 
         <Text style={[styles.eyebrow, { color: palette.accent }]}>ORGANIZE YOUR IDEAS</Text>
@@ -260,6 +264,16 @@ export function BoardsScreen() {
                   <Text style={[styles.goalMeta, { color: palette.muted }]} numberOfLines={1}>
                     {HORIZON_TITLES[goal.horizon]} · {goal.periodKey}{goal.parentTitle ? ` · ↳ ${goal.parentTitle}` : ''}
                   </Text>
+                  {goal.nextBlockAt ? (
+                    <Text style={[styles.goalMeta, { color: palette.accent }]} numberOfLines={1}>
+                      ◷ {new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }).format(new Date(goal.nextBlockAt))}
+                    </Text>
+                  ) : null}
+                </Pressable>
+                <Pressable accessibilityRole="button" accessibilityLabel={`Schedule ${goal.title}`}
+                  onPress={() => router.push({ pathname: '/calendar', params: { goalId: goal.id } })}
+                  style={styles.schedule}>
+                  <Text style={[styles.scheduleText, { color: palette.accent }]}>◷</Text>
                 </Pressable>
                 <Pressable accessibilityRole="button" accessibilityLabel={`Remove ${goal.title} from board`}
                   onPress={() => detach(goal)} style={styles.remove}>
@@ -388,7 +402,9 @@ const styles = StyleSheet.create({
   topRow: { flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 24 },
   back: { width: 47, height: 47, borderWidth: 1, borderRadius: radius.full, alignItems: 'center', justifyContent: 'center' },
   backText: { fontSize: 30 },
-  brand: { fontSize: 11, letterSpacing: 1.6, fontWeight: '700' },
+  brand: { fontSize: 11, letterSpacing: 1.3, fontWeight: '700', flex: 1 },
+  calendarShortcut: { minHeight: 46, borderWidth: 1, borderRadius: radius.full, paddingHorizontal: 12, justifyContent: 'center' },
+  calendarText: { fontSize: 12, fontWeight: '700' },
   eyebrow: { fontSize: 11, letterSpacing: 1.5, fontWeight: '700' },
   heading: { fontSize: 35, letterSpacing: -1.2, fontWeight: '700' },
   subtitle: { fontSize: 14, lineHeight: 22, marginBottom: 15 },
@@ -412,7 +428,9 @@ const styles = StyleSheet.create({
   tick: { fontSize: 25 },
   goalCopy: { flex: 1, gap: 5, paddingVertical: 10 },
   goalTitle: { fontSize: 15, fontWeight: '600' },
-  remove: { width: 47, minHeight: 48, alignItems: 'center', justifyContent: 'center' },
+  schedule: { width: 39, minHeight: 48, alignItems: 'center', justifyContent: 'center' },
+  scheduleText: { fontSize: 23 },
+  remove: { width: 42, minHeight: 48, alignItems: 'center', justifyContent: 'center' },
   removeText: { fontSize: 26 },
   notice: { borderWidth: 1, borderRadius: radius.lg, padding: spacing.lg, gap: 10 },
   noticeTitle: { fontSize: 17, fontWeight: '700' },

@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
-import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import { ActivityIndicator, Alert, FlatList, Modal, Pressable, StyleSheet, Text, useColorScheme, View } from 'react-native';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import { useSQLiteContext } from 'expo-sqlite';
@@ -56,6 +56,11 @@ function GoalCard({
                 : goal.notes}
           </Text>
         ) : null}
+        {goal.nextBlockAt ? (
+          <Text style={[styles.goalSchedule, { color: palette.accent }]} numberOfLines={1}>
+            ◷ {new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }).format(new Date(goal.nextBlockAt))}
+          </Text>
+        ) : null}
       </Pressable>
       <Pressable onPress={onOrganize} disabled={disabled} accessibilityRole="button"
         accessibilityLabel={`Organize ${goal.title}`} style={styles.chevronTouch}>
@@ -103,6 +108,12 @@ export function HorizonsScreen() {
   const key = periodKey(horizon, anchor);
   const caption = periodLabel(horizon, anchor);
   const doneCount = useMemo(() => goals.filter((g) => g.completed).length, [goals]);
+
+  // The same goal can be rescheduled or completed in Calendar or Boards.
+  // Re-read SQLite when returning to Horizons instead of showing stale cards.
+  useFocusEffect(useCallback(() => {
+    setRevision((value) => value + 1);
+  }, []));
 
   const perspectiveSections = useMemo(
     () => buildPerspectiveSections(
@@ -357,11 +368,18 @@ export function HorizonsScreen() {
           <View style={[styles.brandMark, { backgroundColor: palette.accent }]} />
           <Text style={[styles.brand, { color: palette.foreground }]}>EONWARD</Text>
         </View>
-        <Pressable accessibilityRole="button" accessibilityLabel="Open Boards"
-          style={[styles.boardsShortcut, { backgroundColor: palette.surface, borderColor: palette.border }]}
-          onPress={() => router.push('/boards')}>
-          <Text style={[styles.boardsShortcutText, { color: palette.accent }]}>Boards  ↗</Text>
-        </Pressable>
+        <View style={styles.headerActions}>
+          <Pressable accessibilityRole="button" accessibilityLabel="Open Calendar"
+            style={[styles.boardsShortcut, { backgroundColor: palette.surface, borderColor: palette.border }]}
+            onPress={() => router.push('/calendar')}>
+            <Text style={[styles.boardsShortcutText, { color: palette.accent }]}>Calendar</Text>
+          </Pressable>
+          <Pressable accessibilityRole="button" accessibilityLabel="Open Boards"
+            style={[styles.boardsShortcut, { backgroundColor: palette.surface, borderColor: palette.border }]}
+            onPress={() => router.push('/boards')}>
+            <Text style={[styles.boardsShortcutText, { color: palette.accent }]}>Boards</Text>
+          </Pressable>
+        </View>
       </View>
       <Text style={[styles.eyebrow, { color: palette.accent }]}>YOUR TIME, IN PERSPECTIVE</Text>
       <Text style={[styles.heroTitle, { color: palette.foreground }]}>Horizons<Text style={{ color: palette.accent }}>.</Text></Text>
@@ -601,6 +619,12 @@ export function HorizonsScreen() {
         onAddStep={addChild}
         onToggle={(goal) => void toggle(goal)}
         onArchive={() => confirmArchive()}
+        onSchedule={() => {
+          if (!details) return;
+          const goalId = details.id;
+          closeDetails();
+          router.push({ pathname: '/calendar', params: { goalId } });
+        }}
       />
       <GoalEditor
         visible={editorVisible}
@@ -631,7 +655,8 @@ const styles = StyleSheet.create({
   listContent: { paddingHorizontal: spacing.lg, paddingBottom: 28, flexGrow: 1 },
   brandRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 2, marginBottom: 22 },
   brandBlock: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  boardsShortcut: { borderWidth: 1, minHeight: 46, paddingHorizontal: 16, borderRadius: radius.full, alignItems: 'center', justifyContent: 'center' },
+  headerActions: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  boardsShortcut: { borderWidth: 1, minHeight: 46, paddingHorizontal: 11, borderRadius: radius.full, alignItems: 'center', justifyContent: 'center' },
   boardsShortcutText: { fontSize: 12, fontWeight: '700' },
   brandMark: { height: 15, width: 15, borderTopLeftRadius: 8, borderBottomRightRadius: 8, transform: [{ rotate: '45deg' }] },
   brand: { fontSize: 13, fontWeight: '800', letterSpacing: 3 },
@@ -672,6 +697,7 @@ const styles = StyleSheet.create({
   cardContent: { flex: 1, paddingVertical: 9, gap: 6 },
   goalTitle: { fontSize: 15, lineHeight: 21, fontWeight: '600' },
   goalSubtitle: { fontSize: 12 },
+  goalSchedule: { fontSize: 11, fontWeight: '700', marginTop: 3 },
   chevronTouch: { width: 44, height: 48, alignItems: 'center', justifyContent: 'center' },
   chevron: { fontSize: 29 },
   empty: { paddingTop: 29, paddingBottom: 25, alignItems: 'center', gap: 13, paddingHorizontal: spacing.md },

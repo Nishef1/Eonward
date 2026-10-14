@@ -3,6 +3,7 @@ import test from 'node:test';
 import { isoWeekKey, periodKey, shiftPeriod, startOfWeek, periodLabel, dateFromPeriodKey, parseDateInput } from '../src/domain/horizons.ts';
 import { normalizeGoalTitle, availableGoalParents } from '../src/domain/goals.ts';
 import { buildPerspectiveSections } from '../src/domain/perspective.ts';
+import { layoutBlocks, localDayBounds, localDayKey, timeRangeFromInput } from '../src/domain/timeblocks.ts';
 
 test('all seven horizon keys use independent periods', () => {
   const date = new Date(2026, 9, 14, 12);
@@ -91,4 +92,31 @@ test('multi-horizon overview groups unique saved goals and limits previews', () 
   assert.deepEqual(sections[0].preview.map((item) => item.id), ['b', 'a']);
   assert.deepEqual(sections[1].preview, []);
   assert.equal(new Set(sections.flatMap((section) => section.preview.map((item) => item.id))).size, 3);
+});
+
+test('time blocks validate local day and ordering without confusing calendar with horizon', () => {
+  const date = '2026-10-14';
+  const first = timeRangeFromInput({ date, start: '09:00', end: '10:30' });
+  assert.equal(localDayKey(new Date(first.startAt)), date);
+  assert.equal((new Date(first.endAt) - new Date(first.startAt)) / 60000, 90);
+  assert.throws(() => timeRangeFromInput({ date: '2026-02-30', start: '09:00', end: '10:00' }));
+  assert.throws(() => timeRangeFromInput({ date, start: '25:00', end: '26:00' }));
+  assert.throws(() => timeRangeFromInput({ date, start: '10:00', end: '09:00' }));
+  const bounds = localDayBounds(new Date(2026, 9, 14, 12));
+  assert.equal(localDayKey(new Date(bounds.from)), date);
+  assert.equal(localDayKey(new Date(bounds.to)), '2026-10-15');
+});
+
+test('overlapping time blocks split their timeline lanes, consecutive blocks reuse width', () => {
+  const instant = (hours, minutes) => new Date(2026, 9, 14, hours, minutes).toISOString();
+  const make = (id, startAt, endAt) => ({ id, startAt, endAt });
+  const blocks = [
+    make('a', instant(9, 0), instant(10, 0)),
+    make('b', instant(9, 30), instant(10, 30)),
+    make('c', instant(11, 0), instant(12, 0)),
+  ];
+  const placed = layoutBlocks(blocks);
+  assert.deepEqual(placed.map((b) => b.lanes), [2, 2, 1]);
+  assert.deepEqual(placed.map((b) => b.lane), [0, 1, 0]);
+  assert.equal(placed[0].top, 9 * 64);
 });

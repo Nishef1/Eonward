@@ -89,3 +89,12 @@ The Focus goal card has an Android-safe organization action sheet (Move Up, Move
 - Board cards show goal counts and progress; board details preserve source-goal identity.
 - Board creation, edit and selection use the same surface/typography/radius tokens; no new UI component package.
 - Device review must verify short-screen keyboard safe area, modal dismissal, long board names and linked-goal navigation.
+
+## Timebox and Daily Timeline — 2026-10-14
+
+- Calendar has a readable day-switcher, compact plan summary and explicit Plan time primary action.
+- Each block is positioned by local start/end hour and uses its actual duration for height; simultaneous blocks share space.
+- Fixed-limit Timebox uses a restrained warm accent distinct from flexible Time Block, with optional goal outcome visible in larger blocks.
+- Agenda provides a compact alternative to the vertically long 24h timeline and deep-links into original goals.
+- Saved future schedule hints appear on Horizons/Boards cards without introducing extra goal copies.
+- Device QA needed for small widths, overlapping blocks, keyboard, long titles, daylight-saving days and focus-return freshness.

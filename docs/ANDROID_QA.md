@@ -2,8 +2,9 @@
 
 **Status: not yet confirmed after UI refinements.** Initial emulator screenshots (2026-10-14) prove Focus, Perspective, Archive and an empty Create Goal form render. They do not prove saved data or keyboard behavior.
 
-These eleven **manual checks** are acceptance evidence, not additional automated tests. Do not create a new regression test for each checkbox. Record a screenshot or an exact reproduction only when a check fails.
+These twelve **manual checks** are acceptance evidence, not additional automated tests. Do not create a new regression test for each checkbox. Record a screenshot or an exact reproduction only when a check fails.
 
+- [ ] **Calendar/timebox cross-screen:** Upgrade a populated v3 install to v4 without reset; schedule a goal from Horizons and Boards, switch Time Block/Timebox, verify day timeline/agenda and next-time labels, edit/reschedule/unschedule it, complete the goal in either view and reopen after force-close. Check overlapping blocks and clock inputs, including a DST transition.
 - [ ] **Boards end-to-end:** On a populated v2 install create/edit/delete a board, create a goal directly within a board, add another existing goal to two boards, toggle completion, open the original detail, remove a membership without removing the goal, archive the goal and verify active board counts; restart the app and confirm everything persists.
 - [ ] **Keyboard and safe area:** Create Goal with keyboard visible, scroll through its fields and tap fixed Save; verify system navigation never covers it. Open/close Details and Organize sheets.
 - [ ] **Single first action:** Focus empty screen exposes New goal without duplicate clipped CTAs; Perspective shows per-horizon Add without a sticky bottom footer.

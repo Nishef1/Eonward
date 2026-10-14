@@ -40,19 +40,34 @@ const V3_SCHEMA = `
   CREATE INDEX IF NOT EXISTS board_goals_by_goal ON board_goals(goal_id);
 `;
 
+const V4_SCHEMA = `
+  CREATE TABLE IF NOT EXISTS time_blocks (
+    id TEXT PRIMARY KEY NOT NULL,
+    goal_id TEXT NOT NULL REFERENCES goals(id) ON DELETE CASCADE,
+    start_at TEXT NOT NULL,
+    end_at TEXT NOT NULL,
+    kind TEXT NOT NULL DEFAULT 'block' CHECK (kind IN ('block', 'box')),
+    intention TEXT NOT NULL DEFAULT '',
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL,
+    CHECK (end_at > start_at)
+  );
+  CREATE INDEX IF NOT EXISTS time_blocks_by_start ON time_blocks(start_at, end_at);
+  CREATE INDEX IF NOT EXISTS time_blocks_by_goal ON time_blocks(goal_id, start_at);
+`;
+
 export async function migrateDatabase(db: SQLiteDatabase): Promise<void> {
   await db.execAsync('PRAGMA foreign_keys = ON; PRAGMA journal_mode = WAL;');
   const result = await db.getFirstAsync<{ user_version: number }>('PRAGMA user_version');
   const version = result?.user_version ?? 0;
-  if (version > 3) throw new Error('This app version cannot read a newer Eonward database.');
-  if (version === 3) return;
+  if (version > 4) throw new Error('This app version cannot read a newer Eonward database.');
+  if (version === 4) return;
 
-  // Startup migration runs before app queries begin. Keep it on the opened connection;
-  // Expo Go's second connection for withExclusiveTransactionAsync can report a lock here.
-  await db.withTransactionAsync(async () => {
-    if (version === 0) await db.execAsync(INITIAL_SCHEMA);
-    if (version <= 1) await db.execAsync(V2_SCHEMA);
-    if (version <= 2) await db.execAsync(V3_SCHEMA);
-    await db.execAsync('PRAGMA user_version = 3;');
+  await db.withExclusiveTransactionAsync(async (tx) => {
+    if (version === 0) await tx.execAsync(INITIAL_SCHEMA);
+    if (version <= 1) await tx.execAsync(V2_SCHEMA);
+    if (version <= 2) await tx.execAsync(V3_SCHEMA);
+    if (version <= 3) await tx.execAsync(V4_SCHEMA);
+    await tx.execAsync('PRAGMA user_version = 4;');
   });
 }

@@ -17,8 +17,8 @@ Legend:
 | Manual goal order | Partial | Up/down only; no drag, sorting filters or custom board order |
 | **Boards (local, multi-membership)** | **Implemented in source (M3 first slice)** | Create/edit/delete board; create a new goal inside a board atomically; link/unlink existing goals; completion and open original goal; device QA pending |
 | Tags and saved filters | Planned | Requires clear search/filter UX and schema design |
-| Calendar | Planned | Requires due date distinct from horizon placement |
-| Time blocking | Planned | Start/end, timezone and overlap semantics must be defined |
+| Calendar | Partial | Daily timeline and agenda of real scheduled goal blocks, editing/day navigation; week/month grid, drag, reminders, timezone transitions and release QA pending |
+| Time blocking and Timeboxing | Partial | Multiple goal-linked local-day blocks, 24h times, fixed-limit mode and optional outcome; no focus timer, reminders, cross-midnight blocks or DST fall-back disambiguation yet |
 | Recurrence and habits | Planned | Needs rule/occurrence model and DST correctness |
 | Templates | Planned | Requires versioned reusable blueprint/clone behavior |
 | Guided step sequences | Planned | Needs progress/step state and explicit data model |
@@ -30,4 +30,4 @@ Legend:
 | Localization / RTL / alternate calendar | Planned | Display must not corrupt stored dates |
 | Accounts, realtime sync, collaboration | Deferred | No server until local mobile experience is stable |
 
-**Next vertical slice:** due dates/time blocks and calendar read-only navigation after Boards is device-verified. Tags/search may be implemented earlier if they simplify working with real boards.
+**Next vertical slice:** verify v4 scheduling on Android, add due dates and a robust Timebox focus/stop workflow; then consider week view, drag-to-reschedule and tags/search.
