@@ -118,6 +118,7 @@ export function CalendarScreen() {
 
   const ordered = useMemo(() => [...blocks].sort((a, b) => a.startAt.localeCompare(b.startAt)), [blocks]);
   const dayBounds = localDayBounds(day);
+  const localDayHours = (Date.parse(dayBounds.to) - Date.parse(dayBounds.from)) / 3_600_000;
   const totalMinutes = blocks.reduce((sum, block) =>
     sum + Math.max(0, Math.min(Date.parse(block.endAt), Date.parse(dayBounds.to)) -
       Math.max(Date.parse(block.startAt), Date.parse(dayBounds.from))) / 60000, 0);
@@ -325,6 +326,15 @@ export function CalendarScreen() {
         </View>
       ) : mode === 'timeline' ? (
         <View style={styles.timelineArea}>
+          {localDayHours !== 24 ? (
+            <Pressable accessibilityRole="button" accessibilityLabel="View schedule list for daylight saving time change"
+              onPress={() => setMode('list')}
+              style={[styles.clockChangeNotice, { backgroundColor: palette.surface, borderColor: palette.border }]}>
+              <Text style={[styles.clockChangeText, { color: palette.foreground }]}>
+                Clock change today · This day has {localDayHours} actual hours. The timeline uses wall-clock positions; open List for exact times →
+              </Text>
+            </Pressable>
+          ) : null}
           <DayTimeline date={day} blocks={ordered} palette={palette}
             isDark={palette === colors.dark} onEdit={edit} onQuickAdd={(hour) => createAt(hour)}
             onOpenGoal={(id) => router.push({ pathname: '/', params: { goalId: id } })} />
@@ -439,6 +449,8 @@ const styles = StyleSheet.create({
   error: { borderWidth: 1, borderRadius: radius.lg, margin: 16, padding: 22, gap: 12 },
   retry: { minHeight: 46, justifyContent: 'center' },
   timelineArea: { flex: 1, paddingHorizontal: spacing.md, paddingBottom: 8 },
+  clockChangeNotice: { minHeight: 48, borderWidth: 1, borderRadius: radius.md, paddingHorizontal: 13, paddingVertical: 9, justifyContent: 'center' },
+  clockChangeText: { fontSize: 11, fontWeight: '600', lineHeight: 16 },
   listScroll: { flex: 1 },
   listContent: { paddingHorizontal: spacing.md, paddingTop: 21, paddingBottom: 36, gap: 11 },
   listHeading: { fontSize: 19, fontWeight: '700', marginBottom: 9 },

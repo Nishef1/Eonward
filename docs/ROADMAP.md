@@ -374,3 +374,13 @@ The initial Create Goal form was appearing partially scrolled in a screenshot; i
 - [x] Reject overlapping Focus mutations instead of quietly resolving a skipped Start/Pause/Finish operation as if it succeeded.
 - [ ] Real-device Android validation is still required for gesture targets, saved SQLite lifecycle, permission prompts and modal transitions.
 - [ ] Local background-expiry notifications remain unavailable until `expo-notifications` is integrated and Android permissions and exact delivery behavior are verified with a development build.
+
+## Consistency audit, post-v6
+- [x] Month grid loads neighboring-day schedules consistently with the visible calendar cells; monthly totals exclude those neighboring days.
+- [x] Correct daily "goals done" semantics: each completed Goal is counted once regardless of the number of its scheduled blocks.
+- [x] Guard against fast duplicate writes and falsely successful overlapping Focus actions.
+- [x] 23:00 quick-create generates a genuine overnight 60-minute block.
+- [x] Use visual collision lanes at dense zoom so adjacent 15-minute blocks do not obscure one another.
+- [x] On 23/25-hour DST days, warn that the Timeline displays wall-clock geometry and link directly to List for unambiguous exact timestamps.
+- [x] Extend two existing calendar/domain tests without exceeding the 20-test policy.
+- [ ] Verify device focus/navigation/keyboard/notification behaviors: GitHub Actions cannot substitute for physical Android acceptance.

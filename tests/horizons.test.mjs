@@ -195,6 +195,10 @@ test('invalid and repeated local DST hours are rejected without silently changin
     }), /occurs twice/);
     const normal = timeRangeFromInput({ date: '2026-11-01', start: '03:00', end: '04:00' });
     assert.equal((Date.parse(normal.endAt) - Date.parse(normal.startAt)) / 60000, 60);
+    const spring = localDayBounds(new Date(2026, 2, 8, 12));
+    const autumn = localDayBounds(new Date(2026, 10, 1, 12));
+    assert.equal((Date.parse(spring.to) - Date.parse(spring.from)) / 3600000, 23);
+    assert.equal((Date.parse(autumn.to) - Date.parse(autumn.from)) / 3600000, 25);
   } finally {
     if (previousTimezone === undefined) delete process.env.TZ;
     else process.env.TZ = previousTimezone;
