@@ -193,7 +193,7 @@ React Native Android Alert supports at most three actions. The first proposed fo
 - [x] Add Archive view accessible alongside Focus/Perspective; remove destructive Delete action from goal details.
 - [x] Add Move Up/Down actions that persist ordering, with an Android-safe custom action sheet and no new dependency.
 - [x] Update existing migration checks to version 2; remain at **12/20** automated tests.
-- [ ] Verify these workflows and migrations on Android with an actual v1 populated database.
+- [ ] Verify these workflows and migrations on Android with an actual v1 populated database (SQL sanity verification completed separately; emulator QA outstanding).
 - [ ] Review performance/visual clarity with a large goal list, then assess whether drag-to-reorder is worth adding.
 
 ## Next three actions
