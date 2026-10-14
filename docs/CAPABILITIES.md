@@ -31,3 +31,8 @@ Legend:
 | Accounts, realtime sync, collaboration | Deferred | No server until local mobile experience is stable |
 
 **Next vertical slice:** Android v4→v5 migration and focus-timer lifecycle verification; then decide whether to prioritize focus history/Insights, native end notifications or scheduling gestures.
+
+### Calendar improvements (October 14 follow-up)
+- Week overview with per-day planned duration, overlap count and direct access to the corresponding daily canvas.
+- Explicit next-day end times, chronological overlap queries, day clipping for overnight timeline entries and DST ambiguity rejection.
+- Pending: monthly calendar, native reminders, recurring schedule, drag-to-move/resize and multi-day blocks beyond one midnight.

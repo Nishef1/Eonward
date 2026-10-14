@@ -27,6 +27,7 @@ export function TimeBlockEditor({ visible, date, goals, initial, suggestedGoalId
   const [dayText, setDayText] = useState('');
   const [start, setStart] = useState('09:00');
   const [end, setEnd] = useState('10:00');
+  const [endsNextDay, setEndsNextDay] = useState(false);
   const [kind, setKind] = useState<BlockKind>('block');
   const [intention, setIntention] = useState('');
   useEffect(() => {
@@ -38,6 +39,7 @@ export function TimeBlockEditor({ visible, date, goals, initial, suggestedGoalId
     setStart(initial ? localClock(new Date(initial.startAt)) : `${String(hour).padStart(2, '0')}:00`);
     setEnd(initial ? localClock(new Date(initial.endAt)) :
       hour === 23 ? '23:59' : `${String(hour + 1).padStart(2, '0')}:00`);
+    setEndsNextDay(!!initial && localDayKey(new Date(initial.endAt)) !== localDayKey(new Date(initial.startAt)));
     setKind(initial?.kind ?? 'block');
     setIntention(initial?.intention ?? '');
     setShowGoals(false);
@@ -47,7 +49,7 @@ export function TimeBlockEditor({ visible, date, goals, initial, suggestedGoalId
     goal.title.toLowerCase().includes(search.toLowerCase().trim())).slice(0, 25), [goals, search]);
   const goal = goals.find((g) => g.id === goalId);
   let validation: string | null = null;
-  try { timeRangeFromInput({ date: dayText, start, end }); }
+  try { timeRangeFromInput({ date: dayText, start, end, endsNextDay }); }
   catch (error) { validation = error instanceof Error ? error.message : 'Invalid time.'; }
   const valid = !!goalId && !validation && !saving;
 
@@ -130,6 +132,19 @@ export function TimeBlockEditor({ visible, date, goals, initial, suggestedGoalId
                     style={[styles.input, styles.field, { backgroundColor: palette.surface, borderColor: palette.border, color: palette.foreground }]} />
                 </View>
               </View>
+              <Pressable accessibilityRole="checkbox" accessibilityState={{ checked: endsNextDay }}
+                accessibilityLabel="End time is on the next day"
+                onPress={() => setEndsNextDay((current) => !current)}
+                style={[styles.overnight, { borderColor: palette.border, backgroundColor: palette.surface }]}>
+                <View style={[styles.check, { backgroundColor: endsNextDay ? palette.accent : 'transparent',
+                  borderColor: endsNextDay ? palette.accent : palette.muted }]}>
+                  {endsNextDay ? <Text style={styles.checkGlyph}>✓</Text> : null}
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={[styles.overnightTitle, { color: palette.foreground }]}>End on the next day</Text>
+                  <Text style={[styles.hint, { color: palette.muted }]}>For late-night work crossing midnight</Text>
+                </View>
+              </Pressable>
               <Text style={[styles.label, { color: palette.muted }]}>
                 {kind === 'box' ? 'WHAT SHOULD BE DONE BEFORE TIME IS UP?' : 'FOCUS (OPTIONAL)'}
               </Text>
@@ -147,7 +162,7 @@ export function TimeBlockEditor({ visible, date, goals, initial, suggestedGoalId
                 </Pressable>
               ) : null}
               <Pressable disabled={!valid} accessibilityRole="button" accessibilityState={{ disabled: !valid }}
-                onPress={() => { if (valid && goalId) void onSave({ goalId, date: dayText, start, end, kind, intention }); }}
+                onPress={() => { if (valid && goalId) void onSave({ goalId, date: dayText, start, end, endsNextDay, kind, intention }); }}
                 style={[styles.save, { backgroundColor: palette.accent, opacity: valid ? 1 : 0.45 }]}>
                 <Text style={styles.saveText}>{saving ? 'Saving…' : initial ? 'Save changes' : 'Schedule time'}</Text>
               </Pressable>
@@ -181,6 +196,11 @@ const styles = StyleSheet.create({
   switchButton: { flex: 1, minHeight: 45, borderRadius: radius.full, alignItems: 'center', justifyContent: 'center' },
   switchText: { fontSize: 13, fontWeight: '700' },
   hint: { fontSize: 12, lineHeight: 19 },
+  overnight: { flexDirection: 'row', alignItems: 'center', gap: 13, minHeight: 66, paddingHorizontal: 13,
+    borderWidth: 1, borderRadius: radius.lg },
+  check: { width: 24, height: 24, borderWidth: 1, borderRadius: 7, alignItems: 'center', justifyContent: 'center' },
+  checkGlyph: { color: '#FFFFFF', fontSize: 15, fontWeight: '800' },
+  overnightTitle: { fontSize: 13, fontWeight: '700', marginBottom: 2 },
   times: { flexDirection: 'row', gap: 12 },
   half: { flex: 1, gap: 8 },
   notes: { height: 85, paddingTop: 13, textAlignVertical: 'top' },

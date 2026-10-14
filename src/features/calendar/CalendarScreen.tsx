@@ -5,12 +5,13 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useSQLiteContext } from 'expo-sqlite';
 import type { Goal } from '../../domain/goals';
 import {
-  localDayKey, parseLocalDay, shiftLocalDay, type BlockInput, type TimeBlock,
+  localDayBounds, localDayKey, parseLocalDay, shiftLocalDay, type BlockInput, type TimeBlock,
 } from '../../domain/timeblocks';
 import { getGoal, listAllGoals } from '../../storage/goals';
-import { listDayBlocks, removeBlock, saveBlock } from '../../storage/timeblocks';
+import { listDayBlocks, listRangeBlocks, removeBlock, saveBlock } from '../../storage/timeblocks';
 import { colors, radius, spacing } from '../../theme/tokens';
 import { DayTimeline } from './DayTimeline';
+import { WeekOverview } from './WeekOverview';
 import { useFocusSession } from '../focus/FocusProvider';
 import { TimeBlockEditor } from './TimeBlockEditor';
 
@@ -40,6 +41,7 @@ export function CalendarScreen() {
   const palette: Palette = useColorScheme() === 'dark' ? colors.dark : colors.light;
   const [day, setDay] = useState(() => new Date());
   const [blocks, setBlocks] = useState<TimeBlock[]>([]);
+  const [weekBlocks, setWeekBlocks] = useState<TimeBlock[]>([]);
   const [goals, setGoals] = useState<Goal[]>([]);
   const [loading, setLoading] = useState(true);
   const [failure, setFailure] = useState<string | null>(null);
@@ -49,7 +51,7 @@ export function CalendarScreen() {
   const [editingBlock, setEditingBlock] = useState<TimeBlock | null>(null);
   const [chosenGoal, setChosenGoal] = useState<string | null>(null);
   const [suggestedHour, setSuggestedHour] = useState<number | null>(null);
-  const [mode, setMode] = useState<'timeline' | 'list'>('timeline');
+  const [mode, setMode] = useState<'timeline' | 'week' | 'list'>('timeline');
   const usedGoalParam = useRef<string | null>(null);
   const key = localDayKey(day);
   const week = useMemo(() => weekOf(day), [key]);
@@ -60,9 +62,13 @@ export function CalendarScreen() {
   useEffect(() => {
     let active = true;
     setLoading(true);
-    void Promise.all([listDayBlocks(db, day), listAllGoals(db)]).then(([saved, all]) => {
+    const weekFrom = localDayBounds(week[0]).from;
+    const weekTo = localDayBounds(week[6]).to;
+    void Promise.all([listDayBlocks(db, day), listRangeBlocks(db, weekFrom, weekTo), listAllGoals(db)])
+      .then(([saved, weekSaved, all]) => {
       if (!active) return;
       setBlocks(saved);
+      setWeekBlocks(weekSaved);
       setGoals(all);
       setFailure(null);
     }).catch((error: unknown) => {
@@ -91,8 +97,10 @@ export function CalendarScreen() {
   }, [db, goalId]);
 
   const ordered = useMemo(() => [...blocks].sort((a, b) => a.startAt.localeCompare(b.startAt)), [blocks]);
+  const dayBounds = localDayBounds(day);
   const totalMinutes = blocks.reduce((sum, block) =>
-    sum + (new Date(block.endAt).getTime() - new Date(block.startAt).getTime()) / 60000, 0);
+    sum + Math.max(0, Math.min(Date.parse(block.endAt), Date.parse(dayBounds.to)) -
+      Math.max(Date.parse(block.startAt), Date.parse(dayBounds.from))) / 60000, 0);
   const completed = blocks.filter((block) => block.goalCompleted).length;
   async function write(action: () => Promise<void>) {
     if (busy) return;
@@ -219,13 +227,13 @@ export function CalendarScreen() {
             </Text>
           </View>
           <View style={[styles.viewToggle, { backgroundColor: palette.surface, borderColor: palette.border }]}>
-            {(['timeline', 'list'] as const).map((item) => (
+            {(['timeline', 'week', 'list'] as const).map((item) => (
               <Pressable key={item} accessibilityRole="button"
                 accessibilityState={{ selected: mode === item }}
                 onPress={() => setMode(item)}
                 style={[styles.modeButton, mode === item && { backgroundColor: foreground }]}>
                 <Text style={[styles.modeText, { color: mode === item ? palette.background : palette.muted }]}>
-                  {item === 'timeline' ? 'Timeline' : 'List'}
+                  {item === 'timeline' ? 'Day' : item === 'week' ? 'Week' : 'List'}
                 </Text>
               </Pressable>
             ))}
@@ -247,6 +255,9 @@ export function CalendarScreen() {
             isDark={palette === colors.dark} onEdit={edit} onQuickAdd={(hour) => createAt(hour)}
             onOpenGoal={(id) => router.push({ pathname: '/', params: { goalId: id } })} />
         </View>
+      ) : mode === 'week' ? (
+        <WeekOverview days={week} blocks={weekBlocks} selectedDay={key} palette={palette}
+          onSelectDay={(selected) => { setDay(selected); setMode('timeline'); }} />
       ) : (
         <ScrollView style={styles.listScroll} contentContainerStyle={styles.listContent}>
           <Text style={[styles.listHeading, { color: foreground }]}>Your time, at a glance</Text>
@@ -267,12 +278,15 @@ export function CalendarScreen() {
                 accessibilityLabel={`Edit time for ${block.goalTitle}`}>
                 <Text numberOfLines={1} style={[styles.listTitle, { color: foreground }]}>{block.goalTitle}</Text>
                 <Text style={[styles.listTime, { color: palette.accent }]}>
-                  {timeLabel(block.startAt)} – {timeLabel(block.endAt)} ·
+                  {timeLabel(block.startAt)} – {timeLabel(block.endAt)}{
+                    localDayKey(new Date(block.endAt)) !== localDayKey(new Date(block.startAt)) ? ' (+1 day)' : ''
+                  } ·
                   {' '}{durationLabel((new Date(block.endAt).getTime() - new Date(block.startAt).getTime()) / 60000)}
                 </Text>
                 {block.intention ? <Text numberOfLines={2} style={[styles.listIntention, { color: palette.muted }]}>{block.intention}</Text> : null}
                 <Text style={[styles.listType, { color: palette.muted }]}>
                   {block.kind === 'box' ? 'TIMEBOX' : 'TIME BLOCK'}{block.goalCompleted ? '  ·  COMPLETE' : ''}
+                  {localDayKey(new Date(block.startAt)) !== key ? '  ·  CONTINUED FROM PREVIOUS DAY' : ''}
                 </Text>
               </Pressable>
               <View style={styles.listActions}>
@@ -337,7 +351,7 @@ const styles = StyleSheet.create({
   summaryLabel: { fontSize: 12, fontWeight: '400' },
   summarySecond: { fontSize: 11 },
   viewToggle: { flexDirection: 'row', padding: 4, gap: 3, borderWidth: 1, borderRadius: radius.full },
-  modeButton: { paddingHorizontal: 12, minHeight: 36, borderRadius: radius.full, alignItems: 'center', justifyContent: 'center' },
+  modeButton: { paddingHorizontal: 9, minHeight: 36, borderRadius: radius.full, alignItems: 'center', justifyContent: 'center' },
   modeText: { fontSize: 12, fontWeight: '700' },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   error: { borderWidth: 1, borderRadius: radius.lg, margin: 16, padding: 22, gap: 12 },

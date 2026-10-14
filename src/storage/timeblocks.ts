@@ -23,13 +23,16 @@ function map(row: TimeBlockRow): TimeBlock {
     kind: row.kind, intention: row.intention,
   };
 }
-export async function listDayBlocks(db: SQLiteDatabase, date: Date): Promise<TimeBlock[]> {
-  const { from, to } = localDayBounds(date);
+export async function listRangeBlocks(db: SQLiteDatabase, from: string, to: string): Promise<TimeBlock[]> {
   const rows = await db.getAllAsync<TimeBlockRow>(
-    `${SELECT} AND tb.start_at >= ? AND tb.start_at < ?
-      ORDER BY tb.start_at ASC, tb.end_at ASC, tb.id ASC`, [from, to],
+    `${SELECT} AND tb.start_at < ? AND tb.end_at > ?
+      ORDER BY tb.start_at ASC, tb.end_at ASC, tb.id ASC`, [to, from],
   );
   return rows.map(map);
+}
+export async function listDayBlocks(db: SQLiteDatabase, date: Date): Promise<TimeBlock[]> {
+  const { from, to } = localDayBounds(date);
+  return listRangeBlocks(db, from, to);
 }
 export async function listGoalBlocks(db: SQLiteDatabase, goalId: string): Promise<TimeBlock[]> {
   const rows = await db.getAllAsync<TimeBlockRow>(

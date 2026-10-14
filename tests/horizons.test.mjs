@@ -150,3 +150,39 @@ test('focus history counts only active seconds across pause and restart, capped 
   assert.equal(getFocusElapsedMs(resumed, 1920000), 180000);
   assert.equal(getFocusElapsedMs(resumed, 3000000), 600000);
 });
+
+test('overnight blocks preserve local clock and show only the segment visible on each day', () => {
+  const range = timeRangeFromInput({
+    date: '2026-10-14', start: '23:30', end: '00:30', endsNextDay: true,
+  });
+  assert.equal((Date.parse(range.endAt) - Date.parse(range.startAt)) / 60000, 60);
+  const block = { id: 'night', goalId: 'g', goalTitle: 'Study', startAt: range.startAt, endAt: range.endAt };
+  const first = layoutBlocks([block], 60, new Date(2026, 9, 14, 12))[0];
+  const next = layoutBlocks([block], 60, new Date(2026, 9, 15, 12))[0];
+  assert.equal(first.top, 23.5 * 60);
+  assert.equal(first.height, 30);
+  assert.equal(next.top, 0);
+  assert.equal(next.height, 30);
+  assert.deepEqual(layoutBlocks([block], 60, new Date(2026, 9, 16, 12)), []);
+  assert.throws(() => timeRangeFromInput({
+    date: '2026-10-14', start: '23:30', end: '00:30',
+  }), /Next day/);
+});
+
+test('invalid and repeated local DST hours are rejected without silently changing time', () => {
+  const previousTimezone = process.env.TZ;
+  process.env.TZ = 'America/New_York';
+  try {
+    assert.throws(() => timeRangeFromInput({
+      date: '2026-03-08', start: '02:30', end: '04:00',
+    }), /does not exist/);
+    assert.throws(() => timeRangeFromInput({
+      date: '2026-11-01', start: '01:30', end: '03:00',
+    }), /occurs twice/);
+    const normal = timeRangeFromInput({ date: '2026-11-01', start: '03:00', end: '04:00' });
+    assert.equal((Date.parse(normal.endAt) - Date.parse(normal.startAt)) / 60000, 60);
+  } finally {
+    if (previousTimezone === undefined) delete process.env.TZ;
+    else process.env.TZ = previousTimezone;
+  }
+});

@@ -325,3 +325,13 @@ The initial Create Goal form was appearing partially scrolled in a screenshot; i
 - [ ] Native reminder/expiry notification permission flows remain intentionally unimplemented pending real device verification.
 
 **Metric definition:** Insights counts finalized sessions only. A session reaches `completed` when its actual countdown expires and is finalized; this does not mark the goal completed. Existing v5 sessions preserve prior active seconds through their saved remaining time; the original wall-clock start time across earlier pauses can only be estimated.
+
+## Calendar correctness and weekly planning — 2026-10-14
+
+- [x] Show blocks that **overlap** the selected local day instead of only those starting inside it; continuing overnight blocks now appear on both relevant days.
+- [x] Clip overnight blocks to the current day's visible 00:00–24:00 timeline geometry; display the original time range and continuing marker in List.
+- [x] Explicit "End on next day" choice in the editor; verify local date/time, DST spring gaps and duplicated fall-back clock times instead of silently coercing them.
+- [x] Add a seven-day overview with time budgets, linked goal previews and overlap warnings; select a day to open its actual timeline.
+- [x] Add **two** focused time-boundary tests, reaching **19/20** total. No new third-party dependency or schema change.
+- [ ] Test the existing-data calendar screens on an Android device through midnight and DST changes in different configured time zones.
+- [ ] Drag/resize gestures, month navigation, recurrence and local notifications still require separate implementation and verification.

@@ -5,6 +5,7 @@ export interface BlockInput {
   date: string; // local YYYY-MM-DD
   start: string; // local HH:mm
   end: string;
+  endsNextDay?: boolean; // explicitly allow scheduling into the following local date
   kind: BlockKind;
   intention: string;
 }
@@ -38,7 +39,7 @@ export function shiftLocalDay(date: Date, days: number): Date {
   next.setDate(next.getDate() + days);
   return next;
 }
-export function timeRangeFromInput(input: Pick<BlockInput, 'date' | 'start' | 'end'>): { startAt: string; endAt: string } {
+export function timeRangeFromInput(input: Pick<BlockInput, 'date' | 'start' | 'end' | 'endsNextDay'>): { startAt: string; endAt: string } {
   const day = parseLocalDay(input.date);
   if (!day) throw new Error('Enter a valid date (YYYY-MM-DD).');
   const parseClock = (value: string) => {
@@ -46,19 +47,38 @@ export function timeRangeFromInput(input: Pick<BlockInput, 'date' | 'start' | 'e
     if (!m) throw new Error('Enter a 24-hour time, e.g. 09:30.');
     return [Number(m[1]), Number(m[2])] as const;
   };
-  const make = (value: string) => {
+  const make = (value: string, nextDay: boolean) => {
     const [h, m] = parseClock(value);
-    const result = new Date(day.getFullYear(), day.getMonth(), day.getDate(), h, m);
-    // Reject non-existent local times during the DST spring-forward gap.
-    if (result.getHours() !== h || result.getMinutes() !== m || localDayKey(result) !== input.date) {
-      throw new Error('That local time does not exist on this date.');
+    const target = nextDay ? shiftLocalDay(day, 1) : day;
+    const result = new Date(target.getFullYear(), target.getMonth(), target.getDate(), h, m);
+    // Reject nonexistent clock times when clocks jump forward.
+    if (result.getHours() !== h || result.getMinutes() !== m || localDayKey(result) !== localDayKey(target)) {
+      throw new Error('That clock time does not exist on this date because of a time-zone change.');
+    }
+    // In a fall-back transition a clock time can map to two instants.
+    // Reject ambiguous input instead of silently choosing the wrong occurrence.
+    const before = shiftLocalDay(target, -1);
+    const after = shiftLocalDay(target, 1);
+    const offsetShiftMinutes = Math.abs(
+      new Date(after.getFullYear(), after.getMonth(), after.getDate(), 12).getTimezoneOffset() -
+      new Date(before.getFullYear(), before.getMonth(), before.getDate(), 12).getTimezoneOffset()
+    );
+    if (offsetShiftMinutes > 0) {
+      const alternative = new Date(result.getTime() + offsetShiftMinutes * 60000);
+      if (localDayKey(alternative) === localDayKey(target) &&
+          alternative.getHours() === h && alternative.getMinutes() === m) {
+        throw new Error('That clock time occurs twice on this date. Choose an unambiguous time.');
+      }
     }
     return result;
   };
-  const start = make(input.start);
-  const end = make(input.end);
+  const start = make(input.start, false);
+  const end = make(input.end, input.endsNextDay === true);
   if (end.getTime() <= start.getTime()) {
-    throw new Error('End time must be later than start time, on the same day.');
+    throw new Error('End time must follow start time. Enable "Next day" for an overnight block.');
+  }
+  if (end.getTime() - start.getTime() > 24 * 60 * 60 * 1000) {
+    throw new Error('A scheduled block cannot exceed 24 hours.');
   }
   return { startAt: start.toISOString(), endAt: end.toISOString() };
 }
@@ -74,8 +94,11 @@ export interface PlacedBlock {
   lane: number;
   lanes: number;
 }
-/** Each overlapping group shares horizontal space; blocks keep their true vertical time position. */
-export function layoutBlocks(blocks: readonly TimeBlock[], hourHeight = 64): PlacedBlock[] {
+/** Each overlapping group shares horizontal space; split overnight blocks at local-day boundaries. */
+export function layoutBlocks(blocks: readonly TimeBlock[], hourHeight = 64, day?: Date): PlacedBlock[] {
+  const bounds = day ? localDayBounds(day) : null;
+  const dayFrom = bounds ? Date.parse(bounds.from) : -Infinity;
+  const dayTo = bounds ? Date.parse(bounds.to) : Infinity;
   const ordered = [...blocks].sort((a, b) =>
     a.startAt.localeCompare(b.startAt) || a.endAt.localeCompare(b.endAt) || a.id.localeCompare(b.id));
   const result: PlacedBlock[] = [];
@@ -89,11 +112,13 @@ export function layoutBlocks(blocks: readonly TimeBlock[], hourHeight = 64): Pla
     active = [];
   }
   for (const block of ordered) {
-    const start = new Date(block.startAt);
-    const end = new Date(block.endAt);
-    const startMs = start.getTime();
-    const endMs = end.getTime();
+    const rawStart = Date.parse(block.startAt);
+    const rawEnd = Date.parse(block.endAt);
+    const startMs = Math.max(rawStart, dayFrom);
+    const endMs = Math.min(rawEnd, dayTo);
     if (!Number.isFinite(startMs) || !Number.isFinite(endMs) || endMs <= startMs) continue;
+    const start = new Date(startMs);
+    const end = new Date(endMs);
     if (startMs >= groupEnd && group.length) flush();
     active = active.filter((item) => item.end > startMs);
     const occupied = new Set(active.map((item) => item.lane));
@@ -102,10 +127,12 @@ export function layoutBlocks(blocks: readonly TimeBlock[], hourHeight = 64): Pla
     active.push({ end: endMs, lane });
     groupEnd = Math.max(groupEnd, endMs);
     const beginMinutes = start.getHours() * 60 + start.getMinutes();
-    const durationMinutes = (endMs - startMs) / 60000;
+    // A local midnight end belongs at 24:00 on the *displayed* day.
+    const endMinutes = day && endMs === dayTo ? 1440 : end.getHours() * 60 + end.getMinutes();
+    const visualDuration = day ? Math.max(0, endMinutes - beginMinutes) : (endMs - startMs) / 60000;
     const placement: PlacedBlock = {
       block, top: beginMinutes / 60 * hourHeight,
-      height: Math.max(30, durationMinutes / 60 * hourHeight),
+      height: Math.max(30, visualDuration / 60 * hourHeight),
       lane, lanes: 1,
     };
     group.push(placement);

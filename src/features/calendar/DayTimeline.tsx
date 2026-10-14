@@ -46,9 +46,12 @@ export function DayTimeline({ date, blocks, palette, isDark, onEdit, onQuickAdd,
     return () => clearInterval(interval);
   }, []);
 
-  const positioned = useMemo(() => layoutBlocks(blocks, TIMELINE_HOUR_HEIGHT), [blocks]);
-  const firstHour = blocks.length
-    ? Math.max(0, Math.floor(Math.min(...blocks.map((block) => minOfDay(new Date(block.startAt)))) / 60) - 1)
+  const positioned = useMemo(
+    () => layoutBlocks(blocks, TIMELINE_HOUR_HEIGHT, date),
+    [blocks, dateKey],
+  );
+  const firstHour = positioned.length
+    ? Math.max(0, Math.floor(Math.min(...positioned.map((item) => item.top / TIMELINE_HOUR_HEIGHT)) - 1))
     : isToday ? Math.max(0, Math.floor(minOfDay(now) / 60) - 2) : 8;
 
   function jumpToNow() {
