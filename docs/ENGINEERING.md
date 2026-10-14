@@ -5,7 +5,7 @@ This is a public working repository. Detailed project notes are inside `docs/`; 
 ## Baseline at 2026-10-14
 
 - Expo SDK **57** (stable family); React Native **0.86.3**; React **19.2.3**.
-- Expo SQLite and Expo Crypto are now direct SDK-aligned dependencies.
+- Expo SQLite, Expo Crypto, React DOM and SDK-pinned Reanimated/Worklets are direct dependencies; React DOM/Worklets pins prevent npm peer drift.
 - TypeScript **strict**.
 - Node.js **22.13+** required by the SDK; Node 24 LTS is recommended for development.
 - Android is first; iOS requires macOS/Xcode for native builds.
@@ -26,7 +26,7 @@ npm run start
 
 Start Android with `npm run android` once an emulator or real device is configured. Use an Expo development build for native modules not included in Expo Go when needed.
 
-**Current verification:** GitHub Actions completed an npm installation and passed Expo dependency alignment, TypeScript and domain tests. The resolved package-lock.json is committed. Android/device testing has **not** been performed; final npm ci workflow must be checked.
+**Current verification:** GitHub Actions completed npm installation, Expo dependency alignment, TypeScript, domain tests and Android Metro export. The lockfile has been regenerated with matching React DOM and Worklets versions. Physical Android/ADB, APK builds, iOS and user interactions have **not** been verified. Strict npm ci still needs the final CI pass.
 
 ## Dependency workflow
 
