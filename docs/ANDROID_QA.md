@@ -2,8 +2,9 @@
 
 **Status: not yet confirmed after UI refinements.** Initial emulator screenshots (2026-10-14) prove Focus, Perspective, Archive and an empty Create Goal form render. They do not prove saved data or keyboard behavior.
 
-These ten **manual checks** are acceptance evidence, not additional automated tests. Do not create a new regression test for each checkbox. Record a screenshot or an exact reproduction only when a check fails.
+These eleven **manual checks** are acceptance evidence, not additional automated tests. Do not create a new regression test for each checkbox. Record a screenshot or an exact reproduction only when a check fails.
 
+- [ ] **Boards end-to-end:** On a populated v2 install create/edit/delete a board, add the same goal to two boards, toggle completion, open the original detail, remove a membership without removing the goal, archive the goal and verify active board counts; restart the app and confirm everything persists.
 - [ ] **Keyboard and safe area:** Create Goal with keyboard visible, scroll through its fields and tap fixed Save; verify system navigation never covers it. Open/close Details and Organize sheets.
 - [ ] **Single first action:** Focus empty screen exposes New goal without duplicate clipped CTAs; Perspective shows per-horizon Add without a sticky bottom footer.
 - [ ] **End-to-end goal:** Create, edit, complete and reopen a goal; close and relaunch Eonward; the item, its notes, and status persist.

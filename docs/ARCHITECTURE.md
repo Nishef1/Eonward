@@ -86,3 +86,13 @@ Prefer platform/Expo primitives; introduce a third-party library only after chec
 ## Archive & sorting semantics
 
 Archiving an active parent also archives its currently active descendants as one unit. Restoring that unit does not restore descendants archived earlier with different timestamps. A child cannot be restored while its parent remains archived. The archive list shows recoverable roots, keeping a single hierarchy rather than duplicate records. Manual Move Up/Down applies within the same period and completion group and persists ranks in an exclusive SQLite transaction. This is deliberately simpler than drag-and-drop.
+
+## Boards / schema v3
+
+- Additive migration to `boards` and `board_goals` tables; do not drop or reset goals.
+- Board membership is a **many-to-many reference** with composite primary key `(board_id, goal_id)`. A goal may belong to several boards; each board may reference many goals.
+- `ON DELETE CASCADE` on board deletion removes membership only; deleting a board never removes the goal itself.
+- Archived goals are hidden in board views and excluded from active board counts, but their memberships remain until the underlying goal is permanently deleted.
+- Board read models provide counts and completion from the same saved goals; no synchronized copies.
+- Route `/boards` opens the workspace; opening a board item navigates to the canonical goal detail on the Horizons route.
+- SQLite migration v3 preserves the existing v2 schema and is executed in the current exclusive transaction. Android upgrade verification remains mandatory.

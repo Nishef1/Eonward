@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import { ActivityIndicator, Alert, FlatList, Modal, Pressable, StyleSheet, Text, useColorScheme, View } from 'react-native';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import { useSQLiteContext } from 'expo-sqlite';
@@ -66,6 +67,9 @@ function GoalCard({
 
 export function HorizonsScreen() {
   const db = useSQLiteContext();
+  const router = useRouter();
+  const { goalId } = useLocalSearchParams<{ goalId?: string }>();
+  const openedFromBoard = useRef<string | null>(null);
   const palette = useColorScheme() === 'dark' ? colors.dark : colors.light;
   const [horizon, setHorizon] = useState<Horizon>('week');
   const [view, setView] = useState<'focus' | 'perspective' | 'archive'>('focus');
@@ -225,6 +229,21 @@ export function HorizonsScreen() {
     }
   }
 
+  // Board goals reuse the same original Goal detail sheet, not a copied board record.
+  useEffect(() => {
+    if (!goalId) {
+      openedFromBoard.current = null;
+      return;
+    }
+    if (openedFromBoard.current === goalId) return;
+    openedFromBoard.current = goalId;
+    void getGoal(db, goalId).then((goal) => {
+      if (goal) void openDetails(goal);
+    }).catch(() => {
+      Alert.alert('Goal unavailable', 'This goal could not be opened.');
+    });
+  }, [db, goalId]);
+
   function closeDetails() {
     detailRequest.current++;
     setDetailStack([]);
@@ -338,7 +357,11 @@ export function HorizonsScreen() {
           <View style={[styles.brandMark, { backgroundColor: palette.accent }]} />
           <Text style={[styles.brand, { color: palette.foreground }]}>EONWARD</Text>
         </View>
-
+        <Pressable accessibilityRole="button" accessibilityLabel="Open Boards"
+          style={[styles.boardsShortcut, { backgroundColor: palette.surface, borderColor: palette.border }]}
+          onPress={() => router.push('/boards')}>
+          <Text style={[styles.boardsShortcutText, { color: palette.accent }]}>Boards  ↗</Text>
+        </Pressable>
       </View>
       <Text style={[styles.eyebrow, { color: palette.accent }]}>YOUR TIME, IN PERSPECTIVE</Text>
       <Text style={[styles.heroTitle, { color: palette.foreground }]}>Horizons<Text style={{ color: palette.accent }}>.</Text></Text>
@@ -606,8 +629,10 @@ const styles = StyleSheet.create({
   organizeCancelText: { fontSize: 14, fontWeight: '600' },
   screen: { flex: 1 },
   listContent: { paddingHorizontal: spacing.lg, paddingBottom: 28, flexGrow: 1 },
-  brandRow: { flexDirection: 'row', justifyContent: 'flex-start', alignItems: 'center', marginTop: 2, marginBottom: 24 },
+  brandRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 2, marginBottom: 22 },
   brandBlock: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  boardsShortcut: { borderWidth: 1, minHeight: 46, paddingHorizontal: 16, borderRadius: radius.full, alignItems: 'center', justifyContent: 'center' },
+  boardsShortcutText: { fontSize: 12, fontWeight: '700' },
   brandMark: { height: 15, width: 15, borderTopLeftRadius: 8, borderBottomRightRadius: 8, transform: [{ rotate: '45deg' }] },
   brand: { fontSize: 13, fontWeight: '800', letterSpacing: 3 },
   today: { fontSize: 12, fontWeight: '600' },

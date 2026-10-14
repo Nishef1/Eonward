@@ -36,6 +36,10 @@ Record significant decisions and reversals here. A future change should cite its
 | 2026-10-14 | Reduce empty-state and multi-horizon duplicate CTAs | Improve action clarity and preserve vertical screen space | Implemented in source |
 | 2026-10-14 | Separate Archive from primary Focus/Perspective modes | Archive is a utility destination, not a planning mode | Implemented in source; user experience review pending |
 
+| 2026-10-14 | Build a real Boards workspace before calendar/time blocking | First major missing personal workflow; many-to-many referencing existing goals without duplication | Committed to source; Android QA outstanding |
+| 2026-10-14 | Additive SQLite schema v3 | Board deletion should never destroy underlying goal records or require new backend services | Committed; upgrade verification pending |
+| 2026-10-14 | Remove automatic goal-title keyboard focus | Form appeared partially scrolled in emulator screenshot; preserve top-of-form context first | Committed; screenshot recheck pending |
+
 ## Open decisions
 
 - Calendar rendering package vs dedicated implementation: verify on device.

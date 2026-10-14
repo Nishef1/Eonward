@@ -22,7 +22,7 @@ This file is the single source of truth for **planned vs completed** work. It is
 | M0 — Foundation | Documentation, repository hygiene, Expo shell | Complete — emulator screenshot + CI | Clean install, typecheck, successful device startup |
 | M1 — Product UX | Information architecture, design tokens, prototypes | In progress | Approved screen map and verified interactions |
 | M2 — Goals & horizons | Persistent data, hierarchy, seven horizons | In progress | End-to-end offline goal management |
-| M3 — Planning views | Boards, calendar, time blocks, fast capture | Planned | Consistent updates across every view |
+| M3 — Planning views | Boards, calendar, time blocks, fast capture | In progress — Boards source | Consistent updates across every view |
 | M4 — Personal systems | Notes, repeating items, habits, templates, reviews | Planned | All workflows persist and survive restart |
 | M5 — Mobile integration | Notifications, widgets, localization, backup | Planned | Real-device acceptance and restore test |
 | M6 — Quality & release | Performance, accessibility, testing, release build | Planned | Release checklist signed off |
@@ -99,7 +99,23 @@ This inventory records committed implementation, **not completion of the M1/M2 e
 
 ## M3 — Boards, calendar & capture
 
-- [ ] Build custom boards and lists referencing existing items (no cloned items).
+See [CAPABILITIES.md](CAPABILITIES.md) for the full implementation inventory, including features we have **not** built.
+
+### Board vertical slice (schema v3)
+
+- [x] Add additive v2 → v3 SQLite migration for boards and `board_goals` join table with foreign keys.
+- [x] Create, rename, describe and delete a board without removing its goals.
+- [x] Link/unlink existing active goals; a goal can be in multiple boards without being copied.
+- [x] View board progress and toggle completion of the underlying goal.
+- [x] Open original goal details in Horizons and refresh board data on return.
+- [x] Repair goal-editor initial scroll/autofocus and empty-parent-picker presentation.
+- [x] Adapt three existing migration tests to v3; stay within the 20-test budget.
+- [ ] Test upgrade of an existing v2 database, board membership, completion, archive filtering and navigation on Android.
+- [ ] Decide whether boards need ordered sections, filtered views and creation of a new goal in context.
+
+
+
+- [x] Build the first real Boards workflow: local boards with many-to-many references to existing goals. Device QA pending.
 - [ ] Implement drag/reorder with accessible non-drag alternatives.
 - [ ] Build daily, weekly and monthly calendar views.
 - [ ] Implement time blocks separate from deadlines.
@@ -211,11 +227,17 @@ React Native Android Alert supports at most three actions. The first proposed fo
 
 **Self-critique:** Our earlier modal design relied on a long scroll to reach Save, and even duplicated a first-goal call-to-action below a fixed footer. Both are avoidable design errors; fixing layout and action hierarchy is more valuable than another feature screen. The grey/blue floating Tools gear in the screenshot is not rendered anywhere by Eonward's source; investigate the emulator/development overlay separately if it interferes with testing.
 
+## Current implementation checkpoint
+
+The new Board route is a **functional source implementation** rather than a placeholder card. It uses one persistent goal entity and an indexed, unique membership table. CI validates the migration and build; screenshots and user interaction are required for UI sign-off.
+
+The initial Create Goal form was appearing partially scrolled in a screenshot; initial autofocus has been removed, scroll position resets when opened, and empty parent-option lists no longer reveal a pointless selector.
+
 ## Next three actions
 
-1. On the emulator, enter a goal with the keyboard open, scroll its form, and ensure the persistent Save button stays above the system navigation bar.
-2. Create a parent and child, verify Focus/Perspective/Archive and stored changes after force-close; verify existing v1 data upgrades to schema v2 without reset.
-3. Report actual Android interaction findings, fix them, then implement independent due dates/time blocks before expanding to Calendar.
+1. On Android verify board creation, membership across horizons, completion and returning to original goal details; do not uninstall the existing v2 database.
+2. Check that deleting a board preserves original goals and archiving a linked goal hides it from board views without deleting membership.
+3. Fix actual interaction issues; then implement separate due dates/time blocks and the first Calendar view.
 
 ## Progress log
 
@@ -231,3 +253,5 @@ React Native Android Alert supports at most three actions. The first proposed fo
 | 2026-10-14 | Added a goal ancestor trail, immediate-parent hints and destination-following edits; reviewed sequencing and gaps. | Code committed pending CI; Android UX pending; still 12 core tests. |
 | 2026-10-14 | Added schema v2, archive/restore UI and stored ordering; updated existing migration tests. | GitHub Actions domain and app checks passed on `8b5e606`; Android migration/interaction QA pending; 12/20 tests. |
 | 2026-10-14 | Refined Focus/Perspective/Archive hierarchy and modal safe-area/footer behavior based on four emulator screenshots. | Source changes, CI and fresh Android screenshots pending; 12/20 automated tests unchanged. |
+
+| 2026-10-14 | Board workspace added: schema v3 and references to existing goals; fixed goal editor autofocus/empty parent picker. | Source committed, CI and Android functional QA pending; automated suite remains 12/20. |

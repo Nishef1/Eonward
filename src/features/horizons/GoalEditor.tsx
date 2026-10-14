@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import { dateFromPeriodKey, HORIZONS, HORIZON_TITLES, parseDateInput, periodKey, periodLabel, shiftPeriod, type Horizon } from '../../domain/horizons';
@@ -31,6 +31,7 @@ export function GoalEditor({
   const [parentId, setParentId] = useState<string | null>(null);
   const [showParents, setShowParents] = useState(false);
   const [parentSearch, setParentSearch] = useState('');
+  const scrollRef = useRef<ScrollView>(null);
   const anchorTime = anchorDate.getTime();
 
   useEffect(() => {
@@ -47,6 +48,7 @@ export function GoalEditor({
     setParentId(initial?.parentId ?? parent?.id ?? null);
     setParentSearch('');
     setShowParents(false);
+    scrollRef.current?.scrollTo({ y: 0, animated: false });
   }, [visible, initial?.id, defaultHorizon, parent?.id, anchorTime]);
 
   const validDate = horizon !== 'day' || parseDateInput(dateText) !== null;
@@ -96,10 +98,10 @@ export function GoalEditor({
               <Text style={[styles.close, { color: palette.muted }]}>×</Text>
             </Pressable>
           </View>
-          <ScrollView style={styles.formScroll} keyboardShouldPersistTaps="handled" contentContainerStyle={styles.form} showsVerticalScrollIndicator={false}>
+          <ScrollView ref={scrollRef} style={styles.formScroll} keyboardDismissMode="on-drag" keyboardShouldPersistTaps="handled" contentContainerStyle={styles.form} showsVerticalScrollIndicator={false}>
             <Text style={[styles.label, { color: palette.muted }]}>GOAL</Text>
             <TextInput
-              autoFocus={!initial}
+              autoFocus={false}
               placeholder="What would you like to achieve?"
               placeholderTextColor={palette.muted}
               value={title}
@@ -170,12 +172,14 @@ export function GoalEditor({
             </View>
             <Pressable
               onPress={() => setShowParents((value) => !value)}
+              disabled={parentOptions.length === 0 && !currentParent}
               accessibilityRole="button"
+              accessibilityState={{ disabled: parentOptions.length === 0 && !currentParent }}
               accessibilityLabel="Select parent goal"
               style={[styles.parentSelect, { backgroundColor: palette.surface, borderColor: palette.border }]}
             >
               <Text style={[styles.parentLabel, { color: palette.foreground }]} numberOfLines={1}>{currentParent?.title ?? 'Independent goal'}</Text>
-              <Text style={[styles.parentArrow, { color: palette.muted }]}>{showParents ? '⌃' : '⌄'}</Text>
+              <Text style={[styles.parentArrow, { color: palette.muted }]}>{parentOptions.length || currentParent ? (showParents ? '⌃' : '⌄') : '—'}</Text>
             </Pressable>
             {showParents ? (
               <View style={[styles.parentOptions, { backgroundColor: palette.surface, borderColor: palette.border }]}>
@@ -191,7 +195,7 @@ export function GoalEditor({
                     </Text>
                   </Pressable>
                 ))}
-                {filteredParents.length === 0 ? (
+                {filteredParents.length === 0 && parentSearch.trim().length > 0 ? (
                   <Text style={[styles.dateHelp, { color: palette.muted }]}>No matching goals</Text>
                 ) : null}
               </View>

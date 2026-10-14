@@ -82,3 +82,10 @@ The Focus goal card has an Android-safe organization action sheet (Move Up, Move
 - Perspective has per-horizon Add goal actions; a global sticky New goal bar there is redundant and costs vertical screen space.
 - Archive is secondary to Focus/Perspective; style its shortcut accordingly rather than treating three destinations as equal primary navigation.
 - No UI dependency added. Screenshots of empty states cannot verify persistence, submit actions or migration.
+
+## Boards workspace (source pass)
+
+- Dedicated Board route linked from Horizons header; this is a substantive second workspace, not another Horizons tab.
+- Board cards show goal counts and progress; board details preserve source-goal identity.
+- Board creation, edit and selection use the same surface/typography/radius tokens; no new UI component package.
+- Device review must verify short-screen keyboard safe area, modal dismissal, long board names and linked-goal navigation.
