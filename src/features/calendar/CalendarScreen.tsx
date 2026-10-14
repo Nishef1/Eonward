@@ -122,6 +122,11 @@ export function CalendarScreen() {
   const totalMinutes = blocks.reduce((sum, block) =>
     sum + Math.max(0, Math.min(Date.parse(block.endAt), Date.parse(dayBounds.to)) -
       Math.max(Date.parse(block.startAt), Date.parse(dayBounds.from))) / 60000, 0);
+  const weekFromMs = Date.parse(localDayBounds(week[0]).from);
+  const weekToMs = Date.parse(localDayBounds(week[6]).to);
+  const weekTotalMinutes = weekBlocks.reduce((sum, block) => sum + Math.max(0,
+    Math.min(Date.parse(block.endAt), weekToMs) - Math.max(Date.parse(block.startAt), weekFromMs),
+  ) / 60000, 0);
   const monthFromMs = new Date(day.getFullYear(), day.getMonth(), 1).getTime();
   const monthToMs = new Date(day.getFullYear(), day.getMonth() + 1, 1).getTime();
   const monthTotalMinutes = monthBlocks.reduce((sum, block) => sum + Math.max(0,
@@ -129,6 +134,8 @@ export function CalendarScreen() {
   ) / 60000, 0);
   const monthBlockCount = monthBlocks.filter((block) =>
     Date.parse(block.startAt) < monthToMs && Date.parse(block.endAt) > monthFromMs).length;
+  const weekBlockCount = weekBlocks.filter((block) =>
+    Date.parse(block.startAt) < weekToMs && Date.parse(block.endAt) > weekFromMs).length;
   const completedGoals = new Set(blocks.filter((block) => block.goalCompleted)
     .map((block) => block.goalId)).size;
   async function write(action: () => Promise<void>) {
@@ -292,13 +299,14 @@ export function CalendarScreen() {
         </View> : null}
         <View style={[styles.summaryRow, { borderColor: palette.border }]}>
           <View style={styles.summaryStats}>
-            <Text style={[styles.summaryValue, { color: foreground }]}>{durationLabel(mode === 'month' ? monthTotalMinutes : totalMinutes)}
+            <Text style={[styles.summaryValue, { color: foreground }]}>{durationLabel(mode === 'month' ? monthTotalMinutes
+                : mode === 'week' ? weekTotalMinutes : totalMinutes)}
               <Text style={[styles.summaryLabel, { color: palette.muted }]}> planned</Text>
             </Text>
             <Text style={[styles.summarySecond, { color: palette.muted }]}>
-              {mode === 'month' ? monthBlockCount : blocks.length} {
-                (mode === 'month' ? monthBlockCount : blocks.length) === 1 ? 'block' : 'blocks'
-              } · {mode === 'month' ? 'this month' : completedGoals + ' linked goals done'}
+              {mode === 'month' ? monthBlockCount : mode === 'week' ? weekBlockCount : blocks.length} {
+                (mode === 'month' ? monthBlockCount : mode === 'week' ? weekBlockCount : blocks.length) === 1 ? 'block' : 'blocks'
+              } · {mode === 'month' ? 'this month' : mode === 'week' ? 'this week' : completedGoals + ' linked goals done'}
             </Text>
           </View>
           <View style={[styles.viewToggle, { backgroundColor: palette.surface, borderColor: palette.border }]}>
