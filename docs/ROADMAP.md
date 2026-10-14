@@ -311,4 +311,4 @@ The initial Create Goal form was appearing partially scrolled in a screenshot; i
 
 | 2026-10-14 | Rebuilt Calendar as a visible premium day canvas with stable seven-day header, live Now, goal color, quick hour scheduling and separate List. | Source and CI pending, emulator visual and interaction QA required; 14/20 tests. |
 
-| 2026-10-14 | Introduced root-level mobile dock and local, deadline-based persistent Timebox focus sessions (SQLite v5). | Source and CI pending; physical/emulator focus lifecycle acceptance remains open. |
+| 2026-10-14 | Introduced root-level mobile dock and local, deadline-based persistent Timebox focus sessions (SQLite v5). | Commit `0c66e33`: 16/20 domain tests, npm ci, Expo alignment, TypeScript and Android Metro passed; emulator focus lifecycle still unverified. |
