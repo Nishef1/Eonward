@@ -166,8 +166,8 @@ This inventory records committed implementation, **not completion of the M1/M2 e
 
 ## Next three actions
 
-1. Confirm CI for Perspective and the automated 20-test budget.
-2. Verify Focus/Perspective switching, CRUD, goal navigation and persistence on Android.
+1. Test Focus/Perspective switching and quick-add per horizon on the Android emulator.
+2. Verify goal editing, multi-level relationships, period changes and persistence after restart.
 3. Fix device findings; improve cross-horizon relationships and ordering before Calendar.
 
 ## Progress log
@@ -182,4 +182,4 @@ This inventory records committed implementation, **not completion of the M1/M2 e
 
 | 2026-10-14 | Horizons 2.0 initial implementation: nested navigation, reparenting validation, period editor and visual refinements. | CI checks passed on commit 34710e0; Android UI QA remains outstanding. |
 
-| 2026-10-14 | Built Focus/Perspective mode with local seven-period overview and test-budget enforcement. | Code committed; CI and emulator UX pending. |
+| 2026-10-14 | Built Focus/Perspective mode with local seven-period overview and test-budget enforcement. | CI passed on `2c1f8e8`: 12/20 tests passed, zero failures; npm ci, Expo alignment, TypeScript and Android Metro export passed. Emulator UX pending. |
