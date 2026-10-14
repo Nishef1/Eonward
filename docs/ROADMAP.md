@@ -343,3 +343,11 @@ The initial Create Goal form was appearing partially scrolled in a screenshot; i
 - [x] Aggregate actual overlapping month-day windows, display per-day activity bars and summarize planned hours/active days.
 - [x] Reuse the existing `time_blocks` data and v6 schema; no new package or additional automated test.
 - [ ] Verify month/year boundaries, small-screen grids and navigation return states in Android emulator.
+
+## Cross-screen capture: Calendar → Goals (2026-10-14)
+
+- [x] Reuse the full existing Goal Editor directly from Calendar; a goal can be created without navigating away.
+- [x] Empty Calendar quick-add opens goal creation instead of forcing a navigation to Horizons.
+- [x] After saving the goal, offer a direct "Schedule time" action with its new stable goal ID preselected.
+- [x] Refresh the same shared SQLite goal collection; no duplicated goal entities, package additions or new schema version.
+- [ ] Confirm Android modal transition and small-screen keyboard behavior on-device.

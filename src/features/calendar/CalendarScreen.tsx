@@ -3,11 +3,11 @@ import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import { ActivityIndicator, Alert, Pressable, ScrollView, StyleSheet, Text, useColorScheme, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useSQLiteContext } from 'expo-sqlite';
-import type { Goal } from '../../domain/goals';
+import type { Goal, GoalInput } from '../../domain/goals';
 import {
   localDayBounds, localDayKey, parseLocalDay, shiftLocalDay, type BlockInput, type TimeBlock,
 } from '../../domain/timeblocks';
-import { getGoal, listAllGoals } from '../../storage/goals';
+import { createGoal, getGoal, listAllGoals } from '../../storage/goals';
 import { listDayBlocks, listRangeBlocks, removeBlock, saveBlock } from '../../storage/timeblocks';
 import { colors, radius, spacing } from '../../theme/tokens';
 import { DayTimeline } from './DayTimeline';
@@ -15,6 +15,7 @@ import { WeekOverview } from './WeekOverview';
 import { MonthOverview } from './MonthOverview';
 import { useFocusSession } from '../focus/FocusProvider';
 import { TimeBlockEditor } from './TimeBlockEditor';
+import { GoalEditor } from '../horizons/GoalEditor';
 
 type Palette = typeof colors.light | typeof colors.dark;
 const WEEKDAYS = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
@@ -50,6 +51,7 @@ export function CalendarScreen() {
   const [revision, setRevision] = useState(0);
   const [busy, setBusy] = useState(false);
   const [editorOpen, setEditorOpen] = useState(false);
+  const [newGoalOpen, setNewGoalOpen] = useState(false);
   const [editingBlock, setEditingBlock] = useState<TimeBlock | null>(null);
   const [chosenGoal, setChosenGoal] = useState<string | null>(null);
   const [suggestedHour, setSuggestedHour] = useState<number | null>(null);
@@ -122,16 +124,37 @@ export function CalendarScreen() {
   }
   function createAt(hour: number | null = null) {
     if (!goals.length) {
-      Alert.alert('Start with a goal', 'Add a goal first, then reserve time for it.', [
-        { text: 'Cancel', style: 'cancel' },
-        { text: 'Open Horizons', onPress: () => router.push('/') },
-      ]);
+      setSuggestedHour(hour);
+      setNewGoalOpen(true);
       return;
     }
     setEditingBlock(null);
     setChosenGoal(null);
     setSuggestedHour(hour);
     setEditorOpen(true);
+  }
+  async function saveNewGoal(input: GoalInput): Promise<void> {
+    if (busy) return;
+    setBusy(true);
+    try {
+      const id = await createGoal(db, input);
+      const updated = await listAllGoals(db);
+      setGoals(updated);
+      setNewGoalOpen(false);
+      refresh();
+      Alert.alert('Goal created', 'This goal is now available across Eonward.', [
+        { text: 'Keep planning', style: 'cancel' },
+        { text: 'Schedule time', onPress: () => {
+          setEditingBlock(null);
+          setChosenGoal(id);
+          setEditorOpen(true);
+        } },
+      ]);
+    } catch (error) {
+      Alert.alert('Could not create goal', error instanceof Error ? error.message : 'Try again.');
+    } finally {
+      setBusy(false);
+    }
   }
   function edit(block: TimeBlock) {
     setEditingBlock(block);
@@ -183,6 +206,11 @@ export function CalendarScreen() {
             <Text style={[styles.brand, { color: foreground }]}>EONWARD</Text>
             <Text style={[styles.brandSub, { color: palette.muted }]}>CALENDAR</Text>
           </View>
+          <Pressable onPress={() => setNewGoalOpen(true)} accessibilityRole="button"
+            accessibilityLabel="Create a new goal from calendar"
+            style={[styles.newGoal, { borderColor: palette.border, backgroundColor: palette.surface }]}>
+            <Text style={[styles.newGoalText, { color: palette.accent }]}>＋ Goal</Text>
+          </Pressable>
           <Pressable onPress={() => setDay(new Date())} accessibilityRole="button"
             accessibilityLabel="Go to today" style={[styles.todayPill, { backgroundColor: palette.surface, borderColor: palette.border }]}>
             <Text style={[styles.todayLabel, { color: palette.accent }]}>Today</Text>
@@ -336,6 +364,9 @@ export function CalendarScreen() {
           ))}
         </ScrollView>
       )}
+      <GoalEditor visible={newGoalOpen} initial={null} parent={null} parentOptions={goals}
+        defaultHorizon="day" anchorDate={day} palette={palette} saving={busy}
+        onDismiss={() => { if (!busy) setNewGoalOpen(false); }} onSave={saveNewGoal} />
       <TimeBlockEditor visible={editorOpen} date={day} goals={goals}
         initial={editingBlock} suggestedGoalId={chosenGoal}
         suggestedStartHour={suggestedHour}
@@ -355,6 +386,8 @@ const styles = StyleSheet.create({
   brandGroup: { flex: 1, gap: 2 },
   brand: { fontSize: 12, fontWeight: '800', letterSpacing: 2.1 },
   brandSub: { fontSize: 9, fontWeight: '700', letterSpacing: 1.6 },
+  newGoal: { minHeight: 44, borderWidth: 1, borderRadius: radius.full, paddingHorizontal: 11, justifyContent: 'center' },
+  newGoalText: { fontSize: 12, fontWeight: '800' },
   todayPill: { borderRadius: radius.full, minHeight: 44, paddingHorizontal: 14, borderWidth: 1, justifyContent: 'center' },
   todayLabel: { fontSize: 12, fontWeight: '700' },
   create: { width: 44, height: 44, borderRadius: radius.full, justifyContent: 'center', alignItems: 'center' },
