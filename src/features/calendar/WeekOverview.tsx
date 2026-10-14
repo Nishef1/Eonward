@@ -77,7 +77,7 @@ export function WeekOverview({ days, blocks, selectedDay, palette, onSelectDay }
             </View>
             <View style={[styles.rail, { backgroundColor: palette.background }]}>
               {planned > 0 ? <View style={[styles.progress, {
-                width: (100 * planned / max) + '%', backgroundColor: selected ? '#B58D60' : palette.accent,
+                width: `${100 * planned / max}%` as const, backgroundColor: selected ? '#B58D60' : palette.accent,
               }]} /> : null}
             </View>
             {collisions > 0 ? (
