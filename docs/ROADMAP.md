@@ -33,9 +33,10 @@ This file is the single source of truth for **planned vs completed** work. It is
 - [x] Create the public-safe documentation in `docs/`.
 - [x] Add Expo + React Native + strict TypeScript starter source.
 - [x] Add a minimal visual token file and starting screen.
-- [ ] Resolve dependencies, commit `package-lock.json` and verify a clean install.
-- [ ] Run `npm run typecheck` and `npx expo install --check`.
-- [x] Add dependency-free Node domain tests and a CI workflow (execution status pending).
+- [x] Resolve dependencies and commit a real `package-lock.json` through a successful GitHub Actions npm installation.
+- [ ] Verify `npm ci` after locking dependencies (CI checks pending).
+- [x] Run `npm run typecheck` and `npx expo install --check` successfully in GitHub Actions.
+- [x] Add dependency-free Node domain tests and a CI workflow; tests passed on GitHub Actions.
 - [ ] Launch the initial shell on an actual Android device or emulator.
 
 **Exit gate:** a reproducible clean install, no type errors, no Expo dependency mismatches, and a usable shell on Android. Source files alone do **not** pass this gate.
@@ -46,8 +47,8 @@ This file is the single source of truth for **planned vs completed** work. It is
 - [x] Add create/edit/complete/reopen/delete dialogs and a next-step entry flow to source.
 - [x] Add SQLite schema v1, goal queries and writes, and a database startup migration to source.
 - [x] Add tests for ISO weeks, date navigation, validation and migration guards.
-- [ ] Verify domain tests run successfully in CI.
-- [ ] Confirm full TypeScript build and Expo package compatibility.
+- [x] Verify domain tests run successfully in CI.
+- [x] Confirm TypeScript typecheck and Expo package compatibility in CI (native build still pending).
 - [ ] Verify actual create/edit/persist/restart on Android.
 - [ ] Verify modal transitions, child relations and keyboard on a phone.
 
@@ -132,13 +133,14 @@ This inventory records committed implementation, **not completion of the M1/M2 e
 
 ## Next three actions
 
-1. Verify domain-tests CI, resolve dependencies, create a genuine package-lock.json, and check the Expo SDK 57 matrix.
-2. Run typecheck/Android startup, then test goal CRUD, next steps and restarts on a device.
-3. Fix device findings; expand Horizons UX and implement fuller hierarchy/placement rules.
+1. Verify the final lockfile-based `npm ci` workflow passes.
+2. Run the app on Android and test goals, related steps, period changes and persistence after restart.
+3. Fix findings from device verification; extend hierarchy and horizon placement without duplicating data.
 
 ## Progress log
 
 | Date | Change | Verification |
 | --- | --- | --- |
 | 2026-10-14 | Repository documents and minimal Expo source added. | Remote file inspection only; install/build/device testing pending. |
-| 2026-10-14 | Seven-horizon UI, SQLite goal CRUD, child steps, migration source and Node unit tests added. | Static review and GitHub verification; npm install, CI results and physical-device verification pending. |
+| 2026-10-14 | Seven-horizon UI, SQLite goal CRUD, child steps, migration source and Node unit tests added. | Domain tests, npm installation, typecheck and SDK alignment passed in GitHub Actions; device verification pending. |
+| 2026-10-14 | Real npm lockfile committed via a temporary CI step, then CI returned to lockfile-based installation. | GitHub tree verified lockfile exists; final npm ci workflow pending. |

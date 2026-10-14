@@ -17,7 +17,7 @@ Sources: https://docs.expo.dev/versions/latest/ and https://docs.expo.dev/router
 ## First-time setup
 
 ```sh
-npm install
+npm ci
 npx expo install --check
 npm run typecheck
 npm run test:domain
@@ -26,7 +26,7 @@ npm run start
 
 Start Android with `npm run android` once an emulator or real device is configured. Use an Expo development build for native modules not included in Expo Go when needed.
 
-**Current verification:** a lockfile and first dependency installation are pending. Domain tests are checked in with a GitHub Action; execution status and Android verification must be confirmed before claiming success.
+**Current verification:** GitHub Actions completed an npm installation and passed Expo dependency alignment, TypeScript and domain tests. The resolved package-lock.json is committed. Android/device testing has **not** been performed; final npm ci workflow must be checked.
 
 ## Dependency workflow
 
