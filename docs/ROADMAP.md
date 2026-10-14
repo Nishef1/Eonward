@@ -1,7 +1,7 @@
 # Eonward development roadmap
 
 Last reviewed: 2026-10-14  
-Status: **M0 + M1 + M2 in progress (implementation not device-verified)**  
+Status: **M0 complete (emulator launch verified); M1 + M2 in progress (CRUD behavior not yet device-verified)**  
 Platform priority: Android first; iOS compatible; desktop is a later decision.
 
 This file is the single source of truth for **planned vs completed** work. It is public: record implementation milestones here, not private product research.
@@ -19,7 +19,7 @@ This file is the single source of truth for **planned vs completed** work. It is
 
 | Milestone | Scope | State | Exit gate |
 | --- | --- | --- | --- |
-| M0 — Foundation | Documentation, repository hygiene, Expo shell | In progress | Clean install, typecheck, successful device startup |
+| M0 — Foundation | Documentation, repository hygiene, Expo shell | Complete — emulator screenshot + CI | Clean install, typecheck, successful device startup |
 | M1 — Product UX | Information architecture, design tokens, prototypes | In progress | Approved screen map and verified interactions |
 | M2 — Goals & horizons | Persistent data, hierarchy, seven horizons | In progress | End-to-end offline goal management |
 | M3 — Planning views | Boards, calendar, time blocks, fast capture | Planned | Consistent updates across every view |
@@ -37,7 +37,7 @@ This file is the single source of truth for **planned vs completed** work. It is
 - [x] Verify final `npm ci` reproducibility in CI (GitHub Actions passed).
 - [x] Run `npm run typecheck` and `npx expo install --check` successfully in GitHub Actions.
 - [x] Add dependency-free Node domain tests and a CI workflow; tests passed on GitHub Actions.
-- [ ] Launch the initial shell on an actual Android device or emulator.
+- [x] Launch the initial shell on Android emulator (screenshot supplied on 2026-10-14).
 
 **Exit gate:** a reproducible clean install, no type errors, no Expo dependency mismatches, and a usable shell on Android. Source files alone do **not** pass this gate.
 
@@ -53,6 +53,23 @@ This file is the single source of truth for **planned vs completed** work. It is
 - [ ] Verify modal transitions, child relations and keyboard on a phone.
 
 This inventory records committed implementation, **not completion of the M1/M2 exit gates**.
+
+## Next implementation slice — Horizons 2.0
+
+**Priority:** complete the relationship and scheduling foundations before introducing Boards or Calendar.
+
+- [ ] Verify create/edit/complete/reopen/delete and persistence across emulator restarts.
+- [ ] Make child goals navigable and editable at arbitrary depth, including breadcrumb/back navigation.
+- [ ] Allow explicit parent selection/reparenting with cycle prevention and database integrity checks.
+- [ ] Add explicit period selection and rescheduling, not just assigning the current visible period.
+- [ ] Ensure a single goal remains one record across horizon and parent contexts; choose a migration strategy before multiple placements.
+- [ ] Add an optional contextual multi-horizon overview suited for phones.
+- [ ] Improve first-use empty state with a meaningful guided first-goal action.
+- [ ] Validate Android status/system bars, keyboard, touch targets and modal behavior.
+- [ ] Add unit/integration tests for hierarchy, period moves and persistence; confirm CI.
+- [ ] Run the entire workflow on the Android emulator and record findings.
+
+**Exit gate:** create a Life goal, link smaller goals in multiple horizons, move and edit them without duplication, and reopen the app with the structure intact. No placeholder screen counts as complete.
 
 ## M1 — Product UX & design
 
@@ -133,9 +150,9 @@ This inventory records committed implementation, **not completion of the M1/M2 e
 
 ## Next three actions
 
-1. Open the app on a physical Android phone or emulator and verify the navigation and modal interactions.
-2. Test create/edit/delete/complete goals, next steps, period navigation and persistence after force-close.
-3. Fix device findings; expand hierarchy, placement and in-context parent/child editing.
+1. Verify goal CRUD, modal/keyboard behavior and data retention on the running Android emulator.
+2. Implement navigable multi-level subgoals, safe parent reassignment and explicit period selection/rescheduling.
+3. Add a compact multi-horizon perspective, validate interactions on Android and update the acceptance checklist.
 
 ## Progress log
 
@@ -145,3 +162,4 @@ This inventory records committed implementation, **not completion of the M1/M2 e
 | 2026-10-14 | Seven-horizon UI, SQLite goal CRUD, child steps, migration source and Node unit tests added. | Domain tests, npm installation, typecheck and SDK alignment passed in GitHub Actions; device verification pending. |
 | 2026-10-14 | Dependency conflict fixed by pinning React DOM 19.2.3 and Worklets 0.10.1; lockfile regenerated. | Expo alignment, typecheck and Android Metro export passed. |
 | 2026-10-14 | Final lockfile-based CI run verified. | npm ci, Expo alignment, typecheck, Android Metro export and domain tests all passed; native APK/device testing remains. |
+| 2026-10-14 | Initial Horizons shell shown running on Android emulator; Horizons 2.0 priorities set. | User-provided screenshot verifies emulator launch only; goal CRUD, hierarchy and persistence still require runtime testing. |
