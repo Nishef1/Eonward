@@ -98,3 +98,12 @@ The Focus goal card has an Android-safe organization action sheet (Move Up, Move
 - Agenda provides a compact alternative to the vertically long 24h timeline and deep-links into original goals.
 - Saved future schedule hints appear on Horizons/Boards cards without introducing extra goal copies.
 - Device QA needed for small widths, overlapping blocks, keyboard, long titles, daylight-saving days and focus-return freshness.
+
+## Calendar Canvas v2 — mobile screenshot design review
+
+- Keep the week strip, selected day and quick Plan action pinned above the independently scrolling 24-hour canvas.
+- A live Now line/clock follows device local time; the Now pill scrolls back to it.
+- Events use muted premium tones derived from stable goal identity; Timeboxes are amber. Heights represent actual duration and horizontal lanes communicate overlap.
+- Exact timestamps and goal title appear within adequate-height blocks. Short blocks have condensed text with the separate accessible List view as a clear fallback.
+- Tap any empty hour to open Time Block Editor with start/end prefilled; tap an event to edit; hold to open the canonical goal.
+- Avoid stacking long explanatory copy above the schedule and avoid adding gesture libraries until basic Android QA succeeds.

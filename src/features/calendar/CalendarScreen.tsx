@@ -5,33 +5,37 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useSQLiteContext } from 'expo-sqlite';
 import type { Goal } from '../../domain/goals';
 import {
-  layoutBlocks, localClock, localDayKey, parseLocalDay, shiftLocalDay,
-  type BlockInput, type TimeBlock,
+  localDayKey, parseLocalDay, shiftLocalDay, type BlockInput, type TimeBlock,
 } from '../../domain/timeblocks';
-import { getGoal, listAllGoals, setGoalCompleted } from '../../storage/goals';
+import { getGoal, listAllGoals } from '../../storage/goals';
 import { listDayBlocks, removeBlock, saveBlock } from '../../storage/timeblocks';
 import { colors, radius, spacing } from '../../theme/tokens';
+import { DayTimeline } from './DayTimeline';
 import { TimeBlockEditor } from './TimeBlockEditor';
 
-const HOUR_HEIGHT = 64;
-const HOURS = Array.from({ length: 25 }, (_, hour) => hour);
 type Palette = typeof colors.light | typeof colors.dark;
-
-function formatDay(day: Date) {
-  return new Intl.DateTimeFormat('en-US', {
-    weekday: 'long', month: 'short', day: 'numeric', year: 'numeric',
-  }).format(day);
+const WEEKDAYS = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
+function dateHeading(date: Date): string {
+  return new Intl.DateTimeFormat('en-US', { weekday: 'long', month: 'long', day: 'numeric' }).format(date);
 }
-function formatTime(value: string) {
+function weekOf(day: Date): Date[] {
+  const weekday = (day.getDay() + 6) % 7;
+  const start = shiftLocalDay(day, -weekday);
+  return Array.from({ length: 7 }, (_, i) => shiftLocalDay(start, i));
+}
+function timeLabel(value: string): string {
   return new Intl.DateTimeFormat('en-US', { hour: 'numeric', minute: '2-digit' }).format(new Date(value));
+}
+function durationLabel(minutes: number) {
+  const h = Math.floor(minutes / 60), m = Math.round(minutes % 60);
+  return h ? `${h}h${m ? ` ${m}m` : ''}` : `${m}m`;
 }
 
 export function CalendarScreen() {
   const db = useSQLiteContext();
   const router = useRouter();
   const { goalId } = useLocalSearchParams<{ goalId?: string }>();
-  const isDark = useColorScheme() === 'dark';
-  const palette: Palette = isDark ? colors.dark : colors.light;
+  const palette: Palette = useColorScheme() === 'dark' ? colors.dark : colors.light;
   const [day, setDay] = useState(() => new Date());
   const [blocks, setBlocks] = useState<TimeBlock[]>([]);
   const [goals, setGoals] = useState<Goal[]>([]);
@@ -42,12 +46,15 @@ export function CalendarScreen() {
   const [editorOpen, setEditorOpen] = useState(false);
   const [editingBlock, setEditingBlock] = useState<TimeBlock | null>(null);
   const [chosenGoal, setChosenGoal] = useState<string | null>(null);
+  const [suggestedHour, setSuggestedHour] = useState<number | null>(null);
+  const [mode, setMode] = useState<'timeline' | 'list'>('timeline');
   const usedGoalParam = useRef<string | null>(null);
   const key = localDayKey(day);
-
+  const week = useMemo(() => weekOf(day), [key]);
+  const todayKey = localDayKey(new Date());
   const refresh = useCallback(() => setRevision((n) => n + 1), []);
-  useFocusEffect(useCallback(() => { refresh(); }, [refresh]));
 
+  useFocusEffect(useCallback(() => { refresh(); }, [refresh]));
   useEffect(() => {
     let active = true;
     setLoading(true);
@@ -58,9 +65,7 @@ export function CalendarScreen() {
       setFailure(null);
     }).catch((error: unknown) => {
       if (active) setFailure(error instanceof Error ? error.message : 'Could not load your schedule.');
-    }).finally(() => {
-      if (active) setLoading(false);
-    });
+    }).finally(() => { if (active) setLoading(false); });
     return () => { active = false; };
   }, [db, key, revision]);
 
@@ -74,44 +79,43 @@ export function CalendarScreen() {
       if (goal) {
         setEditingBlock(null);
         setChosenGoal(goal.id);
+        setSuggestedHour(null);
         setEditorOpen(true);
-      } else {
-        Alert.alert('Goal unavailable', 'Only active goals can be scheduled.');
-      }
+      } else Alert.alert('Goal unavailable', 'Only active goals can be scheduled.');
     }).catch(() => {
       if (active) Alert.alert('Could not open goal', 'Try opening Calendar again.');
     });
     return () => { active = false; };
   }, [db, goalId]);
 
-  const positioned = useMemo(() => layoutBlocks(blocks, HOUR_HEIGHT), [blocks]);
-  const plannedMinutes = blocks.reduce((sum, block) =>
+  const ordered = useMemo(() => [...blocks].sort((a, b) => a.startAt.localeCompare(b.startAt)), [blocks]);
+  const totalMinutes = blocks.reduce((sum, block) =>
     sum + (new Date(block.endAt).getTime() - new Date(block.startAt).getTime()) / 60000, 0);
-  const plannedLabel = plannedMinutes < 60 ? `${Math.round(plannedMinutes)}m` :
-    `${Math.floor(plannedMinutes / 60)}h ${Math.round(plannedMinutes % 60)}m`;
   const completed = blocks.filter((block) => block.goalCompleted).length;
-
   async function write(action: () => Promise<void>) {
     if (busy) return;
     setBusy(true);
-    try {
-      await action();
-      refresh();
-    } catch (error) {
-      Alert.alert('Could not save', error instanceof Error ? error.message : 'Please try again.');
-    } finally {
-      setBusy(false);
-    }
+    try { await action(); refresh(); }
+    catch (error) { Alert.alert('Could not save', error instanceof Error ? error.message : 'Please try again.'); }
+    finally { setBusy(false); }
   }
-
-  function startNew() {
+  function createAt(hour: number | null = null) {
+    if (!goals.length) {
+      Alert.alert('Start with a goal', 'Add a goal first, then reserve time for it.', [
+        { text: 'Cancel', style: 'cancel' },
+        { text: 'Open Horizons', onPress: () => router.push('/') },
+      ]);
+      return;
+    }
     setEditingBlock(null);
     setChosenGoal(null);
+    setSuggestedHour(hour);
     setEditorOpen(true);
   }
   function edit(block: TimeBlock) {
     setEditingBlock(block);
     setChosenGoal(block.goalId);
+    setSuggestedHour(null);
     setEditorOpen(true);
   }
   function save(input: BlockInput) {
@@ -124,208 +128,216 @@ export function CalendarScreen() {
     });
   }
   function remove(block: TimeBlock) {
-    Alert.alert('Remove this time block?', 'The goal will remain in Horizons and Boards.', [
+    Alert.alert('Remove this time block?', 'The linked goal will remain in Horizons and Boards.', [
       { text: 'Cancel', style: 'cancel' },
       { text: 'Remove time', style: 'destructive', onPress: () => void write(async () => {
         await removeBlock(db, block.id);
       }) },
     ]);
   }
-  function openGoal(id: string) {
-    router.push({ pathname: '/', params: { goalId: id } });
-  }
-
+  const foreground = palette.foreground;
   return (
-    <SafeAreaView style={[styles.screen, { backgroundColor: palette.background }]} edges={['top','bottom','left','right']}>
-      <ScrollView contentContainerStyle={styles.page} showsVerticalScrollIndicator={false}>
+    <SafeAreaView edges={['top', 'bottom', 'left', 'right']}
+      style={[styles.screen, { backgroundColor: palette.background }]}>
+      <View style={styles.top}>
         <View style={styles.navigation}>
-          <Pressable style={[styles.back, { backgroundColor: palette.surface, borderColor: palette.border }]}
-            accessibilityRole="button" accessibilityLabel="Back to previous page" onPress={() => router.back()}>
-            <Text style={[styles.backIcon, { color: palette.foreground }]}>‹</Text>
+          <Pressable onPress={() => router.back()} accessibilityRole="button" accessibilityLabel="Back"
+            style={[styles.back, { borderColor: palette.border, backgroundColor: palette.surface }]}>
+            <Text style={[styles.backArrow, { color: foreground }]}>‹</Text>
           </Pressable>
-          <Text style={[styles.wordmark, { color: palette.foreground }]}>EONWARD  /  CALENDAR</Text>
-          <Pressable style={[styles.today, { borderColor: palette.border }]}
-            accessibilityRole="button" onPress={() => setDay(new Date())}>
-            <Text style={[styles.todayText, { color: palette.accent }]}>Today</Text>
-          </Pressable>
-        </View>
-        <Text style={[styles.eyebrow, { color: palette.accent }]}>YOUR TIME, GIVEN PURPOSE</Text>
-        <Text style={[styles.title, { color: palette.foreground }]}>Time, protected<Text style={{ color: palette.accent }}>.</Text></Text>
-        <Text style={[styles.subtitle, { color: palette.muted }]}>Give your goals a place in the day.</Text>
-
-        <View style={[styles.datePanel, { borderColor: palette.border, backgroundColor: palette.surface }]}>
-          <Pressable accessibilityRole="button" accessibilityLabel="Previous day" style={styles.arrowButton}
-            onPress={() => setDay((date) => shiftLocalDay(date, -1))}>
-            <Text style={[styles.arrow, { color: palette.foreground }]}>‹</Text>
-          </Pressable>
-          <View style={styles.dateCopy}>
-            <Text style={[styles.dateCaption, { color: palette.muted }]}>DAILY PLAN</Text>
-            <Text style={[styles.dateText, { color: palette.foreground }]}>{formatDay(day)}</Text>
+          <View style={styles.brandGroup}>
+            <Text style={[styles.brand, { color: foreground }]}>EONWARD</Text>
+            <Text style={[styles.brandSub, { color: palette.muted }]}>CALENDAR</Text>
           </View>
-          <Pressable accessibilityRole="button" accessibilityLabel="Next day" style={styles.arrowButton}
-            onPress={() => setDay((date) => shiftLocalDay(date, 1))}>
-            <Text style={[styles.arrow, { color: palette.foreground }]}>›</Text>
+          <Pressable onPress={() => setDay(new Date())} accessibilityRole="button"
+            accessibilityLabel="Go to today" style={[styles.todayPill, { backgroundColor: palette.surface, borderColor: palette.border }]}>
+            <Text style={[styles.todayLabel, { color: palette.accent }]}>Today</Text>
+          </Pressable>
+          <Pressable onPress={() => createAt()} accessibilityRole="button"
+            accessibilityLabel="Plan a time block" style={[styles.create, { backgroundColor: palette.accent }]}>
+            <Text style={styles.createGlyph}>＋</Text>
           </Pressable>
         </View>
-        <View style={styles.summary}>
-          <View style={styles.metrics}>
-            <Text style={[styles.metricValue, { color: palette.foreground }]}>{blocks.length} <Text style={[styles.metricLabel, { color: palette.muted }]}>blocks</Text></Text>
-            <Text style={[styles.metricValue, { color: palette.foreground }]}>{plannedLabel} <Text style={[styles.metricLabel, { color: palette.muted }]}>planned</Text></Text>
-            <Text style={[styles.metricValue, { color: palette.foreground }]}>{completed} <Text style={[styles.metricLabel, { color: palette.muted }]}>done</Text></Text>
+        <View style={styles.dateTitleRow}>
+          <View style={styles.dateTitleGroup}>
+            <Text style={[styles.dateEyebrow, { color: palette.accent }]}>MAKE EVERY HOUR COUNT</Text>
+            <Text numberOfLines={1} style={[styles.dateTitle, { color: foreground }]}>{dateHeading(day)}</Text>
           </View>
-          <Pressable disabled={busy} onPress={startNew} accessibilityRole="button"
-            accessibilityLabel="Schedule a goal" style={[styles.primary, { backgroundColor: palette.accent }]}>
-            <Text style={styles.primaryText}>＋  Plan time</Text>
-          </Pressable>
-        </View>
-
-        {loading ? <ActivityIndicator color={palette.accent} style={{ marginTop: 40 }} /> : failure ? (
-          <View style={[styles.notice, { backgroundColor: palette.surface, borderColor: palette.border }]}>
-            <Text style={{ color: palette.foreground }}>{failure}</Text>
-            <Pressable onPress={refresh} style={styles.retry} accessibilityRole="button">
-              <Text style={{ color: palette.accent, fontWeight: '700' }}>Retry</Text>
+          <View style={styles.weekArrows}>
+            <Pressable style={styles.weekArrow} accessibilityRole="button" accessibilityLabel="Previous week"
+              onPress={() => setDay((current) => shiftLocalDay(current, -7))}>
+              <Text style={[styles.weekArrowGlyph, { color: foreground }]}>‹</Text>
+            </Pressable>
+            <Pressable style={styles.weekArrow} accessibilityRole="button" accessibilityLabel="Next week"
+              onPress={() => setDay((current) => shiftLocalDay(current, 7))}>
+              <Text style={[styles.weekArrowGlyph, { color: foreground }]}>›</Text>
             </Pressable>
           </View>
-        ) : (
-          <>
-            {blocks.length === 0 ? (
-              <View style={[styles.empty, { backgroundColor: palette.surface, borderColor: palette.border }]}>
-                <Text style={[styles.emptyTitle, { color: palette.foreground }]}>
-                  Make space for what matters.
-                </Text>
-                <Text style={[styles.emptyCopy, { color: palette.muted }]}>
-                  {goals.length ? 'Select a goal and reserve a time for it. Your goal will still appear in Horizons and Boards.' :
-                    'Create a goal in Horizons or Boards, then give it a place on your calendar.'}
-                </Text>
-                {!goals.length ? (
-                  <Pressable onPress={() => router.push('/')} accessibilityRole="button" style={styles.goToGoals}>
-                    <Text style={{ color: palette.accent, fontWeight: '700' }}>Open Horizons →</Text>
-                  </Pressable>
-                ) : null}
-              </View>
-            ) : (
-              <View style={styles.agenda}>
-                <Text style={[styles.agendaHeading, { color: palette.foreground }]}>Today's intentions</Text>
-                {blocks.map((block) => (
-                  <View key={block.id} style={[styles.agendaRow, { borderColor: palette.border, backgroundColor: palette.surface }]}>
-                    <View style={[styles.agendaMarker, { backgroundColor: block.kind === 'box' ? '#B07B42' : palette.accent }]} />
-                    <Pressable accessibilityRole="button" accessibilityLabel={`Edit ${block.goalTitle} time`}
-                      onPress={() => edit(block)} style={styles.agendaContent}>
-                      <Text numberOfLines={1} style={[styles.agendaGoal, {
-                        color: palette.foreground, textDecorationLine: block.goalCompleted ? 'line-through' : 'none',
-                      }]}>{block.goalTitle}</Text>
-                      <Text style={[styles.agendaTime, { color: palette.muted }]}>
-                        {formatTime(block.startAt)}–{formatTime(block.endAt)} · {block.kind === 'box' ? 'Timebox' : 'Time block'}
-                      </Text>
-                    </Pressable>
-                    <Pressable style={styles.agendaGo} accessibilityRole="button"
-                      accessibilityLabel={`Open ${block.goalTitle} goal`} onPress={() => openGoal(block.goalId)}>
-                      <Text style={[styles.agendaArrow, { color: palette.accent }]}>↗</Text>
-                    </Pressable>
-                    <Pressable accessibilityRole="button" accessibilityLabel={`Remove scheduled time for ${block.goalTitle}`}
-                      onPress={() => remove(block)} style={styles.agendaGo}>
-                      <Text style={[styles.removeText, { color: palette.muted }]}>×</Text>
-                    </Pressable>
-                  </View>
-                ))}
-              </View>
-            )}
-
-            <View style={styles.timelineHeading}>
-              <Text style={[styles.timelineTitle, { color: palette.foreground }]}>Daily timeline</Text>
-              <Text style={[styles.timelineHint, { color: palette.muted }]}>Tap a block to edit</Text>
-            </View>
-            <View style={[styles.timeline, { borderColor: palette.border, backgroundColor: palette.surface }]}>
-              {HOURS.map((hour) => (
-                <View key={hour} style={[styles.hour, { top: hour * HOUR_HEIGHT }]}>
-                  <Text style={[styles.hourText, { color: palette.muted }]}>{String(hour).padStart(2, '0')}:00</Text>
-                  <View style={[styles.hourLine, { backgroundColor: palette.border }]} />
+        </View>
+        <View style={styles.weekStrip}>
+          {week.map((date, index) => {
+            const selected = localDayKey(date) === key;
+            const today = localDayKey(date) === todayKey;
+            return (
+              <Pressable key={localDayKey(date)} accessibilityRole="button"
+                accessibilityLabel={dateHeading(date)}
+                accessibilityState={{ selected }}
+                onPress={() => setDay(date)} style={styles.weekDay}>
+                <Text style={[styles.weekName, { color: selected ? foreground : palette.muted }]}>{WEEKDAYS[index]}</Text>
+                <View style={[styles.dayCircle, selected && { backgroundColor: foreground }]}>
+                  <Text style={[styles.dayNumber, { color: selected ? palette.background : foreground }]}>
+                    {date.getDate()}
+                  </Text>
                 </View>
-              ))}
-              <View style={styles.eventLayer}>
-                {positioned.map(({ block, top, height, lane, lanes }) => (
-                  <Pressable key={block.id} onPress={() => edit(block)} accessibilityRole="button"
-                    accessibilityLabel={`Edit ${block.goalTitle} scheduled ${formatTime(block.startAt)} to ${formatTime(block.endAt)}`}
-                    style={[styles.event, {
-                      top, height, left: `${lane / lanes * 100}%`, width: `${100 / lanes}%`,
-                      backgroundColor: block.kind === 'box' ? '#98683B' : isDark ? '#385D50' : '#587A6D',
-                    }]}>
-                    <Text style={styles.eventTime} numberOfLines={1}>{localClock(new Date(block.startAt))}–{localClock(new Date(block.endAt))}</Text>
-                    <Text style={[styles.eventName, { textDecorationLine: block.goalCompleted ? 'line-through' : 'none' }]}
-                      numberOfLines={height < 60 ? 1 : 3}>{block.goalTitle}</Text>
-                    {height > 75 && block.intention ? <Text numberOfLines={2} style={styles.eventIntention}>{block.intention}</Text> : null}
-                  </Pressable>
-                ))}
+                <View style={[styles.todayDot, { backgroundColor: today ? palette.accent : 'transparent' }]} />
+              </Pressable>
+            );
+          })}
+        </View>
+        <View style={[styles.summaryRow, { borderColor: palette.border }]}>
+          <View style={styles.summaryStats}>
+            <Text style={[styles.summaryValue, { color: foreground }]}>{durationLabel(totalMinutes)}
+              <Text style={[styles.summaryLabel, { color: palette.muted }]}> planned</Text>
+            </Text>
+            <Text style={[styles.summarySecond, { color: palette.muted }]}>
+              {blocks.length} {blocks.length === 1 ? 'block' : 'blocks'} · {completed} done
+            </Text>
+          </View>
+          <View style={[styles.viewToggle, { backgroundColor: palette.surface, borderColor: palette.border }]}>
+            {(['timeline', 'list'] as const).map((item) => (
+              <Pressable key={item} accessibilityRole="button"
+                accessibilityState={{ selected: mode === item }}
+                onPress={() => setMode(item)}
+                style={[styles.modeButton, mode === item && { backgroundColor: foreground }]}>
+                <Text style={[styles.modeText, { color: mode === item ? palette.background : palette.muted }]}>
+                  {item === 'timeline' ? 'Timeline' : 'List'}
+                </Text>
+              </Pressable>
+            ))}
+          </View>
+        </View>
+      </View>
+      {loading ? (
+        <View style={styles.center}><ActivityIndicator color={palette.accent} /></View>
+      ) : failure ? (
+        <View style={[styles.error, { backgroundColor: palette.surface, borderColor: palette.border }]}>
+          <Text style={{ color: foreground }}>{failure}</Text>
+          <Pressable onPress={refresh} accessibilityRole="button" style={styles.retry}>
+            <Text style={{ color: palette.accent, fontWeight: '700' }}>Try again</Text>
+          </Pressable>
+        </View>
+      ) : mode === 'timeline' ? (
+        <View style={styles.timelineArea}>
+          <DayTimeline date={day} blocks={ordered} palette={palette}
+            isDark={palette === colors.dark} onEdit={edit} onQuickAdd={(hour) => createAt(hour)}
+            onOpenGoal={(id) => router.push({ pathname: '/', params: { goalId: id } })} />
+        </View>
+      ) : (
+        <ScrollView style={styles.listScroll} contentContainerStyle={styles.listContent}>
+          <Text style={[styles.listHeading, { color: foreground }]}>Your time, at a glance</Text>
+          {!ordered.length ? (
+            <View style={[styles.empty, { borderColor: palette.border, backgroundColor: palette.surface }]}>
+              <Text style={[styles.emptyTitle, { color: foreground }]}>A clear day ahead.</Text>
+              <Text style={[styles.emptyCopy, { color: palette.muted }]}>
+                Reserve an hour for any goal. It will appear here and in the timeline.
+              </Text>
+              <Pressable onPress={() => createAt()} accessibilityRole="button" style={styles.emptyAction}>
+                <Text style={[styles.emptyActionLabel, { color: palette.accent }]}>＋ Plan your first block</Text>
+              </Pressable>
+            </View>
+          ) : ordered.map((block) => (
+            <View key={block.id} style={[styles.listCard, { borderColor: palette.border, backgroundColor: palette.surface }]}>
+              <View style={[styles.listStripe, { backgroundColor: block.kind === 'box' ? '#B38850' : palette.accent }]} />
+              <Pressable onPress={() => edit(block)} accessibilityRole="button" style={styles.listCopy}
+                accessibilityLabel={`Edit time for ${block.goalTitle}`}>
+                <Text numberOfLines={1} style={[styles.listTitle, { color: foreground }]}>{block.goalTitle}</Text>
+                <Text style={[styles.listTime, { color: palette.accent }]}>
+                  {timeLabel(block.startAt)} – {timeLabel(block.endAt)} ·
+                  {' '}{durationLabel((new Date(block.endAt).getTime() - new Date(block.startAt).getTime()) / 60000)}
+                </Text>
+                {block.intention ? <Text numberOfLines={2} style={[styles.listIntention, { color: palette.muted }]}>{block.intention}</Text> : null}
+                <Text style={[styles.listType, { color: palette.muted }]}>
+                  {block.kind === 'box' ? 'TIMEBOX' : 'TIME BLOCK'}{block.goalCompleted ? '  ·  COMPLETE' : ''}
+                </Text>
+              </Pressable>
+              <View style={styles.listActions}>
+                <Pressable accessibilityRole="button" accessibilityLabel={`Open ${block.goalTitle}`}
+                  onPress={() => router.push({ pathname: '/', params: { goalId: block.goalId } })} style={styles.action}>
+                  <Text style={[styles.actionGlyph, { color: palette.accent }]}>↗</Text>
+                </Pressable>
+                <Pressable accessibilityRole="button" accessibilityLabel={`Remove ${block.goalTitle} time block`}
+                  onPress={() => remove(block)} style={styles.action}>
+                  <Text style={[styles.actionGlyph, { color: palette.muted }]}>×</Text>
+                </Pressable>
               </View>
             </View>
-          </>
-        )}
-      </ScrollView>
-      <TimeBlockEditor
-        visible={editorOpen}
-        date={day}
-        goals={goals}
-        initial={editingBlock}
-        suggestedGoalId={chosenGoal}
-        palette={palette}
-        saving={busy}
+          ))}
+        </ScrollView>
+      )}
+      <TimeBlockEditor visible={editorOpen} date={day} goals={goals}
+        initial={editingBlock} suggestedGoalId={chosenGoal}
+        suggestedStartHour={suggestedHour}
+        palette={palette} saving={busy}
         onCancel={() => { if (!busy) { setEditorOpen(false); setEditingBlock(null); } }}
-        onSave={save}
-      />
+        onSave={save} />
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
   screen: { flex: 1 },
-  page: { paddingHorizontal: spacing.lg, paddingBottom: 45, paddingTop: 12 },
-  navigation: { flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 29 },
-  back: { width: 46, height: 46, borderWidth: 1, borderRadius: radius.full, alignItems: 'center', justifyContent: 'center' },
-  backIcon: { fontSize: 30 },
-  wordmark: { flex: 1, fontSize: 10, fontWeight: '700', letterSpacing: 1.3 },
-  today: { borderWidth: 1, borderRadius: radius.full, minHeight: 46, paddingHorizontal: 14, justifyContent: 'center' },
-  todayText: { fontSize: 12, fontWeight: '700' },
-  eyebrow: { fontSize: 10, letterSpacing: 1.5, fontWeight: '700', marginBottom: 6 },
-  title: { fontSize: 34, fontWeight: '700', letterSpacing: -1 },
-  subtitle: { fontSize: 14, marginTop: 6, marginBottom: 28 },
-  datePanel: { borderWidth: 1, borderRadius: radius.xl, minHeight: 89, flexDirection: 'row', alignItems: 'center', gap: 3, marginBottom: 19 },
-  arrowButton: { width: 48, minHeight: 66, alignItems: 'center', justifyContent: 'center' },
-  arrow: { fontSize: 30 },
-  dateCopy: { flex: 1, alignItems: 'center', gap: 5 },
-  dateCaption: { fontSize: 10, fontWeight: '700', letterSpacing: 1.1 },
-  dateText: { fontSize: 15, fontWeight: '700', textAlign: 'center' },
-  summary: { flexDirection: 'row', alignItems: 'center', gap: 11, marginBottom: 20 },
-  metrics: { flex: 1, gap: 6 },
-  metricValue: { fontSize: 13, fontWeight: '700' },
-  metricLabel: { fontSize: 12, fontWeight: '400' },
-  primary: { minHeight: 53, borderRadius: radius.full, paddingHorizontal: 17, justifyContent: 'center', alignItems: 'center' },
-  primaryText: { color: '#FFFFFF', fontWeight: '700', fontSize: 14 },
-  empty: { borderWidth: 1, borderRadius: radius.lg, padding: spacing.lg, gap: 9, marginBottom: 21 },
-  emptyTitle: { fontWeight: '700', fontSize: 17 },
-  emptyCopy: { fontSize: 13, lineHeight: 22 },
-  goToGoals: { minHeight: 44, justifyContent: 'center', marginTop: 7 },
-  notice: { borderWidth: 1, borderRadius: radius.lg, padding: 16, gap: 9 },
-  retry: { minHeight: 48, justifyContent: 'center' },
-  agenda: { marginBottom: 19, gap: 8 },
-  agendaHeading: { fontSize: 17, fontWeight: '700', marginBottom: 4 },
-  agendaRow: { flexDirection: 'row', alignItems: 'center', borderWidth: 1, borderRadius: radius.lg, minHeight: 78, padding: 9, gap: 8 },
-  agendaMarker: { width: 5, height: 43, borderRadius: 3 },
-  agendaContent: { flex: 1, justifyContent: 'center', gap: 5, minHeight: 56 },
-  agendaGoal: { fontSize: 14, fontWeight: '700' },
-  agendaTime: { fontSize: 11 },
-  agendaGo: { minWidth: 33, minHeight: 48, justifyContent: 'center', alignItems: 'center' },
-  agendaArrow: { fontSize: 20 },
-  removeText: { fontSize: 24 },
-  timelineHeading: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 },
-  timelineTitle: { fontSize: 19, fontWeight: '700' },
-  timelineHint: { fontSize: 11 },
-  timeline: { borderWidth: 1, borderRadius: radius.lg, height: HOUR_HEIGHT * 24 + 4, overflow: 'hidden' },
-  hour: { position: 'absolute', height: 25, width: '100%', flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 9 },
-  hourText: { width: 40, fontSize: 10, fontWeight: '600' },
-  hourLine: { flex: 1, height: 1 },
-  eventLayer: { position: 'absolute', top: 0, bottom: 0, left: 60, right: 6 },
-  event: { position: 'absolute', borderRadius: 9, paddingVertical: 5, paddingHorizontal: 7, borderWidth: 1, borderColor: 'rgba(255,255,255,0.22)', overflow: 'hidden' },
-  eventTime: { color: '#FFFFFF', fontSize: 10, fontWeight: '700' },
-  eventName: { color: '#FFFFFF', fontSize: 12, fontWeight: '700', marginTop: 3 },
-  eventIntention: { color: '#FFFFFF', opacity: .83, fontSize: 10, marginTop: 4 },
+  top: { paddingHorizontal: spacing.md, paddingTop: 4 },
+  navigation: { minHeight: 56, flexDirection: 'row', alignItems: 'center', gap: 10 },
+  back: { width: 44, height: 44, borderWidth: 1, borderRadius: radius.full, justifyContent: 'center', alignItems: 'center' },
+  backArrow: { fontSize: 29 },
+  brandGroup: { flex: 1, gap: 2 },
+  brand: { fontSize: 12, fontWeight: '800', letterSpacing: 2.1 },
+  brandSub: { fontSize: 9, fontWeight: '700', letterSpacing: 1.6 },
+  todayPill: { borderRadius: radius.full, minHeight: 44, paddingHorizontal: 14, borderWidth: 1, justifyContent: 'center' },
+  todayLabel: { fontSize: 12, fontWeight: '700' },
+  create: { width: 44, height: 44, borderRadius: radius.full, justifyContent: 'center', alignItems: 'center' },
+  createGlyph: { fontSize: 25, fontWeight: '500', color: '#FFFFFF' },
+  dateTitleRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingTop: 12, paddingBottom: 11 },
+  dateTitleGroup: { flex: 1, gap: 4 },
+  dateEyebrow: { fontSize: 9, fontWeight: '700', letterSpacing: 1.3 },
+  dateTitle: { fontSize: 23, fontWeight: '700', letterSpacing: -0.55 },
+  weekArrows: { flexDirection: 'row', gap: 2 },
+  weekArrow: { width: 34, height: 44, alignItems: 'center', justifyContent: 'center' },
+  weekArrowGlyph: { fontSize: 30 },
+  weekStrip: { flexDirection: 'row', marginBottom: 8 },
+  weekDay: { flex: 1, minHeight: 75, alignItems: 'center', gap: 5, justifyContent: 'center' },
+  weekName: { fontSize: 11, fontWeight: '600' },
+  dayCircle: { width: 39, height: 39, borderRadius: 20, alignItems: 'center', justifyContent: 'center' },
+  dayNumber: { fontSize: 15, fontWeight: '700', fontVariant: ['tabular-nums'] },
+  todayDot: { width: 4, height: 4, borderRadius: 2 },
+  summaryRow: { flexDirection: 'row', alignItems: 'center', gap: 7, paddingVertical: 12, borderBottomWidth: 1 },
+  summaryStats: { flex: 1, gap: 3 },
+  summaryValue: { fontSize: 16, fontWeight: '800', fontVariant: ['tabular-nums'] },
+  summaryLabel: { fontSize: 12, fontWeight: '400' },
+  summarySecond: { fontSize: 11 },
+  viewToggle: { flexDirection: 'row', padding: 4, gap: 3, borderWidth: 1, borderRadius: radius.full },
+  modeButton: { paddingHorizontal: 12, minHeight: 36, borderRadius: radius.full, alignItems: 'center', justifyContent: 'center' },
+  modeText: { fontSize: 12, fontWeight: '700' },
+  center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
+  error: { borderWidth: 1, borderRadius: radius.lg, margin: 16, padding: 22, gap: 12 },
+  retry: { minHeight: 46, justifyContent: 'center' },
+  timelineArea: { flex: 1, paddingHorizontal: spacing.md, paddingBottom: 8 },
+  listScroll: { flex: 1 },
+  listContent: { paddingHorizontal: spacing.md, paddingTop: 21, paddingBottom: 36, gap: 11 },
+  listHeading: { fontSize: 19, fontWeight: '700', marginBottom: 9 },
+  empty: { borderWidth: 1, borderRadius: radius.xl, padding: 22, gap: 12 },
+  emptyTitle: { fontSize: 18, fontWeight: '700' },
+  emptyCopy: { fontSize: 14, lineHeight: 23 },
+  emptyAction: { minHeight: 50, justifyContent: 'center' },
+  emptyActionLabel: { fontSize: 14, fontWeight: '700' },
+  listCard: { flexDirection: 'row', alignItems: 'center', minHeight: 90, borderWidth: 1, borderRadius: radius.lg, padding: 12, gap: 11 },
+  listStripe: { alignSelf: 'stretch', width: 4, borderRadius: 2 },
+  listCopy: { flex: 1, gap: 5, paddingVertical: 6 },
+  listTitle: { fontSize: 15, fontWeight: '700' },
+  listTime: { fontSize: 12, fontWeight: '700', fontVariant: ['tabular-nums'] },
+  listIntention: { fontSize: 12, lineHeight: 18 },
+  listType: { fontSize: 9, fontWeight: '700', letterSpacing: 0.9 },
+  listActions: { gap: 2 },
+  action: { width: 43, minHeight: 42, alignItems: 'center', justifyContent: 'center' },
+  actionGlyph: { fontSize: 21 },
 });

@@ -13,12 +13,13 @@ interface Props {
   goals: Goal[];
   initial: TimeBlock | null;
   suggestedGoalId: string | null;
+  suggestedStartHour: number | null;
   palette: Palette;
   saving: boolean;
   onCancel: () => void;
   onSave: (input: BlockInput) => Promise<void>;
 }
-export function TimeBlockEditor({ visible, date, goals, initial, suggestedGoalId, palette, saving, onCancel, onSave }: Props) {
+export function TimeBlockEditor({ visible, date, goals, initial, suggestedGoalId, suggestedStartHour, palette, saving, onCancel, onSave }: Props) {
   const [goalId, setGoalId] = useState<string | null>(null);
   const [showGoals, setShowGoals] = useState(false);
   const [search, setSearch] = useState('');
@@ -32,13 +33,15 @@ export function TimeBlockEditor({ visible, date, goals, initial, suggestedGoalId
     const begin = initial ? new Date(initial.startAt) : date;
     setGoalId(initial?.goalId ?? suggestedGoalId ?? null);
     setDayText(localDayKey(begin));
-    setStart(initial ? localClock(new Date(initial.startAt)) : '09:00');
-    setEnd(initial ? localClock(new Date(initial.endAt)) : '10:00');
+    const hour = suggestedStartHour ?? 9;
+    setStart(initial ? localClock(new Date(initial.startAt)) : `${String(hour).padStart(2, '0')}:00`);
+    setEnd(initial ? localClock(new Date(initial.endAt)) :
+      hour === 23 ? '23:59' : `${String(hour + 1).padStart(2, '0')}:00`);
     setKind(initial?.kind ?? 'block');
     setIntention(initial?.intention ?? '');
     setShowGoals(false);
     setSearch('');
-  }, [visible, initial?.id, suggestedGoalId, date.getTime()]);
+  }, [visible, initial?.id, suggestedGoalId, suggestedStartHour, date.getTime()]);
   const filtered = useMemo(() => goals.filter((goal) =>
     goal.title.toLowerCase().includes(search.toLowerCase().trim())).slice(0, 25), [goals, search]);
   const goal = goals.find((g) => g.id === goalId);

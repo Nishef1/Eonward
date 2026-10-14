@@ -17,7 +17,7 @@ Legend:
 | Manual goal order | Partial | Up/down only; no drag, sorting filters or custom board order |
 | **Boards (local, multi-membership)** | **Implemented in source (M3 first slice)** | Create/edit/delete board; create a new goal inside a board atomically; link/unlink existing goals; completion and open original goal; device QA pending |
 | Tags and saved filters | Planned | Requires clear search/filter UX and schema design |
-| Calendar | Partial | Daily timeline and agenda of real scheduled goal blocks, editing/day navigation; week/month grid, drag, reminders, timezone transitions and release QA pending |
+| Calendar | Partial | Premium daily timeline with week strip, live current-time line, visual overlapping blocks, quick hour scheduling and separate List; week/month grid, drag, reminders and Android acceptance pending |
 | Time blocking and Timeboxing | Partial | Multiple goal-linked local-day blocks, 24h times, fixed-limit mode and optional outcome; no focus timer, reminders, cross-midnight blocks or DST fall-back disambiguation yet |
 | Recurrence and habits | Planned | Needs rule/occurrence model and DST correctness |
 | Templates | Planned | Requires versioned reusable blueprint/clone behavior |

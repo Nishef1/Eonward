@@ -253,11 +253,23 @@ The initial Create Goal form was appearing partially scrolled in a screenshot; i
 
 **Self-critique:** the previous roadmap delayed scheduling until Boards was fully polished, despite time blocking being an important part of the user's desired workflow. This slice makes shared scheduling functional before adding animations or secondary features. It is *not* a mature calendar: week/month grid, drag-to-resize, reminders, recurrence, due dates and external calendar integrations are still missing.
 
+## Daily Timeline redesign — screenshot review
+
+- [x] Move the scrollable 24-hour schedule above the fold; keep the week strip, day title and quick actions visible.
+- [x] Live current-time marker, Jump to Now, day/week navigation and initial positioning near now/first event.
+- [x] Draw actual start/end times and goal names in proportionally sized, color-coded blocks with side-by-side overlaps.
+- [x] Add separate accessible List view for short blocks and quick creation by tapping an empty hour.
+- [x] Keep the same goal IDs and SQLite v4; no new library; automated suite remains 14/20.
+- [ ] Verify Android dark/light, small screen, keyboard, 15-minute blocks, 3+ overlaps, scheduling and persistence.
+- [ ] Validate accessibility, date rollover, time zones and long-press navigation before gesture-heavy enhancements.
+
+**Self-critique:** the original Calendar buried its essential 24-hour schedule after a large header and long agenda in one enormous scrolling page. It looked like an afterthought. The new hierarchy puts visual scheduling first; List is an intentional fallback for short items, not a second copy of goals. Premium means clear time geometry and reliable actions, not more decoration.
+
 ## Next three actions
 
-1. On Android verify board creation, membership across horizons, completion and returning to original goal details; do not uninstall the existing v2 database.
-2. Check that deleting a board preserves original goals and archiving a linked goal hides it from board views without deleting membership.
-3. Verify Calendar/Time Block/Timebox scheduling and cross-screen updates, then address due dates and real-world feedback.
+1. Review light/dark Android screenshots with overlapping and 15-minute blocks, week strip and Now marker.
+2. Test tap-to-schedule, edits, List fallback and existing Horizons/Boards links across app restart.
+3. Fix device UX issues before adding countdown timers or drag/resizing gestures.
 
 ## Progress log
 
@@ -277,3 +289,5 @@ The initial Create Goal form was appearing partially scrolled in a screenshot; i
 | 2026-10-14 | Board workspace added: schema v3 with reusable goal references and atomic in-board goal creation; fixed goal editor initial scroll/parent selector. | Final code commit `f8c3fd1`: 12/20 domain tests, npm ci, Expo version checks, TypeScript and Android Metro all passed; Android board interaction and migration QA pending. |
 
 | 2026-10-14 | Added connected Calendar/Time Block and Timebox slice, schema v4, day timeline, and navigation from existing goals. | Source implementation committed pending CI/device verification; 14/20 tests. |
+
+| 2026-10-14 | Rebuilt Calendar as a visible premium day canvas with stable seven-day header, live Now, goal color, quick hour scheduling and separate List. | Source and CI pending, emulator visual and interaction QA required; 14/20 tests. |
