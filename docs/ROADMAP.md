@@ -324,4 +324,4 @@ The initial Create Goal form was appearing partially scrolled in a screenshot; i
 - [ ] Verify upgrades from a populated SQLite v5 app (both running and paused session states) and Force Stop/relaunch on Android.
 - [ ] Native reminder/expiry notification permission flows remain intentionally unimplemented pending real device verification.
 
-**Metric definition:** Insights counts finalized sessions only. A session reaches `completed` when its actual countdown expires and is finalized; this does not mark the goal completed. Existing v5 sessions upgraded mid-countdown can only be approximated because v5 did not save elapsed intervals before pausing.
+**Metric definition:** Insights counts finalized sessions only. A session reaches `completed` when its actual countdown expires and is finalized; this does not mark the goal completed. Existing v5 sessions preserve prior active seconds through their saved remaining time; the original wall-clock start time across earlier pauses can only be estimated.

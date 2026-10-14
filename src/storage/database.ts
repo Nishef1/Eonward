@@ -71,12 +71,11 @@ const V5_SCHEMA = `
 const V6_SCHEMA = `
   ALTER TABLE focus_session ADD COLUMN started_at_ms INTEGER NOT NULL DEFAULT 0;
   ALTER TABLE focus_session ADD COLUMN elapsed_ms INTEGER NOT NULL DEFAULT 0;
+  -- v5 records the remaining time at every pause, so duration - remaining
+  -- reconstructs earlier active segments even when the timer was resumed.
   UPDATE focus_session SET
-    started_at_ms = CASE WHEN status = 'running'
-      THEN MAX(0, deadline_ms - duration_ms)
-      ELSE MAX(0, updated_at_ms - (duration_ms - remaining_ms)) END,
-    elapsed_ms = CASE WHEN status = 'paused'
-      THEN MAX(0, duration_ms - remaining_ms) ELSE 0 END;
+    started_at_ms = MAX(0, updated_at_ms - (duration_ms - remaining_ms)),
+    elapsed_ms = MAX(0, duration_ms - remaining_ms);
   CREATE TABLE IF NOT EXISTS focus_history (
     id TEXT PRIMARY KEY NOT NULL,
     goal_title TEXT NOT NULL,

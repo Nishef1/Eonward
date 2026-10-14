@@ -62,6 +62,7 @@ test('existing v1–v5 data upgrades to v6 without recreating goals', async () =
   await migrateDatabase(v5.db);
   assert.equal(v5.transactionCalls, 1);
   assert.ok(v5.queries.some((sql) => sql.includes('ALTER TABLE focus_session ADD COLUMN elapsed_ms')));
+  assert.ok(v5.queries.some((sql) => sql.includes('elapsed_ms = MAX(0, duration_ms - remaining_ms)')));
   assert.ok(v5.queries.some((sql) => sql.includes('CREATE TABLE IF NOT EXISTS focus_history')));
   assert.equal(v5.queries.some((sql) => sql.includes('CREATE TABLE IF NOT EXISTS focus_session')), false);
 
