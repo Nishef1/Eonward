@@ -372,6 +372,7 @@ const styles = StyleSheet.create({
   noticeTitle: { fontSize: 17, fontWeight: '700' },
   noticeText: { fontSize: 13, lineHeight: 21 },
   loading: { marginTop: 35 },
+  action: { minHeight: 48, justifyContent: 'center' },
   overlay: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(9,22,18,0.45)' },
   sheet: { borderTopLeftRadius: 25, borderTopRightRadius: 25, padding: spacing.lg, gap: 12 },
   pickerSheet: { maxHeight: '88%', borderTopLeftRadius: 25, borderTopRightRadius: 25, padding: spacing.lg, gap: 12 },
