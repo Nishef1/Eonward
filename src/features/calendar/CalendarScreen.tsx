@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
-import { ActivityIndicator, Alert, Pressable, ScrollView, StyleSheet, Text, useColorScheme, View } from 'react-native';
+import { ActivityIndicator, Alert, AppState, Pressable, ScrollView, StyleSheet, Text, useColorScheme, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useSQLiteContext } from 'expo-sqlite';
 import type { Goal, GoalInput } from '../../domain/goals';
@@ -59,7 +59,15 @@ export function CalendarScreen() {
   const usedGoalParam = useRef<string | null>(null);
   const key = localDayKey(day);
   const week = useMemo(() => weekOf(day), [key]);
-  const todayKey = localDayKey(new Date());
+  const [todayKey, setTodayKey] = useState(() => localDayKey(new Date()));
+  useEffect(() => {
+    const updateToday = () => setTodayKey(localDayKey(new Date()));
+    const interval = setInterval(updateToday, 60000);
+    const listener = AppState.addEventListener('change', (state) => {
+      if (state === 'active') updateToday();
+    });
+    return () => { clearInterval(interval); listener.remove(); };
+  }, []);
   const refresh = useCallback(() => setRevision((n) => n + 1), []);
 
   useFocusEffect(useCallback(() => { refresh(); }, [refresh]));

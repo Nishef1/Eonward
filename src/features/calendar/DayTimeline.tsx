@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { AppState, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { layoutBlocks, localClock, localDayKey, type TimeBlock } from '../../domain/timeblocks';
 import { colors, radius } from '../../theme/tokens';
 
@@ -48,7 +48,10 @@ export function DayTimeline({ date, blocks, palette, isDark, onEdit, onQuickAdd,
   useEffect(() => {
     setNow(new Date());
     const interval = setInterval(() => setNow(new Date()), 60000);
-    return () => clearInterval(interval);
+    const listener = AppState.addEventListener('change', (state) => {
+      if (state === 'active') setNow(new Date());
+    });
+    return () => { clearInterval(interval); listener.remove(); };
   }, []);
 
   const positioned = useMemo(

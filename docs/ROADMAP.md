@@ -358,3 +358,8 @@ The initial Create Goal form was appearing partially scrolled in a screenshot; i
 - [x] Keep event placement, work-hour background, time rulers and Now line on the same adjustable scale.
 - [x] Preserve the user's approximate viewport time when changing zoom instead of snapping back to the morning.
 - [ ] Verify actual Android scroll position, 15-minute cards, touch-target overlap and accessibility at each zoom level.
+
+## Calendar lifecycle hardening (2026-10-14)
+- [x] Refresh the selected-day "Today" affordance across midnight and on return from background.
+- [x] Refresh the live Now marker on Android foreground resume without trusting JS background ticks.
+- [ ] Verify midnight rollover and foreground return with device-clock simulation on Android.
