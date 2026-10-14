@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { isoWeekKey, periodKey, shiftPeriod, startOfWeek, periodLabel, dateFromPeriodKey, parseDateInput } from '../src/domain/horizons.ts';
 import { normalizeGoalTitle, availableGoalParents } from '../src/domain/goals.ts';
+import { buildPerspectiveSections } from '../src/domain/perspective.ts';
 
 test('all seven horizon keys use independent periods', () => {
   const date = new Date(2026, 9, 14, 12);
@@ -66,4 +67,28 @@ test('parent choices cannot contain the edited goal or any descendants', () => {
   const items = [goal('root', null), goal('child', 'root'), goal('grandchild', 'child'), goal('other', null)];
   assert.deepEqual(availableGoalParents(items, 'root').map((x) => x.id), ['other']);
   assert.deepEqual(availableGoalParents(items, 'child').map((x) => x.id), ['root', 'other']);
+});
+
+test('multi-horizon overview groups unique saved goals and limits previews', () => {
+  const periods = [
+    { horizon: 'day', key: '2026-10-14', label: 'Today' },
+    { horizon: 'year', key: '2026', label: '2026' },
+    { horizon: 'life', key: 'life', label: 'Life' },
+  ];
+  const goal = (id, horizon, periodKey, completed, createdAt) => ({
+    id, title: id, horizon, periodKey, completed, createdAt, childrenCount: 0,
+  });
+  const goals = [
+    goal('a', 'day', '2026-10-14', false, '2026-10-12T12:00:00Z'),
+    goal('b', 'day', '2026-10-14', false, '2026-10-13T12:00:00Z'),
+    goal('c', 'day', '2026-10-14', true, '2026-10-14T12:00:00Z'),
+    goal('not-this-day', 'day', '2026-10-13', false, '2026-10-14T12:00:00Z'),
+    goal('d', 'life', 'life', false, '2026-10-11T12:00:00Z'),
+  ];
+  const sections = buildPerspectiveSections(periods, goals);
+  assert.deepEqual(sections.map((section) => section.total), [3, 0, 1]);
+  assert.deepEqual(sections.map((section) => section.completed), [1, 0, 0]);
+  assert.deepEqual(sections[0].preview.map((item) => item.id), ['b', 'a']);
+  assert.deepEqual(sections[1].preview, []);
+  assert.equal(new Set(sections.flatMap((section) => section.preview.map((item) => item.id))).size, 3);
 });

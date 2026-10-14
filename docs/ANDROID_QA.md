@@ -2,6 +2,15 @@
 
 Status: **NOT YET VERIFIED** for the latest Horizons 2.0 changes. These are manual verification steps for the running emulator or physical phone.
 
+## Perspective overview (new; unverified)
+
+- [ ] Switch Focus → Perspective → Focus without navigation or data errors.
+- [ ] Verify all seven periods show correct counts and relevant goal previews.
+- [ ] Add a goal from a Perspective card; confirm the new goal has that horizon.
+- [ ] Open a preview goal and return to its details; tap a horizon card to focus.
+- [ ] Move a goal between horizons; ensure it appears once in the correct period.
+- [ ] Check empty-state and 20+ goal list behavior, dark mode, large text and touch sizes.
+
 ## Core goal flow
 
 - [ ] Create a Life goal.

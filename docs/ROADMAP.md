@@ -63,7 +63,7 @@ This inventory records committed implementation, **not completion of the M1/M2 e
 - [x] Implement parent selection/reparenting with recursive-cycle validation inside a SQLite exclusive transaction; device verification pending.
 - [x] Implement period stepper, current-period jump and precise YYYY-MM-DD entry for daily goals; device verification pending.
 - [ ] Ensure a single goal remains one record across horizon and parent contexts; choose a migration strategy before multiple placements.
-- [ ] Add an optional contextual multi-horizon overview suited for phones.
+- [x] Implement seven-horizon Perspective overview with goal counts, previews, direct navigation and context-aware Add Goal (code committed; device review pending).
 - [x] Add actionable empty-state guidance and align core action/touch-target dimensions in source.
 - [ ] Validate Android status/system bars, keyboard, touch targets and modal behavior after new UI changes (not yet run on device).
 - [x] Add pure unit tests for saved-period parsing, date input and parent-option descendant exclusion; integration/device tests still pending.
@@ -149,6 +149,15 @@ This inventory records committed implementation, **not completion of the M1/M2 e
 - AI coaching or remote model integrations.
 - Dedicated desktop UI; revisit after mobile quality is established.
 
+## Automated test policy
+
+- Hard limit: **20 focused named automated tests total** across the repository (**12** currently).
+- `scripts/check-test-budget.mjs` blocks CI for over-budget cases or duplicate names.
+- Replace outdated tests and merge redundant coverage instead of accumulating regression cases.
+- Avoid disposable snapshot tests, generated test batches, or tests without a meaningful failure mode.
+- TypeScript, SDK alignment and bundling are build checks, not test cases.
+- Manual emulator acceptance remains required and is not an automated test.
+
 ## Verification — Horizons 2.0 source
 
 - [x] GitHub Actions domain tests passed on commit `34710e0`.
@@ -157,9 +166,9 @@ This inventory records committed implementation, **not completion of the M1/M2 e
 
 ## Next three actions
 
-1. Verify the latest CI checks and run the new Editor/Details flows on the emulator, including keyboard and Back navigation.
-2. Validate goal CRUD, nested goals, reparenting, period changes and force-close persistence using docs/ANDROID_QA.md.
-3. Fix device findings, then add a compact multi-horizon overview and hierarchy/placement improvements.
+1. Confirm CI for Perspective and the automated 20-test budget.
+2. Verify Focus/Perspective switching, CRUD, goal navigation and persistence on Android.
+3. Fix device findings; improve cross-horizon relationships and ordering before Calendar.
 
 ## Progress log
 
@@ -172,3 +181,5 @@ This inventory records committed implementation, **not completion of the M1/M2 e
 | 2026-10-14 | Initial Horizons shell shown running on Android emulator; Horizons 2.0 priorities set. | User-provided screenshot verifies emulator launch only; goal CRUD, hierarchy and persistence still require runtime testing. |
 
 | 2026-10-14 | Horizons 2.0 initial implementation: nested navigation, reparenting validation, period editor and visual refinements. | CI checks passed on commit 34710e0; Android UI QA remains outstanding. |
+
+| 2026-10-14 | Built Focus/Perspective mode with local seven-period overview and test-budget enforcement. | Code committed; CI and emulator UX pending. |

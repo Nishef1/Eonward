@@ -14,4 +14,6 @@ jobs:
         with:
           node-version: '22'
       - name: Test time and migration logic (no package install required)
-        run: node --experimental-strip-types --test tests/horizons.test.mjs tests/database.test.mjs
+        run: |-
+          node scripts/check-test-budget.mjs
+          node --experimental-strip-types --test tests/horizons.test.mjs tests/database.test.mjs

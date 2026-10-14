@@ -26,7 +26,7 @@ npm run start
 
 Start Android with `npm run android` once an emulator or real device is configured. Use an Expo development build for native modules not included in Expo Go when needed.
 
-**Current verification:** GitHub Actions completed npm installation, Expo dependency alignment, TypeScript, domain tests and Android Metro export. The lockfile has been regenerated with matching React DOM and Worklets versions. Physical Android/ADB, APK builds, iOS and user interactions have **not** been verified. Strict npm ci still needs the final CI pass.
+**Current verification:** GitHub Actions completed npm installation, Expo dependency alignment, TypeScript, domain tests and Android Metro export. The lockfile has been regenerated with matching React DOM and Worklets versions. An initial emulator screenshot verified startup; the latest interaction flows, APK and iOS builds remain unverified on-device. Strict npm ci passed in CI.
 
 ## Dependency workflow
 
@@ -58,3 +58,11 @@ Planned for later milestones, **not installed**: SQLite/Drizzle, calendar widget
 ## Troubleshooting
 
 If SDK packages are mismatched, check `npx expo install --check` before forcing npm overrides. If a native library needs a development build, follow its config-plugin instructions and regenerate native projects intentionally; do not blindly edit generated Android/iOS files.
+
+## Automated test budget
+
+- Maximum **20** unique, focused test cases across all test files; current count: **12**.
+- CI and `npm run test:domain` run `scripts/check-test-budget.mjs`.
+- Prioritize date semantics, SQLite integrity and primary planning workflows.
+- Review and replace stale cases before adding tests. Never generate broad redundant regression suites.
+- Typechecking, Expo dependency validation and Metro bundling are not extra test cases.

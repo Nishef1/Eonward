@@ -62,3 +62,10 @@ Each feature design must specify: loading/initializing, empty, ready, editing, s
 - Goal editing has a structured hierarchy: title, horizon, period, parent, notes and primary save action.
 - Child goals are navigable instead of only being completion toggles; completion has its own touch target.
 - These changes are source-level work until re-captured and checked on the Android emulator.
+
+## Perspective overview — code pass 2026-10-14
+
+- Focus and Perspective are mutually exclusive views inside Horizons.
+- Perspective stacks seven period cards with counts, two recent goal previews, and direct Add/Focus actions.
+- Uses existing goal identities and local database; no proprietary UI assets or new libraries.
+- Requires emulator review for scaling, contrast, keyboard and touch feedback.

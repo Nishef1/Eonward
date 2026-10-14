@@ -1,6 +1,7 @@
 import { randomUUID } from 'expo-crypto';
 import type { SQLiteDatabase } from 'expo-sqlite';
 import { normalizeGoalTitle, type Goal, type GoalInput } from '../domain/goals';
+import { HORIZONS, periodKey } from '../domain/horizons';
 
 interface GoalRow {
   id: string;
@@ -39,6 +40,17 @@ export async function listGoals(db: SQLiteDatabase, horizon: Goal['horizon'], ke
   const rows = await db.getAllAsync<GoalRow>(
     `${SELECT_GOALS} WHERE g.horizon = ? AND g.period_key = ? ORDER BY g.completed ASC, g.created_at DESC`,
     [horizon, key],
+  );
+  return rows.map(toGoal);
+}
+
+/** All seven period snapshots in a single parameterized read; no duplicate item records. */
+export async function listPerspectiveGoals(db: SQLiteDatabase, date: Date): Promise<Goal[]> {
+  const filters = HORIZONS.map(() => '(g.horizon = ? AND g.period_key = ?)').join(' OR ');
+  const values = HORIZONS.flatMap((horizon) => [horizon, periodKey(horizon, date)]);
+  const rows = await db.getAllAsync<GoalRow>(
+    `${SELECT_GOALS} WHERE ${filters} ORDER BY g.completed ASC, g.created_at DESC`,
+    values,
   );
   return rows.map(toGoal);
 }

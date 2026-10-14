@@ -1,13 +1,15 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, Alert, FlatList, Pressable, StyleSheet, Text, useColorScheme, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useSQLiteContext } from 'expo-sqlite';
 import { HORIZONS, HORIZON_TITLES, periodKey, periodLabel, shiftPeriod, type Horizon } from '../../domain/horizons';
 import { availableGoalParents, type Goal, type GoalInput } from '../../domain/goals';
-import { createGoal, editGoal, getGoal, listAllGoals, listChildGoals, listGoals, removeGoal, setGoalCompleted } from '../../storage/goals';
+import { buildPerspectiveSections } from '../../domain/perspective';
+import { createGoal, editGoal, getGoal, listAllGoals, listChildGoals, listGoals, listPerspectiveGoals, removeGoal, setGoalCompleted } from '../../storage/goals';
 import { colors, radius, spacing } from '../../theme/tokens';
 import { GoalDetails } from './GoalDetails';
 import { GoalEditor } from './GoalEditor';
+import { PerspectiveView } from './PerspectiveView';
 
 type Palette = typeof colors.light | typeof colors.dark;
 
@@ -59,11 +61,16 @@ export function HorizonsScreen() {
   const db = useSQLiteContext();
   const palette = useColorScheme() === 'dark' ? colors.dark : colors.light;
   const [horizon, setHorizon] = useState<Horizon>('week');
+  const [view, setView] = useState<'focus' | 'perspective'>('focus');
   const [anchor, setAnchor] = useState(() => new Date());
   const [goals, setGoals] = useState<Goal[]>([]);
   const [loading, setLoading] = useState(true);
   const [failure, setFailure] = useState<string | null>(null);
   const [revision, setRevision] = useState(0);
+  const [perspectiveRevision, setPerspectiveRevision] = useState(0);
+  const [perspectiveGoals, setPerspectiveGoals] = useState<Goal[]>([]);
+  const [perspectiveLoading, setPerspectiveLoading] = useState(false);
+  const [perspectiveError, setPerspectiveError] = useState<string | null>(null);
   const [working, setWorking] = useState(false);
   const [detailStack, setDetailStack] = useState<Goal[]>([]);
   const details = detailStack[detailStack.length - 1] ?? null;
@@ -72,27 +79,57 @@ export function HorizonsScreen() {
   const [editorVisible, setEditorVisible] = useState(false);
   const [editing, setEditing] = useState<Goal | null>(null);
   const [parent, setParent] = useState<Goal | null>(null);
+  const [editorContext, setEditorContext] = useState<{ horizon: Horizon; anchor: Date }>(
+    () => ({ horizon: 'week', anchor: new Date() }),
+  );
   const key = periodKey(horizon, anchor);
   const caption = periodLabel(horizon, anchor);
   const doneCount = useMemo(() => goals.filter((g) => g.completed).length, [goals]);
 
-  const load = useCallback(async () => {
-    setLoading(true);
-    try {
-      const result = await listGoals(db, horizon, key);
-      setGoals(result);
-      setFailure(null);
-    } catch (error) {
-      setFailure(error instanceof Error ? error.message : 'Unable to load your goals.');
-    } finally {
-      setLoading(false);
-    }
-  }, [db, horizon, key]);
+  const perspectiveSections = useMemo(
+    () => buildPerspectiveSections(
+      HORIZONS.map((item) => ({
+        horizon: item,
+        key: periodKey(item, anchor),
+        label: periodLabel(item, anchor),
+      })),
+      perspectiveGoals,
+    ),
+    [anchor, perspectiveGoals],
+  );
 
   useEffect(() => {
-    // The revision token refreshes the current horizon after a write.
-    void load();
-  }, [load, revision]);
+    let active = true;
+    setLoading(true);
+    void listGoals(db, horizon, key).then((result) => {
+      if (!active) return;
+      setGoals(result);
+      setFailure(null);
+    }).catch((error: unknown) => {
+      if (!active) return;
+      setFailure(error instanceof Error ? error.message : 'Unable to load your goals.');
+    }).finally(() => {
+      if (active) setLoading(false);
+    });
+    return () => { active = false; };
+  }, [db, horizon, key, revision]);
+
+  useEffect(() => {
+    if (view !== 'perspective') return;
+    let active = true;
+    setPerspectiveLoading(true);
+    void listPerspectiveGoals(db, anchor).then((result) => {
+      if (!active) return;
+      setPerspectiveGoals(result);
+      setPerspectiveError(null);
+    }).catch((error: unknown) => {
+      if (!active) return;
+      setPerspectiveError(error instanceof Error ? error.message : 'Unable to load the bigger picture.');
+    }).finally(() => {
+      if (active) setPerspectiveLoading(false);
+    });
+    return () => { active = false; };
+  }, [db, anchor, revision, perspectiveRevision, view]);
 
   async function perform(action: () => Promise<void>): Promise<void> {
     if (working) return;
@@ -107,12 +144,13 @@ export function HorizonsScreen() {
     }
   }
 
-  async function openEditor(initial: Goal | null, selectedParent: Goal | null) {
+  async function openEditor(initial: Goal | null, selectedParent: Goal | null, targetHorizon: Horizon = horizon) {
     try {
       const options = await listAllGoals(db);
       setParentOptions(availableGoalParents(options, initial?.id ?? null));
       setEditing(initial);
       setParent(selectedParent);
+      setEditorContext({ horizon: selectedParent ? 'day' : targetHorizon, anchor: new Date(anchor.getTime()) });
       setDetailStack([]);
       setEditorVisible(true);
     } catch (error) {
@@ -121,7 +159,16 @@ export function HorizonsScreen() {
   }
 
   function openCreate() {
-    void openEditor(null, null);
+    void openEditor(null, null, view === 'perspective' ? 'day' : horizon);
+  }
+
+  function openCreateForHorizon(target: Horizon) {
+    void openEditor(null, null, target);
+  }
+
+  function focusHorizon(target: Horizon) {
+    setHorizon(target);
+    setView('focus');
   }
 
   async function openDetails(goal: Goal, nested = false) {
@@ -218,6 +265,24 @@ export function HorizonsScreen() {
         Make room for what matters, today and beyond.
       </Text>
 
+      <View style={[styles.modeSwitch, { backgroundColor: palette.surface, borderColor: palette.border }]}>
+        {(['focus', 'perspective'] as const).map((item) => {
+          const selected = view === item;
+          return (
+            <Pressable key={item} accessibilityRole="button" accessibilityState={{ selected }}
+              accessibilityLabel={item === 'focus' ? 'Focus view' : 'Perspective view'}
+              onPress={() => setView(item)}
+              style={[styles.modeButton, selected && { backgroundColor: palette.foreground }]}>
+              <Text style={[styles.modeText, { color: selected ? palette.background : palette.muted }]}>
+                {item === 'focus' ? 'Focus' : 'Perspective'}
+              </Text>
+            </Pressable>
+          );
+        })}
+      </View>
+
+      {view === 'focus' ? (
+      <>
       <FlatList
         data={HORIZONS}
         horizontal
@@ -285,13 +350,26 @@ export function HorizonsScreen() {
         <Text style={[styles.sectionTitle, { color: palette.foreground }]}>Your intentions</Text>
         <Text style={[styles.sectionCount, { color: palette.muted }]}>{goals.length}</Text>
       </View>
+      </>
+      ) : (
+        <PerspectiveView
+          sections={perspectiveSections}
+          palette={palette}
+          loading={perspectiveLoading}
+          error={perspectiveError}
+          onRetry={() => setPerspectiveRevision((value) => value + 1)}
+          onOpenHorizon={focusHorizon}
+          onOpenGoal={(goal) => void openDetails(goal)}
+          onAddGoal={openCreateForHorizon}
+        />
+      )}
     </View>
   );
 
   return (
     <SafeAreaView style={[styles.screen, { backgroundColor: palette.background }]} edges={['top', 'left', 'right', 'bottom']}>
       <FlatList
-        data={loading || failure ? [] : goals}
+        data={view === 'focus' && !loading && !failure ? goals : []}
         keyExtractor={(item) => item.id}
         renderItem={({ item }) => (
           <GoalCard
@@ -306,14 +384,14 @@ export function HorizonsScreen() {
         contentContainerStyle={styles.listContent}
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
-        ListEmptyComponent={
+        ListEmptyComponent={view === 'perspective' ? null : (
           loading ? (
             <ActivityIndicator color={palette.accent} size="large" style={styles.wait} />
           ) : failure ? (
             <View style={styles.empty}>
               <Text style={[styles.emptyTitle, { color: palette.foreground }]}>Couldn't load this horizon</Text>
               <Text style={[styles.emptyBody, { color: palette.muted }]}>{failure}</Text>
-              <Pressable onPress={() => void load()} accessibilityRole="button">
+              <Pressable onPress={() => setRevision((value) => value + 1)} accessibilityRole="button">
                 <Text style={[styles.retry, { color: palette.accent }]}>Try again</Text>
               </Pressable>
             </View>
@@ -332,7 +410,7 @@ export function HorizonsScreen() {
               </Pressable>
             </View>
           )
-        }
+        )}
       />
       <View style={[styles.footer, { borderColor: palette.border, backgroundColor: palette.background }]}>
         <View style={styles.footerCopy}>
@@ -366,8 +444,8 @@ export function HorizonsScreen() {
         initial={editing}
         parent={parent}
         parentOptions={parentOptions}
-        defaultHorizon={parent ? 'day' : horizon}
-        anchorDate={anchor}
+        defaultHorizon={editorContext.horizon}
+        anchorDate={editorContext.anchor}
         palette={palette}
         saving={working}
         onDismiss={() => { if (!working) setEditorVisible(false); }}
@@ -388,7 +466,10 @@ const styles = StyleSheet.create({
   eyebrow: { fontSize: 11, fontWeight: '700', letterSpacing: 1.8, marginBottom: 6 },
   heroTitle: { fontSize: 38, fontWeight: '700', letterSpacing: -1.5, lineHeight: 46 },
   heroSubtitle: { fontSize: 14, lineHeight: 22, marginTop: 2 },
-  horizonList: { marginTop: 24, marginHorizontal: -spacing.lg, marginBottom: spacing.lg },
+  modeSwitch: { flexDirection: 'row', gap: 5, padding: 5, borderWidth: 1, borderRadius: radius.full, marginTop: 22 },
+  modeButton: { flex: 1, minHeight: 43, borderRadius: radius.full, alignItems: 'center', justifyContent: 'center' },
+  modeText: { fontSize: 13, fontWeight: '700' },
+  horizonList: { marginTop: 20, marginHorizontal: -spacing.lg, marginBottom: spacing.lg },
   horizonItems: { paddingHorizontal: spacing.lg, gap: 8 },
   horizonChip: { minHeight: 48, minWidth: 64, paddingHorizontal: 15, borderRadius: radius.full, alignItems: 'center', justifyContent: 'center', borderWidth: 1 },
   horizonChipText: { fontSize: 13, fontWeight: '600' },
