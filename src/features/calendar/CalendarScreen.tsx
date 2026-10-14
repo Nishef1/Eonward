@@ -241,8 +241,8 @@ export function CalendarScreen() {
             style={[styles.newGoal, { borderColor: palette.border, backgroundColor: palette.surface }]}>
             <Text style={[styles.newGoalText, { color: palette.accent }]}>＋ Goal</Text>
           </Pressable>
-          <Pressable onPress={() => setDay(new Date())} accessibilityRole="button"
-            accessibilityLabel="Go to today" style={[styles.todayPill, { backgroundColor: palette.surface, borderColor: palette.border }]}>
+          <Pressable onPress={() => { setDay(new Date()); setMode('timeline'); }} accessibilityRole="button"
+            accessibilityLabel="Go to today's timeline" style={[styles.todayPill, { backgroundColor: palette.surface, borderColor: palette.border }]}>
             <Text style={[styles.todayLabel, { color: palette.accent }]}>Today</Text>
           </Pressable>
           <Pressable onPress={() => createAt()} accessibilityRole="button"
