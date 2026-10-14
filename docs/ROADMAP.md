@@ -351,3 +351,10 @@ The initial Create Goal form was appearing partially scrolled in a screenshot; i
 - [x] After saving the goal, offer a direct "Schedule time" action with its new stable goal ID preselected.
 - [x] Refresh the same shared SQLite goal collection; no duplicated goal entities, package additions or new schema version.
 - [ ] Confirm Android modal transition and small-screen keyboard behavior on-device.
+
+## Day timeline time-scale controls (2026-10-14)
+
+- [x] Add three accessible time-density levels (56 / 76 / 104 pixels per hour) to the daily canvas without extra dependencies.
+- [x] Keep event placement, work-hour background, time rulers and Now line on the same adjustable scale.
+- [x] Preserve the user's approximate viewport time when changing zoom instead of snapping back to the morning.
+- [ ] Verify actual Android scroll position, 15-minute cards, touch-target overlap and accessibility at each zoom level.

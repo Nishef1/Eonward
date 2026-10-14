@@ -6,6 +6,7 @@ import { colors, radius } from '../../theme/tokens';
 type Palette = typeof colors.light | typeof colors.dark;
 
 export const TIMELINE_HOUR_HEIGHT = 76;
+const ZOOM_LEVELS = [56, 76, 104] as const;
 const GUTTER = 62;
 const HOURS = Array.from({ length: 25 }, (_, i) => i);
 const PALETTE = ['#426C64', '#486C89', '#685F90', '#816078', '#856846', '#4C7278'];
@@ -38,6 +39,10 @@ export function DayTimeline({ date, blocks, palette, isDark, onEdit, onQuickAdd,
   const ref = useRef<ScrollView>(null);
   const didScroll = useRef<string | null>(null);
   const [now, setNow] = useState(() => new Date());
+  const [zoomIndex, setZoomIndex] = useState(1);
+  const hourHeight = ZOOM_LEVELS[zoomIndex];
+  const zoomedHeight = useRef<number>(hourHeight);
+  const scrollOffset = useRef(0);
   const dateKey = localDayKey(date);
   const isToday = localDayKey(now) === dateKey;
   useEffect(() => {
@@ -47,16 +52,16 @@ export function DayTimeline({ date, blocks, palette, isDark, onEdit, onQuickAdd,
   }, []);
 
   const positioned = useMemo(
-    () => layoutBlocks(blocks, TIMELINE_HOUR_HEIGHT, date),
-    [blocks, dateKey],
+    () => layoutBlocks(blocks, hourHeight, date),
+    [blocks, dateKey, hourHeight],
   );
   const firstHour = positioned.length
-    ? Math.max(0, Math.floor(Math.min(...positioned.map((item) => item.top / TIMELINE_HOUR_HEIGHT)) - 1))
+    ? Math.max(0, Math.floor(Math.min(...positioned.map((item) => item.top / hourHeight)) - 1))
     : isToday ? Math.max(0, Math.floor(minOfDay(now) / 60) - 2) : 8;
 
   function jumpToNow() {
     const minute = minOfDay(new Date());
-    ref.current?.scrollTo({ y: Math.max(0, (minute / 60 - 1.25) * TIMELINE_HOUR_HEIGHT), animated: true });
+    ref.current?.scrollTo({ y: Math.max(0, (minute / 60 - 1.25) * hourHeight), animated: true });
     setNow(new Date());
   }
 
@@ -71,6 +76,23 @@ export function DayTimeline({ date, blocks, palette, isDark, onEdit, onQuickAdd,
             Tap an empty hour to plan · hold a block to open its goal
           </Text>
         </View>
+        <View style={[styles.zoom, { backgroundColor: palette.surface, borderColor: palette.border }]}>
+          <Pressable accessibilityRole="button" accessibilityLabel="Zoom out of day timeline"
+            accessibilityState={{ disabled: zoomIndex === 0 }}
+            disabled={zoomIndex === 0}
+            onPress={() => setZoomIndex((value) => Math.max(0, value - 1))}
+            style={styles.zoomButton}>
+            <Text style={[styles.zoomGlyph, { color: zoomIndex === 0 ? palette.muted : palette.foreground }]}>−</Text>
+          </Pressable>
+          <Text style={[styles.zoomCenter, { color: palette.muted }]}>{zoomIndex + 1}</Text>
+          <Pressable accessibilityRole="button" accessibilityLabel="Zoom in to day timeline"
+            accessibilityState={{ disabled: zoomIndex === ZOOM_LEVELS.length - 1 }}
+            disabled={zoomIndex === ZOOM_LEVELS.length - 1}
+            onPress={() => setZoomIndex((value) => Math.min(ZOOM_LEVELS.length - 1, value + 1))}
+            style={styles.zoomButton}>
+            <Text style={[styles.zoomGlyph, { color: zoomIndex === ZOOM_LEVELS.length - 1 ? palette.muted : palette.foreground }]}>＋</Text>
+          </Pressable>
+        </View>
         {isToday ? (
           <Pressable accessibilityRole="button" accessibilityLabel="Jump to the current time"
             onPress={jumpToNow} style={[styles.nowButton, { backgroundColor: palette.surface, borderColor: palette.border }]}>
@@ -82,21 +104,28 @@ export function DayTimeline({ date, blocks, palette, isDark, onEdit, onQuickAdd,
 
       <View style={[styles.canvasFrame, { borderColor: palette.border, backgroundColor: palette.surface }]}>
         <ScrollView key={dateKey} ref={ref} nestedScrollEnabled showsVerticalScrollIndicator={false}
-          contentContainerStyle={styles.canvasScrollContent}
+          contentContainerStyle={[styles.canvasScrollContent, { minHeight: hourHeight * 24 + 10 }]}
+          scrollEventThrottle={100}
+          onScroll={(event) => { scrollOffset.current = event.nativeEvent.contentOffset.y; }}
           onContentSizeChange={() => {
             if (didScroll.current !== dateKey) {
               didScroll.current = dateKey;
-              ref.current?.scrollTo({ y: firstHour * TIMELINE_HOUR_HEIGHT, animated: false });
+              zoomedHeight.current = hourHeight;
+              ref.current?.scrollTo({ y: firstHour * hourHeight, animated: false });
+            } else if (zoomedHeight.current !== hourHeight) {
+              const previous = zoomedHeight.current;
+              zoomedHeight.current = hourHeight;
+              ref.current?.scrollTo({ y: scrollOffset.current * hourHeight / previous, animated: false });
             }
           }}>
-          <View style={styles.canvas}>
+          <View style={[styles.canvas, { height: hourHeight * 24 + 10 }]}>
             <View pointerEvents="none" style={[styles.workHours, {
-              top: 8 * TIMELINE_HOUR_HEIGHT, height: 10 * TIMELINE_HOUR_HEIGHT,
+              top: 8 * hourHeight, height: 10 * hourHeight,
               backgroundColor: shade,
             }]} />
             {HOURS.map((hour) => (
               <View key={hour} pointerEvents="none"
-                style={[styles.hourMark, { top: hour * TIMELINE_HOUR_HEIGHT }]}>
+                style={[styles.hourMark, { top: hour * hourHeight }]}>
                 <Text style={[styles.hourLabel, { color: palette.muted }]}>
                   {String(hour).padStart(2, '0')}:00
                 </Text>
@@ -106,7 +135,7 @@ export function DayTimeline({ date, blocks, palette, isDark, onEdit, onQuickAdd,
             {HOURS.slice(0, 24).map((hour) => (
               <View key={`half-${hour}`} pointerEvents="none"
                 style={[styles.halfRule, {
-                  top: (hour + 0.5) * TIMELINE_HOUR_HEIGHT,
+                  top: (hour + 0.5) * hourHeight,
                   backgroundColor: gridLine,
                 }]} />
             ))}
@@ -114,7 +143,7 @@ export function DayTimeline({ date, blocks, palette, isDark, onEdit, onQuickAdd,
               <Pressable key={`add-${hour}`} accessibilityRole="button"
                 accessibilityLabel={`Plan time at ${String(hour).padStart(2, '0')}:00`}
                 onPress={() => onQuickAdd(hour)}
-                style={[styles.emptyHour, { top: hour * TIMELINE_HOUR_HEIGHT }]}>
+                style={[styles.emptyHour, { top: hour * hourHeight }]}>
                 <Text style={[styles.plusHint, { color: palette.muted }]}>+</Text>
               </Pressable>
             ))}
@@ -161,7 +190,7 @@ export function DayTimeline({ date, blocks, palette, isDark, onEdit, onQuickAdd,
             </View>
             {isToday ? (
               <View pointerEvents="none"
-                style={[styles.presentLine, { top: minOfDay(now) / 60 * TIMELINE_HOUR_HEIGHT }]}>
+                style={[styles.presentLine, { top: minOfDay(now) / 60 * hourHeight }]}>
                 <View style={styles.nowPill}>
                   <Text style={styles.nowPillText}>{localClock(now)}</Text>
                 </View>
@@ -181,6 +210,10 @@ const styles = StyleSheet.create({
   toolbarCopy: { flex: 1, gap: 4 },
   heading: { fontSize: 17, fontWeight: '700', letterSpacing: -0.4 },
   subheading: { fontSize: 11, lineHeight: 16 },
+  zoom: { height: 39, flexDirection: 'row', alignItems: 'center', borderRadius: radius.full, borderWidth: 1 },
+  zoomButton: { minWidth: 30, height: 39, alignItems: 'center', justifyContent: 'center' },
+  zoomGlyph: { fontSize: 18, fontWeight: '700' },
+  zoomCenter: { fontSize: 10, fontWeight: '800', minWidth: 13, textAlign: 'center' },
   nowButton: { height: 39, flexDirection: 'row', alignItems: 'center', gap: 7, borderWidth: 1, borderRadius: radius.full, paddingHorizontal: 13 },
   nowDot: { height: 7, width: 7, borderRadius: 4 },
   nowText: { fontSize: 12, fontWeight: '700' },
