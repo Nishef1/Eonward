@@ -5,8 +5,9 @@ import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import { useSQLiteContext } from 'expo-sqlite';
 import { colors, radius, spacing } from '../../theme/tokens';
 import { HORIZON_TITLES } from '../../domain/horizons';
-import { listAllGoals, setGoalCompleted } from '../../storage/goals';
-import type { Goal } from '../../domain/goals';
+import { createGoal, listAllGoals, setGoalCompleted } from '../../storage/goals';
+import type { Goal, GoalInput } from '../../domain/goals';
+import { GoalEditor } from '../horizons/GoalEditor';
 import {
   addGoalToBoard, createBoard, deleteBoard, editBoard, getBoard, listBoardGoals,
   listBoards, removeGoalFromBoard, type Board, type BoardGoal,
@@ -22,6 +23,9 @@ export function BoardsScreen() {
   const [current, setCurrent] = useState<Board | null>(null);
   const [items, setItems] = useState<BoardGoal[]>([]);
   const [candidates, setCandidates] = useState<Goal[]>([]);
+  const [goalOptions, setGoalOptions] = useState<Goal[]>([]);
+  const [addingGoal, setAddingGoal] = useState(false);
+  const [goalAnchor, setGoalAnchor] = useState(() => new Date());
   const [query, setQuery] = useState('');
   const [picker, setPicker] = useState(false);
   const [editing, setEditing] = useState(false);
@@ -125,6 +129,26 @@ export function BoardsScreen() {
     ]);
   }
 
+  async function startNewGoal() {
+    if (!current) return;
+    setGoalAnchor(new Date());
+    try {
+      setGoalOptions(await listAllGoals(db));
+      setAddingGoal(true);
+    } catch (err) {
+      Alert.alert('Cannot open editor', err instanceof Error ? err.message : 'Please try again.');
+    }
+  }
+
+  async function saveNewGoal(input: GoalInput) {
+    if (!current || busy) return;
+    const boardId = current.id;
+    await write(async () => {
+      await createGoal(db, input, boardId);
+      setAddingGoal(false);
+    });
+  }
+
   async function startPicker() {
     if (!current) return;
     try {
@@ -202,10 +226,16 @@ export function BoardsScreen() {
                 <Text style={styles.deleteText}>Delete</Text>
               </Pressable>
             </View>
-            <Pressable onPress={() => void startPicker()} accessibilityRole="button"
-              style={[styles.primary, { backgroundColor: palette.accent }]}>
-              <Text style={styles.primaryText}>＋  Add existing goals</Text>
-            </Pressable>
+            <View style={styles.boardEntryActions}>
+              <Pressable onPress={() => void startNewGoal()} accessibilityRole="button"
+                style={[styles.boardPrimaryAction, { backgroundColor: palette.accent }]}>
+                <Text style={styles.primaryText}>＋  New goal</Text>
+              </Pressable>
+              <Pressable onPress={() => void startPicker()} accessibilityRole="button"
+                style={[styles.boardSecondaryAction, { backgroundColor: palette.surface, borderColor: palette.border }]}>
+                <Text style={[styles.actionText, { color: palette.accent }]}>Link existing</Text>
+              </Pressable>
+            </View>
             {items.length === 0 ? (
               <View style={[styles.notice, { backgroundColor: palette.surface, borderColor: palette.border }]}>
                 <Text style={[styles.noticeTitle, { color: palette.foreground }]}>Start building this board</Text>
@@ -269,6 +299,19 @@ export function BoardsScreen() {
           </>
         )}
       </ScrollView>
+
+      <GoalEditor
+        visible={addingGoal}
+        initial={null}
+        parent={null}
+        parentOptions={goalOptions}
+        defaultHorizon="week"
+        anchorDate={goalAnchor}
+        palette={palette}
+        saving={busy}
+        onDismiss={() => { if (!busy) setAddingGoal(false); }}
+        onSave={saveNewGoal}
+      />
 
       <Modal visible={editing} transparent animationType="slide" navigationBarTranslucent statusBarTranslucent
         onRequestClose={() => setEditing(false)}>
@@ -352,6 +395,9 @@ const styles = StyleSheet.create({
   primary: { minHeight: 53, borderRadius: radius.lg, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 15, marginBottom: 9 },
   primaryText: { fontSize: 15, fontWeight: '700', color: '#FFFFFF' },
   boardTools: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 },
+  boardEntryActions: { flexDirection: 'row', gap: 9, marginBottom: 11 },
+  boardPrimaryAction: { flex: 1, minHeight: 53, alignItems: 'center', justifyContent: 'center', borderRadius: radius.lg },
+  boardSecondaryAction: { flex: 1, minHeight: 53, alignItems: 'center', justifyContent: 'center', borderRadius: radius.lg, borderWidth: 1 },
   smallAction: { minHeight: 47, paddingHorizontal: 9, justifyContent: 'center' },
   actionText: { fontSize: 13, fontWeight: '700' },
   deleteText: { color: '#A85858', fontSize: 13, fontWeight: '700' },

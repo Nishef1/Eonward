@@ -15,7 +15,7 @@ Legend:
 | Goal editing, completion and notes | Partial | Plain-text notes, no rich editor or attachments |
 | Archive / Restore | Implemented in source | Validate upgrades and child restoration on real device |
 | Manual goal order | Partial | Up/down only; no drag, sorting filters or custom board order |
-| **Boards (local, multi-membership)** | **Implemented in source (M3 first slice)** | Create/edit/delete board; link/unlink existing active goals, completion, and open original goal; device QA pending |
+| **Boards (local, multi-membership)** | **Implemented in source (M3 first slice)** | Create/edit/delete board; create a new goal inside a board atomically; link/unlink existing goals; completion and open original goal; device QA pending |
 | Tags and saved filters | Planned | Requires clear search/filter UX and schema design |
 | Calendar | Planned | Requires due date distinct from horizon placement |
 | Time blocking | Planned | Start/end, timezone and overlap semantics must be defined |

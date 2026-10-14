@@ -71,7 +71,7 @@ export async function listChildGoals(db: SQLiteDatabase, parentId: string): Prom
   return rows.map(toGoal);
 }
 
-export async function createGoal(db: SQLiteDatabase, input: GoalInput): Promise<string> {
+export async function createGoal(db: SQLiteDatabase, input: GoalInput, boardId?: string): Promise<string> {
   const id = randomUUID();
   const now = new Date().toISOString();
   await db.withExclusiveTransactionAsync(async (tx) => {
@@ -80,6 +80,10 @@ export async function createGoal(db: SQLiteDatabase, input: GoalInput): Promise<
         'SELECT archived_at FROM goals WHERE id = ?', [input.parentId],
       );
       if (!parent || parent.archived_at !== null) throw new Error('Select an active parent goal.');
+    }
+    if (boardId) {
+      const board = await tx.getFirstAsync<{ id: string }>('SELECT id FROM boards WHERE id = ?', [boardId]);
+      if (!board) throw new Error('Board no longer exists.');
     }
     await tx.runAsync(
       `INSERT INTO goals (id, title, notes, horizon, period_key, parent_id, created_at, updated_at, sort_rank)
@@ -90,6 +94,13 @@ export async function createGoal(db: SQLiteDatabase, input: GoalInput): Promise<
       [id, normalizeGoalTitle(input.title), input.notes.trim(), input.horizon, input.periodKey,
         input.parentId ?? null, now, now, input.horizon, input.periodKey],
     );
+    if (boardId) {
+      await tx.runAsync(
+        'INSERT INTO board_goals (board_id, goal_id, added_at) VALUES (?, ?, ?)',
+        [boardId, id, now],
+      );
+      await tx.runAsync('UPDATE boards SET updated_at = ? WHERE id = ?', [now, boardId]);
+    }
   });
   return id;
 }

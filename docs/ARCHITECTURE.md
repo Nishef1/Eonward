@@ -96,3 +96,5 @@ Archiving an active parent also archives its currently active descendants as one
 - Board read models provide counts and completion from the same saved goals; no synchronized copies.
 - Route `/boards` opens the workspace; opening a board item navigates to the canonical goal detail on the Horizons route.
 - SQLite migration v3 preserves the existing v2 schema and is executed in the current exclusive transaction. Android upgrade verification remains mandatory.
+
+Creating a new goal inside a board uses the existing goal-creation transaction with an optional board ID; the goal insertion and membership insertion succeed or roll back together. This prevents an unlinked orphan goal if adding board membership fails.
