@@ -23,3 +23,5 @@ jobs:
         run: npm run deps:check
       - name: Verify TypeScript
         run: npm run typecheck
+      - name: Verify Android JavaScript bundle
+        run: npx expo export --platform android --output-dir /tmp/eonward-android-export
