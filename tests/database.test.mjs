@@ -8,9 +8,9 @@ function fakeDatabase(version) {
   const db = {
     execAsync: async (sql) => { queries.push(sql); },
     getFirstAsync: async () => ({ user_version: version }),
-    withTransactionAsync: async (callback) => {
+    withExclusiveTransactionAsync: async (callback) => {
       transactionCalls++;
-      await callback();
+      await callback({ execAsync: db.execAsync });
     },
   };
   return { db, queries, get transactionCalls() { return transactionCalls; } };
