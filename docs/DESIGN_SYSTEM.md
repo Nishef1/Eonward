@@ -72,4 +72,4 @@ Each feature design must specify: loading/initializing, empty, ready, editing, s
 
 ## Archive and ordering UI — v2
 
-The Focus goal card has a compact organization menu (Move Up, Move Down, Archive) rather than permanent buttons crowding a narrow screen. Goal Details uses Archive instead of destructive Delete. Archive is a third lightweight mode next to Focus and Perspective with contextual Restore actions. Android emulator QA still required before calling spacing, labels and modal behavior polished.
+The Focus goal card has an Android-safe organization action sheet (Move Up, Move Down, Archive, Cancel) rather than permanent buttons crowding a narrow screen. Goal Details uses Archive instead of destructive Delete. Archive is a third lightweight mode next to Focus and Perspective with contextual Restore actions. Android emulator QA still required before calling spacing, labels and modal behavior polished.

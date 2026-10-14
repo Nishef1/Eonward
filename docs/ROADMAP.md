@@ -182,12 +182,16 @@ This inventory records committed implementation, **not completion of the M1/M2 e
 - [x] Follow a moved goal to its saved target period while in Focus.
 - [ ] Confirm deep navigation, reschedule, keyboard and restart behavior on Android.
 
+## Self-review of Android action menus
+
+React Native Android Alert supports at most three actions. The first proposed four-option organizer was unsuitable. Replaced it with a lightweight in-app action sheet before user delivery; it has Move Up/Down only when valid, Archive, and Cancel. No new package and no additional automated test. Review sheet position and dismissal on Android.
+
 ## Data safety & ordering slice — schema v2
 
 - [x] Add transactional SQLite v1 → v2 migration: nullable `archived_at` and stable `sort_rank` (without resetting user data).
 - [x] Implement Archive/Restore of an active goal subtree, preserving already archived descendants.
 - [x] Add Archive view accessible alongside Focus/Perspective; remove destructive Delete action from goal details.
-- [x] Add Move Up/Down actions that persist ordering, with a simple menu and no new dependency.
+- [x] Add Move Up/Down actions that persist ordering, with an Android-safe custom action sheet and no new dependency.
 - [x] Update existing migration checks to version 2; remain at **12/20** automated tests.
 - [ ] Verify these workflows and migrations on Android with an actual v1 populated database.
 - [ ] Review performance/visual clarity with a large goal list, then assess whether drag-to-reorder is worth adding.
@@ -210,4 +214,4 @@ This inventory records committed implementation, **not completion of the M1/M2 e
 | 2026-10-14 | Horizons 2.0 initial implementation: nested navigation, reparenting validation, period editor and visual refinements. | CI checks passed on commit 34710e0; Android UI QA remains outstanding. |
 | 2026-10-14 | Built Focus/Perspective mode with local seven-period overview and test-budget enforcement. | CI passed on `2c1f8e8`: 12/20 tests passed, zero failures; npm ci, Expo alignment, TypeScript and Android Metro export passed. Emulator UX pending. |
 | 2026-10-14 | Added a goal ancestor trail, immediate-parent hints and destination-following edits; reviewed sequencing and gaps. | Code committed pending CI; Android UX pending; still 12 core tests. |
-| 2026-10-14 | Added schema v2, archive/restore UI and stored ordering; updated existing migration tests. | Source committed; CI and Android migration/interaction QA pending; 12/20 tests. |
+| 2026-10-14 | Added schema v2, archive/restore UI and stored ordering; updated existing migration tests. | GitHub Actions domain and app checks passed on `8b5e606`; Android migration/interaction QA pending; 12/20 tests. |

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { ActivityIndicator, Alert, FlatList, Pressable, StyleSheet, Text, useColorScheme, View } from 'react-native';
+import { ActivityIndicator, Alert, FlatList, Modal, Pressable, StyleSheet, Text, useColorScheme, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useSQLiteContext } from 'expo-sqlite';
 import { dateFromPeriodKey, HORIZONS, HORIZON_TITLES, periodKey, periodLabel, shiftPeriod, type Horizon } from '../../domain/horizons';
@@ -83,6 +83,7 @@ export function HorizonsScreen() {
   const [archiveLoading, setArchiveLoading] = useState(false);
   const [archiveRevision, setArchiveRevision] = useState(0);
   const [working, setWorking] = useState(false);
+  const [organizing, setOrganizing] = useState<Goal | null>(null);
   const [detailStack, setDetailStack] = useState<Goal[]>([]);
   const detailRequest = useRef(0);
   const details = detailStack[detailStack.length - 1] ?? null;
@@ -307,21 +308,23 @@ export function HorizonsScreen() {
     );
   }
 
-  function organizeGoal(goal: Goal, index: number) {
-    const canUp = index > 0 && goals[index - 1].completed === goal.completed;
-    const canDown = index < goals.length - 1 && goals[index + 1].completed === goal.completed;
-    const options: { text: string; style?: 'cancel'; onPress?: () => void }[] = [];
-    if (canUp) options.push({
-      text: 'Move up',
-      onPress: () => void perform(async () => { await moveGoal(db, goal.id, -1); }),
-    });
-    if (canDown) options.push({
-      text: 'Move down',
-      onPress: () => void perform(async () => { await moveGoal(db, goal.id, 1); }),
-    });
-    options.push({ text: 'Archive', onPress: () => confirmArchive(goal) });
-    options.push({ text: 'Cancel', style: 'cancel' });
-    Alert.alert('Organize goal', goal.title, options);
+  const organizeIndex = organizing ? goals.findIndex((item) => item.id === organizing.id) : -1;
+  const canMoveUp = organizeIndex > 0 && goals[organizeIndex - 1].completed === organizing?.completed;
+  const canMoveDown = organizeIndex >= 0 && organizeIndex < goals.length - 1
+    && goals[organizeIndex + 1].completed === organizing?.completed;
+
+  function moveSelected(direction: -1 | 1) {
+    const goal = organizing;
+    setOrganizing(null);
+    if (!goal) return;
+    void perform(async () => { await moveGoal(db, goal.id, direction); });
+  }
+
+  function archiveSelectedFromMenu() {
+    const goal = organizing;
+    setOrganizing(null);
+    if (!goal) return;
+    void perform(async () => { await archiveGoal(db, goal.id); });
   }
 
   function restoreSelected(goal: Goal) {
@@ -459,14 +462,14 @@ export function HorizonsScreen() {
       <FlatList
         data={view === 'focus' && !loading && !failure ? goals : []}
         keyExtractor={(item) => item.id}
-        renderItem={({ item, index }) => (
+        renderItem={({ item }) => (
           <GoalCard
             goal={item}
             palette={palette}
             disabled={working}
             onOpen={() => void openDetails(item)}
             onToggle={() => void toggle(item)}
-            onOrganize={() => organizeGoal(item, index)}
+            onOrganize={() => setOrganizing(item)}
           />
         )}
         ListHeaderComponent={header}
@@ -517,6 +520,39 @@ export function HorizonsScreen() {
         </Pressable>
       </View>
       ) : null}
+      <Modal visible={organizing !== null} transparent animationType="fade"
+        onRequestClose={() => setOrganizing(null)}>
+        <View style={styles.organizeOverlay}>
+          <Pressable style={StyleSheet.absoluteFill} onPress={() => setOrganizing(null)}
+            accessibilityLabel="Close organization menu" />
+          <View style={[styles.organizePanel, { backgroundColor: palette.background }]}>
+            <Text style={[styles.organizeTitle, { color: palette.foreground }]}>Organize goal</Text>
+            <Text numberOfLines={2} style={[styles.organizeSubtitle, { color: palette.muted }]}>
+              {organizing?.title}
+            </Text>
+            {canMoveUp ? (
+              <Pressable accessibilityRole="button" onPress={() => moveSelected(-1)}
+                style={[styles.organizeAction, { backgroundColor: palette.surface, borderColor: palette.border }]}>
+                <Text style={[styles.organizeActionText, { color: palette.foreground }]}>↑  Move up</Text>
+              </Pressable>
+            ) : null}
+            {canMoveDown ? (
+              <Pressable accessibilityRole="button" onPress={() => moveSelected(1)}
+                style={[styles.organizeAction, { backgroundColor: palette.surface, borderColor: palette.border }]}>
+                <Text style={[styles.organizeActionText, { color: palette.foreground }]}>↓  Move down</Text>
+              </Pressable>
+            ) : null}
+            <Pressable accessibilityRole="button" onPress={archiveSelectedFromMenu}
+              style={[styles.organizeAction, { backgroundColor: palette.surface, borderColor: palette.border }]}>
+              <Text style={[styles.organizeActionText, { color: '#B34F4F' }]}>↘  Archive goal and next steps</Text>
+            </Pressable>
+            <Pressable accessibilityRole="button" onPress={() => setOrganizing(null)}
+              style={styles.organizeCancel}>
+              <Text style={[styles.organizeCancelText, { color: palette.muted }]}>Cancel</Text>
+            </Pressable>
+          </View>
+        </View>
+      </Modal>
       <GoalDetails
         goal={details}
         children={children}
@@ -549,6 +585,14 @@ export function HorizonsScreen() {
 }
 
 const styles = StyleSheet.create({
+  organizeOverlay: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(9, 22, 18, 0.43)' },
+  organizePanel: { padding: spacing.lg, paddingBottom: 35, borderTopLeftRadius: 27, borderTopRightRadius: 27, gap: 10 },
+  organizeTitle: { fontSize: 21, fontWeight: '700', letterSpacing: -0.4 },
+  organizeSubtitle: { fontSize: 13, lineHeight: 20, marginBottom: 12 },
+  organizeAction: { minHeight: 55, justifyContent: 'center', paddingHorizontal: 18, borderRadius: radius.lg, borderWidth: 1 },
+  organizeActionText: { fontSize: 15, fontWeight: '600' },
+  organizeCancel: { minHeight: 48, alignItems: 'center', justifyContent: 'center', marginTop: 5 },
+  organizeCancelText: { fontSize: 14, fontWeight: '600' },
   screen: { flex: 1 },
   listContent: { paddingHorizontal: spacing.lg, paddingBottom: 32 },
   brandRow: { flexDirection: 'row', justifyContent: 'flex-start', alignItems: 'center', marginTop: 2, marginBottom: 27 },

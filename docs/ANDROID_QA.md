@@ -34,7 +34,8 @@ Status: **NOT YET VERIFIED** for the latest Horizons 2.0 changes. These are manu
 ## Archive, migration and manual ordering — v2
 
 - [ ] With an existing populated v1 database, update to v2 without losing IDs, titles, links or completed flags.
-- [ ] Move a goal up/down using its ⋯ menu and force-close/relaunch: the order stays the same.
+- [ ] Open the ⋯ action sheet with both available moves, Archive and Cancel; all options must be visible and tappable on Android.
+- [ ] Move a goal up/down from the sheet and force-close/relaunch: the order stays the same.
 - [ ] A completed goal cannot be reordered across the incomplete section; controls should not offer ineffective moves.
 - [ ] Archive a goal via Details or ⋯, confirm it disappears from Focus/Perspective and appears in Archive.
 - [ ] Restore an archived goal and its newly archived descendants with the original IDs and links.
