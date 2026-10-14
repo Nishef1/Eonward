@@ -13,6 +13,9 @@ Record significant decisions and reversals here. A future change should cite its
 | 2026-10-14 | SQLite with migrations when persistence begins | Durable local storage and controlled schema changes | Planned implementation |
 | 2026-10-14 | Dedicated desktop build | Reassess after reliable Android/iOS product | Deferred |
 
+| 2026-10-14 | Direct Expo SQLite v1 rather than introducing an ORM on day one | Small initial CRUD surface; migration and parameterized queries are straightforward | Implemented in source; unverified on device |
+| 2026-10-14 | First slice: one horizon placement per goal, optional parent link | Deliver end-to-end behavior before multi-placement and advanced relationships | Temporary, revisit in M2 |
+
 ## Open decisions
 
 - Calendar rendering package vs dedicated implementation: verify on device.

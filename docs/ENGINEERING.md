@@ -5,6 +5,7 @@ This is a public working repository. Detailed project notes are inside `docs/`; 
 ## Baseline at 2026-10-14
 
 - Expo SDK **57** (stable family); React Native **0.86.3**; React **19.2.3**.
+- Expo SQLite and Expo Crypto are now direct SDK-aligned dependencies.
 - TypeScript **strict**.
 - Node.js **22.13+** required by the SDK; Node 24 LTS is recommended for development.
 - Android is first; iOS requires macOS/Xcode for native builds.
@@ -19,12 +20,13 @@ Sources: https://docs.expo.dev/versions/latest/ and https://docs.expo.dev/router
 npm install
 npx expo install --check
 npm run typecheck
+npm run test:domain
 npm run start
 ```
 
 Start Android with `npm run android` once an emulator or real device is configured. Use an Expo development build for native modules not included in Expo Go when needed.
 
-**Current verification:** a lockfile and first dependency installation are pending. Do not claim a green build until the checks above have actually succeeded.
+**Current verification:** a lockfile and first dependency installation are pending. Domain tests are checked in with a GitHub Action; execution status and Android verification must be confirmed before claiming success.
 
 ## Dependency workflow
 

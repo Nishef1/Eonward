@@ -1,7 +1,7 @@
 # Eonward development roadmap
 
 Last reviewed: 2026-10-14  
-Status: **M0 in progress**  
+Status: **M0 + M1 + M2 in progress (implementation not device-verified)**  
 Platform priority: Android first; iOS compatible; desktop is a later decision.
 
 This file is the single source of truth for **planned vs completed** work. It is public: record implementation milestones here, not private product research.
@@ -20,8 +20,8 @@ This file is the single source of truth for **planned vs completed** work. It is
 | Milestone | Scope | State | Exit gate |
 | --- | --- | --- | --- |
 | M0 — Foundation | Documentation, repository hygiene, Expo shell | In progress | Clean install, typecheck, successful device startup |
-| M1 — Product UX | Information architecture, design tokens, prototypes | Planned | Approved screen map and verified interactions |
-| M2 — Goals & horizons | Persistent data, hierarchy, seven horizons | Planned | End-to-end offline goal management |
+| M1 — Product UX | Information architecture, design tokens, prototypes | In progress | Approved screen map and verified interactions |
+| M2 — Goals & horizons | Persistent data, hierarchy, seven horizons | In progress | End-to-end offline goal management |
 | M3 — Planning views | Boards, calendar, time blocks, fast capture | Planned | Consistent updates across every view |
 | M4 — Personal systems | Notes, repeating items, habits, templates, reviews | Planned | All workflows persist and survive restart |
 | M5 — Mobile integration | Notifications, widgets, localization, backup | Planned | Real-device acceptance and restore test |
@@ -35,10 +35,23 @@ This file is the single source of truth for **planned vs completed** work. It is
 - [x] Add a minimal visual token file and starting screen.
 - [ ] Resolve dependencies, commit `package-lock.json` and verify a clean install.
 - [ ] Run `npm run typecheck` and `npx expo install --check`.
-- [ ] Add small CI checks after a valid lockfile exists.
+- [x] Add dependency-free Node domain tests and a CI workflow (execution status pending).
 - [ ] Launch the initial shell on an actual Android device or emulator.
 
 **Exit gate:** a reproducible clean install, no type errors, no Expo dependency mismatches, and a usable shell on Android. Source files alone do **not** pass this gate.
+
+## First implementation slice (source delivered, runtime verification pending)
+
+- [x] Add an interactive seven-horizon screen and previous/next period controls to source.
+- [x] Add create/edit/complete/reopen/delete dialogs and a next-step entry flow to source.
+- [x] Add SQLite schema v1, goal queries and writes, and a database startup migration to source.
+- [x] Add tests for ISO weeks, date navigation, validation and migration guards.
+- [ ] Verify domain tests run successfully in CI.
+- [ ] Confirm full TypeScript build and Expo package compatibility.
+- [ ] Verify actual create/edit/persist/restart on Android.
+- [ ] Verify modal transitions, child relations and keyboard on a phone.
+
+This inventory records committed implementation, **not completion of the M1/M2 exit gates**.
 
 ## M1 — Product UX & design
 
@@ -119,12 +132,13 @@ This file is the single source of truth for **planned vs completed** work. It is
 
 ## Next three actions
 
-1. Generate and verify the npm lockfile against the published SDK 57 dependency matrix.
-2. Run automated Expo compatibility/type checks and open the app on Android.
-3. Start M1 with an interaction inventory and the first Horizons prototype.
+1. Verify domain-tests CI, resolve dependencies, create a genuine package-lock.json, and check the Expo SDK 57 matrix.
+2. Run typecheck/Android startup, then test goal CRUD, next steps and restarts on a device.
+3. Fix device findings; expand Horizons UX and implement fuller hierarchy/placement rules.
 
 ## Progress log
 
 | Date | Change | Verification |
 | --- | --- | --- |
 | 2026-10-14 | Repository documents and minimal Expo source added. | Remote file inspection only; install/build/device testing pending. |
+| 2026-10-14 | Seven-horizon UI, SQLite goal CRUD, child steps, migration source and Node unit tests added. | Static review and GitHub verification; npm install, CI results and physical-device verification pending. |

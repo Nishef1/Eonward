@@ -1,13 +1,13 @@
 # Architecture (proposed, not yet fully implemented)
 
-Status: **Baseline decisions accepted; persistence schema is a draft.** Confirm entity boundaries during M2, after the first vertical slice.
+Status: **Goal storage schema v1 and Horizons UI committed; not yet verified on device.** Other entity boundaries remain a draft.
 
 ## Stack
 
 - React Native with Expo SDK 57, Expo Router, TypeScript strict mode.
 - Android as the first verification target; compatible iOS layout from the beginning.
-- SQLite for local persisted data, with migrations when storage work begins.
-- Reanimated / Gesture Handler only when complex interaction work begins.
+- Expo SQLite for local persisted data; v1 migration, goal CRUD and hierarchical next steps now exist. Drizzle is not installed.
+- Reanimated / Gesture Handler only when complex interaction work begins; basic interactions currently use Pressable.
 - Kotlin/Swift extensions only for capabilities that cannot be implemented reliably through maintained Expo modules.
 - No backend, user accounts, network dependency, or telemetry requirement in the initial application.
 
@@ -16,14 +16,20 @@ Status: **Baseline decisions accepted; persistence schema is a draft.** Confirm 
 ```
 app/                Expo Router entry points and navigation only
 src/theme/          Design tokens
-src/features/       Feature-specific UI and controllers (when added)
-src/domain/         Pure domain rules: item hierarchy, scheduling, horizon logic
-src/storage/        SQLite repositories and migrations (when added)
+src/features/       Horizons view and goal sheets
+src/domain/         Pure period keys, navigation and goal input validation
+src/storage/        SQLite migration v1 and goal repository
 src/platform/       Notifications, widgets, file sharing (when added)
 docs/               Public-safe project documentation and progress tracker
 ```
 
 Route files should be thin. UI components must not issue raw SQL. Domain functions should be testable without booting the app.
+
+## Implemented v1 schema
+
+`goals` stores stable UUID, title, notes, horizon, period key, optional parent ID, completion flag and timestamps. Parent references use `ON DELETE SET NULL`; deleting a parent keeps descendants as independent goals.
+
+The current design uses a single placement per goal. Multi-placement, time blocks, boards, recurring instances, archive and recovery are **not implemented yet**. Do not confuse this vertical slice with the final schema.
 
 ## Draft data concepts
 
