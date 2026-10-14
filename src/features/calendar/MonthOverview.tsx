@@ -1,5 +1,5 @@
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { localDayBounds, localDayKey, shiftLocalDay, type TimeBlock } from '../../domain/timeblocks';
+import { localDayBounds, localDayKey, monthGridDays, type TimeBlock } from '../../domain/timeblocks';
 import { colors, radius, spacing } from '../../theme/tokens';
 
 type Palette = typeof colors.light | typeof colors.dark;
@@ -18,12 +18,7 @@ function minutesInsideDay(block: TimeBlock, day: Date): number {
     Math.max(Date.parse(from), Date.parse(block.startAt))) / 60000;
 }
 export function MonthOverview({ month, blocks, todayKey, selectedKey, palette, onSelectDay }: Props) {
-  const first = new Date(month.getFullYear(), month.getMonth(), 1, 12);
-  const offset = (first.getDay() + 6) % 7;
-  const gridFrom = shiftLocalDay(first, -offset);
-  const cellsNeeded = offset + new Date(month.getFullYear(), month.getMonth() + 1, 0).getDate();
-  const count = Math.ceil(cellsNeeded / 7) * 7;
-  const days = Array.from({ length: count }, (_, i) => shiftLocalDay(gridFrom, i));
+  const days = monthGridDays(month);
   const metrics = days.map((day) => {
     const key = localDayKey(day);
     const hours = blocks.reduce((sum, block) => sum + minutesInsideDay(block, day), 0) / 60;

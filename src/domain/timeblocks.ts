@@ -87,6 +87,16 @@ export function localDayBounds(day: Date): { from: string; to: string } {
   const next = new Date(day.getFullYear(), day.getMonth(), day.getDate() + 1, 0, 0);
   return { from: start.toISOString(), to: next.toISOString() };
 }
+/** The month grid includes leading/trailing days from adjacent months, not just the numbered month. */
+export function monthGridDays(anchor: Date): Date[] {
+  const first = new Date(anchor.getFullYear(), anchor.getMonth(), 1, 12);
+  const leading = (first.getDay() + 6) % 7;
+  const gridStart = shiftLocalDay(first, -leading);
+  const cells = Math.ceil((leading +
+    new Date(anchor.getFullYear(), anchor.getMonth() + 1, 0).getDate()) / 7) * 7;
+  return Array.from({ length: cells }, (_, index) => shiftLocalDay(gridStart, index));
+}
+
 export interface PlacedBlock {
   block: TimeBlock;
   top: number;
@@ -119,20 +129,23 @@ export function layoutBlocks(blocks: readonly TimeBlock[], hourHeight = 64, day?
     if (!Number.isFinite(startMs) || !Number.isFinite(endMs) || endMs <= startMs) continue;
     const start = new Date(startMs);
     const end = new Date(endMs);
-    if (startMs >= groupEnd && group.length) flush();
-    active = active.filter((item) => item.end > startMs);
-    const occupied = new Set(active.map((item) => item.lane));
-    let lane = 0;
-    while (occupied.has(lane)) lane++;
-    active.push({ end: endMs, lane });
-    groupEnd = Math.max(groupEnd, endMs);
     const beginMinutes = start.getHours() * 60 + start.getMinutes();
     // A local midnight end belongs at 24:00 on the *displayed* day.
     const endMinutes = day && endMs === dayTo ? 1440 : end.getHours() * 60 + end.getMinutes();
     const visualDuration = day ? Math.max(0, endMinutes - beginMinutes) : (endMs - startMs) / 60000;
+    const top = beginMinutes / 60 * hourHeight;
+    const height = Math.max(30, visualDuration / 60 * hourHeight);
+    // Avoid covering adjacent short blocks: their minimum *rendered* height may
+    // overlap even when their actual scheduled times do not.
+    if (top >= groupEnd && group.length) flush();
+    active = active.filter((item) => item.end > top);
+    const occupied = new Set(active.map((item) => item.lane));
+    let lane = 0;
+    while (occupied.has(lane)) lane++;
+    active.push({ end: top + height, lane });
+    groupEnd = Math.max(groupEnd, top + height);
     const placement: PlacedBlock = {
-      block, top: beginMinutes / 60 * hourHeight,
-      height: Math.max(30, visualDuration / 60 * hourHeight),
+      block, top, height,
       lane, lanes: 1,
     };
     group.push(placement);

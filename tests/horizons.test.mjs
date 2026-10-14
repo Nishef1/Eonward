@@ -3,7 +3,7 @@ import test from 'node:test';
 import { isoWeekKey, periodKey, shiftPeriod, startOfWeek, periodLabel, dateFromPeriodKey, parseDateInput } from '../src/domain/horizons.ts';
 import { normalizeGoalTitle, availableGoalParents } from '../src/domain/goals.ts';
 import { buildPerspectiveSections } from '../src/domain/perspective.ts';
-import { layoutBlocks, localDayBounds, localDayKey, timeRangeFromInput } from '../src/domain/timeblocks.ts';
+import { layoutBlocks, localDayBounds, localDayKey, monthGridDays, timeRangeFromInput } from '../src/domain/timeblocks.ts';
 import { formatFocusTime, getFocusDurationMs, getFocusRemainingMs, getFocusElapsedMs } from '../src/domain/focus.ts';
 
 test('all seven horizon keys use independent periods', () => {
@@ -106,6 +106,11 @@ test('time blocks validate local day and ordering without confusing calendar wit
   const bounds = localDayBounds(new Date(2026, 9, 14, 12));
   assert.equal(localDayKey(new Date(bounds.from)), date);
   assert.equal(localDayKey(new Date(bounds.to)), '2026-10-15');
+  const month = monthGridDays(new Date(2026, 9, 14, 12));
+  assert.equal(month.length, 35);
+  assert.equal(localDayKey(month[0]), '2026-09-28');
+  assert.equal(localDayKey(month.at(-1)), '2026-11-01');
+  assert.equal(monthGridDays(new Date(2026, 7, 10, 12)).length, 42);
 });
 
 test('overlapping time blocks split their timeline lanes, consecutive blocks reuse width', () => {
@@ -120,6 +125,15 @@ test('overlapping time blocks split their timeline lanes, consecutive blocks reu
   assert.deepEqual(placed.map((b) => b.lanes), [2, 2, 1]);
   assert.deepEqual(placed.map((b) => b.lane), [0, 1, 0]);
   assert.equal(placed[0].top, 9 * 64);
+  // At compact zoom, 15-minute cards are taller than their scheduled slot.
+  // Side-by-side lanes keep neighboring cards tappable rather than covering them.
+  const short = [0, 15, 30].map((minute, i) => make(
+    'short-' + i, instant(13, minute), instant(13, minute + 15),
+  ));
+  const compressed = layoutBlocks(short, 56);
+  assert.deepEqual(compressed.map((item) => item.lane), [0, 1, 2]);
+  assert.deepEqual(compressed.map((item) => item.lanes), [3, 3, 3]);
+  assert.ok(compressed.every((item) => item.height >= 30));
 });
 
 test('focus time uses an absolute deadline and stays correct after delayed ticks or app suspension', () => {

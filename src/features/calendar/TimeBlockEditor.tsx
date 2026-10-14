@@ -38,8 +38,10 @@ export function TimeBlockEditor({ visible, date, goals, initial, suggestedGoalId
     const hour = suggestedStartHour ?? 9;
     setStart(initial ? localClock(new Date(initial.startAt)) : `${String(hour).padStart(2, '0')}:00`);
     setEnd(initial ? localClock(new Date(initial.endAt)) :
-      hour === 23 ? '23:59' : `${String(hour + 1).padStart(2, '0')}:00`);
-    setEndsNextDay(!!initial && localDayKey(new Date(initial.endAt)) !== localDayKey(new Date(initial.startAt)));
+      hour === 23 ? '00:00' : `${String(hour + 1).padStart(2, '0')}:00`);
+    setEndsNextDay(initial
+      ? localDayKey(new Date(initial.endAt)) !== localDayKey(new Date(initial.startAt))
+      : hour === 23);
     setKind(initial?.kind ?? 'block');
     setIntention(initial?.intention ?? '');
     setShowGoals(false);

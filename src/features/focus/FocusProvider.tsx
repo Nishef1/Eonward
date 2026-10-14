@@ -44,7 +44,7 @@ export function FocusProvider({ children }: { children: ReactNode }) {
   }, [refresh]);
 
   const perform = useCallback(async (action: () => Promise<FocusSession | null | void>) => {
-    if (blocked.current) return;
+    if (blocked.current) throw new Error('A focus action is already in progress.');
     blocked.current = true;
     setBusy(true);
     try {

@@ -5,7 +5,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useSQLiteContext } from 'expo-sqlite';
 import type { Goal, GoalInput } from '../../domain/goals';
 import {
-  localDayBounds, localDayKey, parseLocalDay, shiftLocalDay, type BlockInput, type TimeBlock,
+  localDayBounds, localDayKey, monthGridDays, parseLocalDay, shiftLocalDay, type BlockInput, type TimeBlock,
 } from '../../domain/timeblocks';
 import { createGoal, getGoal, listAllGoals } from '../../storage/goals';
 import { listDayBlocks, listRangeBlocks, removeBlock, saveBlock } from '../../storage/timeblocks';
@@ -50,6 +50,7 @@ export function CalendarScreen() {
   const [failure, setFailure] = useState<string | null>(null);
   const [revision, setRevision] = useState(0);
   const [busy, setBusy] = useState(false);
+  const writeLock = useRef(false);
   const [editorOpen, setEditorOpen] = useState(false);
   const [newGoalOpen, setNewGoalOpen] = useState(false);
   const [editingBlock, setEditingBlock] = useState<TimeBlock | null>(null);
@@ -76,8 +77,9 @@ export function CalendarScreen() {
     setLoading(true);
     const weekFrom = localDayBounds(week[0]).from;
     const weekTo = localDayBounds(week[6]).to;
-    const monthFrom = localDayBounds(new Date(day.getFullYear(), day.getMonth(), 1, 12)).from;
-    const monthTo = localDayBounds(new Date(day.getFullYear(), day.getMonth() + 1, 1, 12)).from;
+    const grid = monthGridDays(day);
+    const monthFrom = localDayBounds(grid[0]).from;
+    const monthTo = localDayBounds(grid[grid.length - 1]).to;
     void Promise.all([listDayBlocks(db, day), listRangeBlocks(db, weekFrom, weekTo),
       listRangeBlocks(db, monthFrom, monthTo), listAllGoals(db)])
       .then(([saved, weekSaved, monthSaved, all]) => {
@@ -100,6 +102,8 @@ export function CalendarScreen() {
     void getGoal(db, goalId).then((goal) => {
       if (!active) return;
       usedGoalParam.current = goalId;
+      // Consume this deep-link parameter so opening the same goal again works.
+      router.setParams({ goalId: undefined });
       if (goal) {
         setEditingBlock(null);
         setChosenGoal(goal.id);
@@ -110,7 +114,7 @@ export function CalendarScreen() {
       if (active) Alert.alert('Could not open goal', 'Try opening Calendar again.');
     });
     return () => { active = false; };
-  }, [db, goalId]);
+  }, [db, goalId, router]);
 
   const ordered = useMemo(() => [...blocks].sort((a, b) => a.startAt.localeCompare(b.startAt)), [blocks]);
   const dayBounds = localDayBounds(day);
@@ -124,11 +128,16 @@ export function CalendarScreen() {
   ) / 60000, 0);
   const completed = blocks.filter((block) => block.goalCompleted).length;
   async function write(action: () => Promise<void>) {
-    if (busy) return;
+    // React state updates are asynchronous: guard rapid double-taps synchronously.
+    if (writeLock.current) return;
+    writeLock.current = true;
     setBusy(true);
     try { await action(); refresh(); }
     catch (error) { Alert.alert('Could not save', error instanceof Error ? error.message : 'Please try again.'); }
-    finally { setBusy(false); }
+    finally {
+      writeLock.current = false;
+      setBusy(false);
+    }
   }
   function createAt(hour: number | null = null) {
     if (!goals.length) {
@@ -142,7 +151,8 @@ export function CalendarScreen() {
     setEditorOpen(true);
   }
   async function saveNewGoal(input: GoalInput): Promise<void> {
-    if (busy) return;
+    if (writeLock.current) return;
+    writeLock.current = true;
     setBusy(true);
     try {
       const id = await createGoal(db, input);
@@ -161,6 +171,7 @@ export function CalendarScreen() {
     } catch (error) {
       Alert.alert('Could not create goal', error instanceof Error ? error.message : 'Try again.');
     } finally {
+      writeLock.current = false;
       setBusy(false);
     }
   }

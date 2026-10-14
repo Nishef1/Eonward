@@ -363,3 +363,14 @@ The initial Create Goal form was appearing partially scrolled in a screenshot; i
 - [x] Refresh the selected-day "Today" affordance across midnight and on return from background.
 - [x] Refresh the live Now marker on Android foreground resume without trusting JS background ticks.
 - [ ] Verify midnight rollover and foreground return with device-clock simulation on Android.
+
+## Reliability review — October 14 follow-up
+
+- [x] Load the full six/five-week month grid, including real scheduled blocks on grey days belonging to adjacent months.
+- [x] Avoid overlapping touch targets for adjacent short Timeblocks at compact Timeline zoom by assigning lanes according to *rendered* height, not only chronological collisions.
+- [x] Fix the 23:00 quick-add default: one full hour ending at 00:00 next day, not an arbitrary 59 minutes.
+- [x] Consume Calendar goal deep-links so the same Goal can be opened for scheduling repeatedly.
+- [x] Guard Calendar writes synchronously against duplicate tap-created blocks/goals.
+- [x] Reject overlapping Focus mutations instead of quietly resolving a skipped Start/Pause/Finish operation as if it succeeded.
+- [ ] Real-device Android validation is still required for gesture targets, saved SQLite lifecycle, permission prompts and modal transitions.
+- [ ] Local background-expiry notifications remain unavailable until `expo-notifications` is integrated and Android permissions and exact delivery behavior are verified with a development build.
