@@ -149,6 +149,12 @@ This inventory records committed implementation, **not completion of the M1/M2 e
 - AI coaching or remote model integrations.
 - Dedicated desktop UI; revisit after mobile quality is established.
 
+## Verification — Horizons 2.0 source
+
+- [x] GitHub Actions domain tests passed on commit `34710e0`.
+- [x] GitHub Actions locked `npm ci`, Expo package compatibility, TypeScript and Android Metro export passed on commit `34710e0`.
+- [ ] Actual Android emulator UX regression of editor, hierarchy and keyboard remains outstanding.
+
 ## Next three actions
 
 1. Verify the latest CI checks and run the new Editor/Details flows on the emulator, including keyboard and Back navigation.
@@ -165,4 +171,4 @@ This inventory records committed implementation, **not completion of the M1/M2 e
 | 2026-10-14 | Final lockfile-based CI run verified. | npm ci, Expo alignment, typecheck, Android Metro export and domain tests all passed; native APK/device testing remains. |
 | 2026-10-14 | Initial Horizons shell shown running on Android emulator; Horizons 2.0 priorities set. | User-provided screenshot verifies emulator launch only; goal CRUD, hierarchy and persistence still require runtime testing. |
 
-| 2026-10-14 | Horizons 2.0 initial implementation: nested navigation, reparenting validation, period editor and visual refinements. | Source committed; CI and Android UI QA required before full acceptance. |
+| 2026-10-14 | Horizons 2.0 initial implementation: nested navigation, reparenting validation, period editor and visual refinements. | CI checks passed on commit 34710e0; Android UI QA remains outstanding. |
