@@ -126,7 +126,10 @@ export function CalendarScreen() {
   const monthTotalMinutes = monthBlocks.reduce((sum, block) => sum + Math.max(0,
     Math.min(Date.parse(block.endAt), monthToMs) - Math.max(Date.parse(block.startAt), monthFromMs),
   ) / 60000, 0);
-  const completed = blocks.filter((block) => block.goalCompleted).length;
+  const monthBlockCount = monthBlocks.filter((block) =>
+    Date.parse(block.startAt) < monthToMs && Date.parse(block.endAt) > monthFromMs).length;
+  const completedGoals = new Set(blocks.filter((block) => block.goalCompleted)
+    .map((block) => block.goalId)).size;
   async function write(action: () => Promise<void>) {
     // React state updates are asynchronous: guard rapid double-taps synchronously.
     if (writeLock.current) return;
@@ -292,9 +295,9 @@ export function CalendarScreen() {
               <Text style={[styles.summaryLabel, { color: palette.muted }]}> planned</Text>
             </Text>
             <Text style={[styles.summarySecond, { color: palette.muted }]}>
-              {mode === 'month' ? monthBlocks.length : blocks.length} {
-                (mode === 'month' ? monthBlocks.length : blocks.length) === 1 ? 'block' : 'blocks'
-              } · {mode === 'month' ? 'this month' : completed + ' done'}
+              {mode === 'month' ? monthBlockCount : blocks.length} {
+                (mode === 'month' ? monthBlockCount : blocks.length) === 1 ? 'block' : 'blocks'
+              } · {mode === 'month' ? 'this month' : completedGoals + ' linked goals done'}
             </Text>
           </View>
           <View style={[styles.viewToggle, { backgroundColor: palette.surface, borderColor: palette.border }]}>
