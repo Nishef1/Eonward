@@ -254,4 +254,4 @@ The initial Create Goal form was appearing partially scrolled in a screenshot; i
 | 2026-10-14 | Added schema v2, archive/restore UI and stored ordering; updated existing migration tests. | GitHub Actions domain and app checks passed on `8b5e606`; Android migration/interaction QA pending; 12/20 tests. |
 | 2026-10-14 | Refined Focus/Perspective/Archive hierarchy and modal safe-area/footer behavior based on four emulator screenshots. | Source changes, CI and fresh Android screenshots pending; 12/20 automated tests unchanged. |
 
-| 2026-10-14 | Board workspace added: schema v3 and references to existing goals; fixed goal editor autofocus/empty parent picker. | Source committed, CI and Android functional QA pending; automated suite remains 12/20. |
+| 2026-10-14 | Board workspace added: schema v3 with reusable goal references; fixed goal editor initial scroll/parent selector. | Final code commit `f8c3fd1`: 12/20 domain tests, npm ci, Expo version checks, TypeScript and Android Metro all passed; Android board interaction and migration QA pending. |
