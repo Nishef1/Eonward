@@ -13,7 +13,7 @@ Status: **Baseline decisions accepted; persistence schema is a draft.** Confirm 
 
 ## Boundaries
 
-\`\`\`
+```
 app/                Expo Router entry points and navigation only
 src/theme/          Design tokens
 src/features/       Feature-specific UI and controllers (when added)
@@ -21,7 +21,7 @@ src/domain/         Pure domain rules: item hierarchy, scheduling, horizon logic
 src/storage/        SQLite repositories and migrations (when added)
 src/platform/       Notifications, widgets, file sharing (when added)
 docs/               Public-safe project documentation and progress tracker
-\`\`\`
+```
 
 Route files should be thin. UI components must not issue raw SQL. Domain functions should be testable without booting the app.
 

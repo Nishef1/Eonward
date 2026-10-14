@@ -8,9 +8,9 @@ This file is the single source of truth for **planned vs completed** work. It is
 
 ## Tracking rules
 
-- \`[x]\` = merged to \`main\` and checked at the appropriate level.
-- \`[ ]\` = not completed. An unverified file or mocked screen is **not** a finished feature.
-- Mark work as \`BLOCKED\` with a reason and a specific next action.
+- `[x]` = merged to `main` and checked at the appropriate level.
+- `[ ]` = not completed. An unverified file or mocked screen is **not** a finished feature.
+- Mark work as `BLOCKED` with a reason and a specific next action.
 - At the end of each implementation session, update these checkboxes and the next-three-actions section **in the same commit**.
 - Do not mark a milestone complete until its exit criteria have evidence (build, test, screenshots, or device verification).
 - Scope changes go in [DECISIONS.md](DECISIONS.md).
@@ -29,12 +29,12 @@ This file is the single source of truth for **planned vs completed** work. It is
 
 ## M0 — Foundation
 
-- [x] Initialize repository on \`main\`, without a root README.
-- [x] Create the public-safe documentation in \`docs/\`.
+- [x] Initialize repository on `main`, without a root README.
+- [x] Create the public-safe documentation in `docs/`.
 - [x] Add Expo + React Native + strict TypeScript starter source.
 - [x] Add a minimal visual token file and starting screen.
-- [ ] Resolve dependencies, commit \`package-lock.json\` and verify a clean install.
-- [ ] Run \`npm run typecheck\` and \`npx expo install --check\`.
+- [ ] Resolve dependencies, commit `package-lock.json` and verify a clean install.
+- [ ] Run `npm run typecheck` and `npx expo install --check`.
 - [ ] Add small CI checks after a valid lockfile exists.
 - [ ] Launch the initial shell on an actual Android device or emulator.
 
@@ -106,7 +106,7 @@ This file is the single source of truth for **planned vs completed** work. It is
 - [ ] Profile long histories and thousands of saved items.
 - [ ] Fix crashers, data-integrity bugs and high-severity usability issues.
 - [ ] Produce a signed Android release build and preserve verification evidence.
-- [ ] Record release notes and known limitations in \`docs/\`.
+- [ ] Record release notes and known limitations in `docs/`.
 
 **Exit gate:** a reproducible build and completed acceptance checklist. Publishing to a store is a separate explicit decision.
 

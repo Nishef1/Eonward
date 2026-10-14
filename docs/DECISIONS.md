@@ -9,7 +9,7 @@ Record significant decisions and reversals here. A future change should cite its
 | 2026-10-14 | Local-first; no signup or cloud backend initially | Single-user offline core is the current priority | Accepted |
 | 2026-10-14 | Independent UI and domain rules | Avoid carrying over weaknesses or licensing obligations from other products | Accepted |
 | 2026-10-14 | Include only minimum starter dependencies | Lower upgrade cost and avoid speculative package adoption | Accepted |
-| 2026-10-14 | Public-safe docs under \`docs/\`; no root README | Keep repository home intentionally minimal | Accepted |
+| 2026-10-14 | Public-safe docs under `docs/`; no root README | Keep repository home intentionally minimal | Accepted |
 | 2026-10-14 | SQLite with migrations when persistence begins | Durable local storage and controlled schema changes | Planned implementation |
 | 2026-10-14 | Dedicated desktop build | Reassess after reliable Android/iOS product | Deferred |
 

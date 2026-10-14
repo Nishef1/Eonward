@@ -15,12 +15,12 @@ Status: **Early foundation**. Visual tokens in source are provisional, not a fin
 
 | Token | Light | Dark |
 | --- | --- | --- |
-| Surface | \`#F7F6F2\` | \`#151A19\` |
-| Elevated | \`#FFFFFF\` | \`#222A28\` |
-| Primary text | \`#202927\` | \`#F0F3F0\` |
-| Secondary text | \`#66736E\` | \`#A8B7AF\` |
-| Accent | \`#587A6D\` | \`#92B2A3\` |
-| Divider | \`#E6EAE4\` | \`#36413B\` |
+| Surface | `#F7F6F2` | `#151A19` |
+| Elevated | `#FFFFFF` | `#222A28` |
+| Primary text | `#202927` | `#F0F3F0` |
+| Secondary text | `#66736E` | `#A8B7AF` |
+| Accent | `#587A6D` | `#92B2A3` |
+| Divider | `#E6EAE4` | `#36413B` |
 
 Tokens must be reviewed with contrast tests before being used as semantic states.
 
