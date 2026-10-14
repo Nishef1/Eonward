@@ -1,12 +1,12 @@
 # Architecture (proposed, not yet fully implemented)
 
-Status: **Goal storage schema v1 and Horizons UI committed; not yet verified on device.** Other entity boundaries remain a draft.
+Status: **Goal schema v2 with an in-place v1 migration and Horizons UI committed; upgrade/UX not yet verified on Android.** Other entity boundaries remain a draft.
 
 ## Stack
 
 - React Native with Expo SDK 57, Expo Router, TypeScript strict mode.
 - Android as the first verification target; compatible iOS layout from the beginning.
-- Expo SQLite for local persisted data; v1 migration, goal CRUD and hierarchical next steps now exist. Drizzle is not installed.
+- Expo SQLite for local persisted data; transactional v1 → v2 migration, goal CRUD, Archive/Restore and ordering implemented. Drizzle is not installed.
 - Reanimated / Gesture Handler only when complex interaction work begins; basic interactions currently use Pressable.
 - Kotlin/Swift extensions only for capabilities that cannot be implemented reliably through maintained Expo modules.
 - No backend, user accounts, network dependency, or telemetry requirement in the initial application.
@@ -25,11 +25,11 @@ docs/               Public-safe project documentation and progress tracker
 
 Route files should be thin. UI components must not issue raw SQL. Domain functions should be testable without booting the app.
 
-## Implemented v1 schema
+## Implemented data model (v2)
 
 `goals` stores stable UUID, title, notes, horizon, period key, optional parent ID, completion flag and timestamps. Parent references use `ON DELETE SET NULL`; deleting a parent keeps descendants as independent goals.
 
-The current design uses a single placement per goal. Multi-placement, time blocks, boards, recurring instances, archive and recovery are **not implemented yet**. Do not confuse this vertical slice with the final schema.
+Schema v2 adds `archived_at` (nullable timestamp) and `sort_rank` (integer) to existing goals with SQLite ALTER TABLE. The current design uses a single placement per goal. Multi-placement, time blocks, boards, recurring instances, archive and recovery are **not implemented yet**. Do not confuse this vertical slice with the final schema.
 
 ## Draft data concepts
 
@@ -78,7 +78,11 @@ Prefer platform/Expo primitives; introduce a third-party library only after chec
 ## Horizons 2.0 work-in-progress
 
 - The editor can select a parent across horizons and can change the planning period without moving the item through another screen.
-- The schema remains v1: one stored placement per goal. This is not yet Timestripe-style multi-placement.
+- The schema is v2: one stored horizon placement per goal with archive state and ordering. Multi-placement still is not implemented.
 - Goal editing uses an exclusive transaction with recursive descendant inspection to reject cyclic parent changes.
 - The available-parent filter is pure domain logic; it helps UX but database validation remains mandatory.
 - Nested detail navigation is UI state (back stack); there are no duplicate records.
+
+## Archive & sorting semantics
+
+Archiving an active parent also archives its currently active descendants as one unit. Restoring that unit does not restore descendants archived earlier with different timestamps. A child cannot be restored while its parent remains archived. The archive list shows recoverable roots, keeping a single hierarchy rather than duplicate records. Manual Move Up/Down applies within the same period and completion group and persists ranks in an exclusive SQLite transaction. This is deliberately simpler than drag-and-drop.

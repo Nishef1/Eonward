@@ -37,7 +37,7 @@ Start Android with `npm run android` once an emulator or real device is configur
 5. Verify license, maintenance, changelog and native build impact before adopting new packages.
 6. Do not bulk-upgrade Expo or React Native independently from the Expo version matrix.
 
-Planned for later milestones, **not installed**: SQLite/Drizzle, calendar widgets, note editor, notifications, haptics, reanimated, gesture-handler, native widgets.
+Already installed: Expo SQLite, Expo Crypto, Reanimated and Worklets. Not yet installed: Drizzle, calendar widgets, note editor, notifications, haptics, gesture-handler and native widgets.
 
 ## Verification steps for each implementation
 
@@ -66,3 +66,7 @@ If SDK packages are mismatched, check `npx expo install --check` before forcing 
 - Prioritize date semantics, SQLite integrity and primary planning workflows.
 - Review and replace stale cases before adding tests. Never generate broad redundant regression suites.
 - Typechecking, Expo dependency validation and Metro bundling are not extra test cases.
+
+## Current migration gate
+
+The v2 migration uses Expo SQLite exclusive transaction plus additive columns so an existing user's v1 goals remain intact. **Do not reset the emulator database to make a migration error disappear.** Preserve a v1 copy and test upgrading it. Verify archived subtrees and stored sort ranks across app restarts before marking this slice complete. Automated test count remains 12; the three existing migration cases were updated, not multiplied.

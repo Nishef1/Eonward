@@ -69,3 +69,7 @@ Each feature design must specify: loading/initializing, empty, ready, editing, s
 - Perspective stacks seven period cards with counts, two recent goal previews, and direct Add/Focus actions.
 - Uses existing goal identities and local database; no proprietary UI assets or new libraries.
 - Requires emulator review for scaling, contrast, keyboard and touch feedback.
+
+## Archive and ordering UI — v2
+
+The Focus goal card has a compact organization menu (Move Up, Move Down, Archive) rather than permanent buttons crowding a narrow screen. Goal Details uses Archive instead of destructive Delete. Archive is a third lightweight mode next to Focus and Perspective with contextual Restore actions. Android emulator QA still required before calling spacing, labels and modal behavior polished.

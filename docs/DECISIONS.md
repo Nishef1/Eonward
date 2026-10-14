@@ -28,6 +28,10 @@ Record significant decisions and reversals here. A future change should cite its
 | 2026-10-14 | Goal Path displays saved parent relationships and moved goals open at destination | Avoid disconnect between daily actions and long-term goals and misleading empty lists | Implemented in source; Android QA pending |
 | 2026-10-14 | Prioritize reversible delete and basic ordering before drag animations | Correctness and data safety before visual complexity | Planned |
 
+| 2026-10-14 | SQLite v2 additive migration with archived timestamp and sort rank | Keep v1 goals intact and support safe, offline lifecycle/order | Implemented in source; Android migration QA pending |
+| 2026-10-14 | Archive active subtrees and restore only the same archive group | Preserve hierarchical context without resurrecting previously archived items | Implemented in source, SQL sanity checked |
+| 2026-10-14 | Reorder with Move Up/Down before drag gestures | Accessible, deterministic and no new dependency | Implemented in source, Android UX QA pending |
+
 ## Open decisions
 
 - Calendar rendering package vs dedicated implementation: verify on device.

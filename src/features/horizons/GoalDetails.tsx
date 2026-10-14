@@ -18,11 +18,11 @@ interface GoalDetailsProps {
   onOpenChild: (child: Goal) => void;
   onOpenAncestor: (ancestor: Goal) => void;
   onToggle: (goal: Goal) => void;
-  onRemove: () => void;
+  onArchive: () => void;
 }
 
 export function GoalDetails({
-  goal, children, ancestors, canGoBack, palette, onClose, onBack, onEdit, onAddStep, onOpenChild, onOpenAncestor, onToggle, onRemove,
+  goal, children, ancestors, canGoBack, palette, onClose, onBack, onEdit, onAddStep, onOpenChild, onOpenAncestor, onToggle, onArchive,
 }: GoalDetailsProps) {
   return (
     <Modal visible={goal !== null} animationType="slide" transparent onRequestClose={canGoBack ? onBack : onClose}>
@@ -116,8 +116,8 @@ export function GoalDetails({
                 <Pressable accessibilityRole="button" onPress={onEdit} style={[styles.actionButton, { backgroundColor: palette.accent }]}>
                   <Text style={styles.primaryAction}>Edit goal</Text>
                 </Pressable>
-                <Pressable accessibilityRole="button" onPress={onRemove} style={[styles.actionButton, { backgroundColor: palette.surface, borderColor: palette.border, borderWidth: 1 }]}>
-                  <Text style={styles.removeText}>Delete</Text>
+                <Pressable accessibilityRole="button" onPress={onArchive} style={[styles.actionButton, { backgroundColor: palette.surface, borderColor: palette.border, borderWidth: 1 }]}>
+                  <Text style={styles.removeText}>Archive</Text>
                 </Pressable>
               </View>
             </ScrollView>

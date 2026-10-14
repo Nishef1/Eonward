@@ -12,6 +12,8 @@ interface GoalRow {
   parent_id: string | null;
   parent_title: string | null;
   completed: number;
+  archived_at: string | null;
+  sort_rank: number;
   children_count: number;
   created_at: string;
   updated_at: string;
@@ -19,7 +21,7 @@ interface GoalRow {
 
 const SELECT_GOALS = `
   SELECT g.*,
-    (SELECT count(*) FROM goals children WHERE children.parent_id = g.id) AS children_count,
+    (SELECT count(*) FROM goals children WHERE children.parent_id = g.id AND children.archived_at IS NULL) AS children_count,
     parent.title AS parent_title
   FROM goals g LEFT JOIN goals parent ON parent.id = g.parent_id
 `;
@@ -34,6 +36,8 @@ function toGoal(row: GoalRow): Goal {
     parentId: row.parent_id,
     parentTitle: row.parent_title,
     completed: row.completed === 1,
+    archivedAt: row.archived_at,
+    sortRank: row.sort_rank,
     childrenCount: row.children_count,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
@@ -42,7 +46,7 @@ function toGoal(row: GoalRow): Goal {
 
 export async function listGoals(db: SQLiteDatabase, horizon: Goal['horizon'], key: string): Promise<Goal[]> {
   const rows = await db.getAllAsync<GoalRow>(
-    `${SELECT_GOALS} WHERE g.horizon = ? AND g.period_key = ? ORDER BY g.completed ASC, g.created_at DESC`,
+    `${SELECT_GOALS} WHERE g.horizon = ? AND g.period_key = ? AND g.archived_at IS NULL ORDER BY g.completed ASC, g.sort_rank ASC, g.created_at DESC, g.id ASC`,
     [horizon, key],
   );
   return rows.map(toGoal);
@@ -53,7 +57,7 @@ export async function listPerspectiveGoals(db: SQLiteDatabase, date: Date): Prom
   const filters = HORIZONS.map(() => '(g.horizon = ? AND g.period_key = ?)').join(' OR ');
   const values = HORIZONS.flatMap((horizon) => [horizon, periodKey(horizon, date)]);
   const rows = await db.getAllAsync<GoalRow>(
-    `${SELECT_GOALS} WHERE ${filters} ORDER BY g.completed ASC, g.created_at DESC`,
+    `${SELECT_GOALS} WHERE (${filters}) AND g.archived_at IS NULL ORDER BY g.completed ASC, g.sort_rank ASC, g.created_at DESC, g.id ASC`,
     values,
   );
   return rows.map(toGoal);
@@ -61,7 +65,7 @@ export async function listPerspectiveGoals(db: SQLiteDatabase, date: Date): Prom
 
 export async function listChildGoals(db: SQLiteDatabase, parentId: string): Promise<Goal[]> {
   const rows = await db.getAllAsync<GoalRow>(
-    `${SELECT_GOALS} WHERE g.parent_id = ? ORDER BY g.completed ASC, g.created_at DESC`,
+    `${SELECT_GOALS} WHERE g.parent_id = ? AND g.archived_at IS NULL ORDER BY g.completed ASC, g.sort_rank ASC, g.created_at DESC, g.id ASC`,
     [parentId],
   );
   return rows.map(toGoal);
@@ -70,11 +74,23 @@ export async function listChildGoals(db: SQLiteDatabase, parentId: string): Prom
 export async function createGoal(db: SQLiteDatabase, input: GoalInput): Promise<string> {
   const id = randomUUID();
   const now = new Date().toISOString();
-  await db.runAsync(
-    `INSERT INTO goals (id, title, notes, horizon, period_key, parent_id, created_at, updated_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-    [id, normalizeGoalTitle(input.title), input.notes.trim(), input.horizon, input.periodKey, input.parentId ?? null, now, now],
-  );
+  await db.withExclusiveTransactionAsync(async (tx) => {
+    if (input.parentId) {
+      const parent = await tx.getFirstAsync<{ archived_at: string | null }>(
+        'SELECT archived_at FROM goals WHERE id = ?', [input.parentId],
+      );
+      if (!parent || parent.archived_at !== null) throw new Error('Select an active parent goal.');
+    }
+    await tx.runAsync(
+      `INSERT INTO goals (id, title, notes, horizon, period_key, parent_id, created_at, updated_at, sort_rank)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, (
+         SELECT COALESCE(MAX(sort_rank), -1) + 1 FROM goals
+         WHERE horizon = ? AND period_key = ? AND archived_at IS NULL
+       ))`,
+      [id, normalizeGoalTitle(input.title), input.notes.trim(), input.horizon, input.periodKey,
+        input.parentId ?? null, now, now, input.horizon, input.periodKey],
+    );
+  });
   return id;
 }
 
@@ -83,11 +99,11 @@ export async function editGoal(db: SQLiteDatabase, id: string, input: GoalInput)
   const parentId = input.parentId ?? null;
   if (id === parentId) throw new Error('A goal cannot be its own parent.');
   await db.withExclusiveTransactionAsync(async (tx) => {
-    const existing = await tx.getFirstAsync<{ id: string }>('SELECT id FROM goals WHERE id = ?', [id]);
-    if (!existing) throw new Error('The goal no longer exists.');
+    const existing = await tx.getFirstAsync<{ id: string; archived_at: string | null }>('SELECT id, archived_at FROM goals WHERE id = ?', [id]);
+    if (!existing || existing.archived_at !== null) throw new Error('The active goal no longer exists.');
     if (parentId) {
-      const parent = await tx.getFirstAsync<{ id: string }>('SELECT id FROM goals WHERE id = ?', [parentId]);
-      if (!parent) throw new Error('The selected parent no longer exists.');
+      const parent = await tx.getFirstAsync<{ id: string; archived_at: string | null }>('SELECT id, archived_at FROM goals WHERE id = ?', [parentId]);
+      if (!parent || parent.archived_at !== null) throw new Error('The selected parent is unavailable.');
       const cycle = await tx.getFirstAsync<{ id: string }>(
         `WITH RECURSIVE descendants(id) AS (
           SELECT id FROM goals WHERE id = ?
@@ -99,28 +115,120 @@ export async function editGoal(db: SQLiteDatabase, id: string, input: GoalInput)
       if (cycle) throw new Error('A goal cannot belong to one of its own next steps.');
     }
     await tx.runAsync(
-      'UPDATE goals SET title = ?, notes = ?, horizon = ?, period_key = ?, parent_id = ?, updated_at = ? WHERE id = ?',
-      [title, input.notes.trim(), input.horizon, input.periodKey, parentId, new Date().toISOString(), id],
+      `UPDATE goals SET title = ?, notes = ?, horizon = ?, period_key = ?, parent_id = ?,
+         sort_rank = CASE WHEN horizon = ? AND period_key = ? THEN sort_rank
+           ELSE (SELECT COALESCE(MAX(other.sort_rank), -1) + 1 FROM goals other
+             WHERE other.horizon = ? AND other.period_key = ? AND other.archived_at IS NULL) END,
+         updated_at = ? WHERE id = ? AND archived_at IS NULL`,
+      [title, input.notes.trim(), input.horizon, input.periodKey, parentId,
+        input.horizon, input.periodKey, input.horizon, input.periodKey, new Date().toISOString(), id],
     );
   });
 }
 
 export async function setGoalCompleted(db: SQLiteDatabase, id: string, completed: boolean): Promise<void> {
   await db.runAsync(
-    'UPDATE goals SET completed = ?, updated_at = ? WHERE id = ?',
+    'UPDATE goals SET completed = ?, updated_at = ? WHERE id = ? AND archived_at IS NULL',
     [completed ? 1 : 0, new Date().toISOString(), id],
   );
 }
 
-export async function removeGoal(db: SQLiteDatabase, id: string): Promise<void> {
-  // Descendants become independent goals; ON DELETE SET NULL avoids destroying their history.
-  await db.runAsync('DELETE FROM goals WHERE id = ?', [id]);
+/** Archive the active subtree as one recoverable unit; pre-archived descendants stay untouched. */
+export async function archiveGoal(db: SQLiteDatabase, id: string): Promise<void> {
+  const now = new Date().toISOString();
+  await db.withExclusiveTransactionAsync(async (tx) => {
+    const current = await tx.getFirstAsync<{ id: string }>(
+      'SELECT id FROM goals WHERE id = ? AND archived_at IS NULL', [id],
+    );
+    if (!current) throw new Error('Goal is already archived or missing.');
+    await tx.runAsync(
+      `WITH RECURSIVE subtree(id) AS (
+        SELECT id FROM goals WHERE id = ? AND archived_at IS NULL
+        UNION
+        SELECT child.id FROM goals child JOIN subtree p ON child.parent_id = p.id
+        WHERE child.archived_at IS NULL
+      )
+      UPDATE goals SET archived_at = ?, updated_at = ?
+      WHERE id IN (SELECT id FROM subtree)`,
+      [id, now, now],
+    );
+  });
+}
+
+/** Restore the archived unit, without reviving descendants archived earlier. */
+export async function restoreGoal(db: SQLiteDatabase, id: string): Promise<void> {
+  await db.withExclusiveTransactionAsync(async (tx) => {
+    const item = await tx.getFirstAsync<{ parent_id: string | null; archived_at: string | null }>(
+      'SELECT parent_id, archived_at FROM goals WHERE id = ?', [id],
+    );
+    if (!item?.archived_at) throw new Error('Goal is not archived.');
+    if (item.parent_id) {
+      const parent = await tx.getFirstAsync<{ archived_at: string | null }>(
+        'SELECT archived_at FROM goals WHERE id = ?', [item.parent_id],
+      );
+      if (parent?.archived_at) throw new Error('Restore the parent goal first.');
+    }
+    await tx.runAsync(
+      `WITH RECURSIVE subtree(id) AS (
+        SELECT id FROM goals WHERE id = ? AND archived_at = ?
+        UNION
+        SELECT child.id FROM goals child JOIN subtree p ON child.parent_id = p.id
+        WHERE child.archived_at = ?
+      )
+      UPDATE goals SET archived_at = NULL, updated_at = ?
+      WHERE id IN (SELECT id FROM subtree)`,
+      [id, item.archived_at, item.archived_at, new Date().toISOString()],
+    );
+  });
+}
+
+export async function listArchivedGoals(db: SQLiteDatabase): Promise<Goal[]> {
+  const rows = await db.getAllAsync<GoalRow>(
+    `${SELECT_GOALS}
+     WHERE g.archived_at IS NOT NULL
+       AND (g.parent_id IS NULL OR NOT EXISTS (
+         SELECT 1 FROM goals p WHERE p.id = g.parent_id AND p.archived_at = g.archived_at
+       ))
+     ORDER BY g.archived_at DESC, g.created_at DESC`,
+  );
+  return rows.map(toGoal);
+}
+
+/** Accessible ordering works before optional drag gestures. */
+export async function moveGoal(
+  db: SQLiteDatabase, goalId: string, direction: -1 | 1,
+): Promise<boolean> {
+  let moved = false;
+  await db.withExclusiveTransactionAsync(async (tx) => {
+    const item = await tx.getFirstAsync<{ horizon: string; period_key: string; completed: number }>(
+      'SELECT horizon, period_key, completed FROM goals WHERE id = ? AND archived_at IS NULL',
+      [goalId],
+    );
+    if (!item) throw new Error('Goal is not available.');
+    const peers = await tx.getAllAsync<{ id: string }>(
+      `SELECT id FROM goals WHERE horizon = ? AND period_key = ?
+         AND archived_at IS NULL AND completed = ?
+         ORDER BY sort_rank ASC, created_at DESC, id ASC`,
+      [item.horizon, item.period_key, item.completed],
+    );
+    const index = peers.findIndex((peer) => peer.id === goalId);
+    const target = index + direction;
+    if (index < 0 || target < 0 || target >= peers.length) return;
+    const ids = peers.map((peer) => peer.id);
+    [ids[index], ids[target]] = [ids[target], ids[index]];
+    for (const [rank, id] of ids.entries()) {
+      await tx.runAsync('UPDATE goals SET sort_rank = ?, updated_at = ? WHERE id = ?',
+        [rank, new Date().toISOString(), id]);
+    }
+    moved = true;
+  });
+  return moved;
 }
 
 /** Query a single goal independently of its current horizon. */
 export async function getGoal(db: SQLiteDatabase, id: string): Promise<Goal | null> {
   const row = await db.getFirstAsync<GoalRow>(
-    `${SELECT_GOALS} WHERE g.id = ?`,
+    `${SELECT_GOALS} WHERE g.id = ? AND g.archived_at IS NULL`,
     [id],
   );
   return row ? toGoal(row) : null;
@@ -136,15 +244,15 @@ export async function listGoalAncestors(db: SQLiteDatabase, goalId: string): Pro
        UNION ALL
        SELECT parent.id, parent.parent_id, chain.depth + 1
        FROM goals parent INNER JOIN chain ON parent.id = chain.parent_id
-       WHERE chain.depth < 63
+       WHERE chain.depth < 63 AND parent.archived_at IS NULL
      )
      SELECT g.*,
-       (SELECT count(*) FROM goals children WHERE children.parent_id = g.id) AS children_count,
+       (SELECT count(*) FROM goals children WHERE children.parent_id = g.id AND children.archived_at IS NULL) AS children_count,
        parent.title AS parent_title
      FROM chain
      JOIN goals g ON g.id = chain.id
      LEFT JOIN goals parent ON parent.id = g.parent_id
-     WHERE chain.depth > 0
+     WHERE chain.depth > 0 AND g.archived_at IS NULL
      ORDER BY chain.depth DESC`,
     [goalId],
   );
@@ -154,7 +262,7 @@ export async function listGoalAncestors(db: SQLiteDatabase, goalId: string): Pro
 /** Parent picker can display any saved goal, across horizons. */
 export async function listAllGoals(db: SQLiteDatabase): Promise<Goal[]> {
   const rows = await db.getAllAsync<GoalRow>(
-    `${SELECT_GOALS} ORDER BY g.created_at DESC`,
+    `${SELECT_GOALS} WHERE g.archived_at IS NULL ORDER BY g.created_at DESC`,
   );
   return rows.map(toGoal);
 }

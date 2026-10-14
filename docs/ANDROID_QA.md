@@ -29,7 +29,18 @@ Status: **NOT YET VERIFIED** for the latest Horizons 2.0 changes. These are manu
 - [ ] Reopen the parent details and confirm the child list accurately reflects parent changes.
 - [ ] Reassign a child to another parent. Try to choose its own descendant; the picker should exclude it.
 - [ ] Complete and reopen a child independently, without toggling the parent.
-- [ ] Delete a parent with children; children must remain saved and independent.
+- [ ] Archive a parent with children; all active descendants disappear from Focus. Restoring the parent restores only the descendants archived with it.
+
+## Archive, migration and manual ordering — v2
+
+- [ ] With an existing populated v1 database, update to v2 without losing IDs, titles, links or completed flags.
+- [ ] Move a goal up/down using its ⋯ menu and force-close/relaunch: the order stays the same.
+- [ ] A completed goal cannot be reordered across the incomplete section; controls should not offer ineffective moves.
+- [ ] Archive a goal via Details or ⋯, confirm it disappears from Focus/Perspective and appears in Archive.
+- [ ] Restore an archived goal and its newly archived descendants with the original IDs and links.
+- [ ] Archive one child separately, then archive and restore its parent: the separately archived child must remain archived.
+- [ ] Confirm archived goals cannot be selected as new parents and restored records remain editable.
+- [ ] Use archive with many goals and verify smooth scrolling and no overlapping action controls.
 
 ## Planning date checks
 

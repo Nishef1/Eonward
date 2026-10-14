@@ -5,21 +5,23 @@ import { useSQLiteContext } from 'expo-sqlite';
 import { dateFromPeriodKey, HORIZONS, HORIZON_TITLES, periodKey, periodLabel, shiftPeriod, type Horizon } from '../../domain/horizons';
 import { availableGoalParents, type Goal, type GoalInput } from '../../domain/goals';
 import { buildPerspectiveSections } from '../../domain/perspective';
-import { createGoal, editGoal, getGoal, listAllGoals, listChildGoals, listGoalAncestors, listGoals, listPerspectiveGoals, removeGoal, setGoalCompleted } from '../../storage/goals';
+import { archiveGoal, createGoal, editGoal, getGoal, listAllGoals, listArchivedGoals, listChildGoals, listGoalAncestors, listGoals, listPerspectiveGoals, moveGoal, restoreGoal, setGoalCompleted } from '../../storage/goals';
 import { colors, radius, spacing } from '../../theme/tokens';
 import { GoalDetails } from './GoalDetails';
 import { GoalEditor } from './GoalEditor';
 import { PerspectiveView } from './PerspectiveView';
+import { ArchiveView } from './ArchiveView';
 
 type Palette = typeof colors.light | typeof colors.dark;
 
 function GoalCard({
-  goal, palette, onOpen, onToggle, disabled,
+  goal, palette, onOpen, onToggle, onOrganize, disabled,
 }: {
   goal: Goal;
   palette: Palette;
   onOpen: () => void;
   onToggle: () => void;
+  onOrganize: () => void;
   disabled: boolean;
 }) {
   return (
@@ -54,8 +56,9 @@ function GoalCard({
           </Text>
         ) : null}
       </Pressable>
-      <Pressable onPress={onOpen} accessibilityRole="button" accessibilityLabel={`View details for ${goal.title}`} style={styles.chevronTouch}>
-        <Text style={[styles.chevron, { color: palette.muted }]}>›</Text>
+      <Pressable onPress={onOrganize} disabled={disabled} accessibilityRole="button"
+        accessibilityLabel={`Organize ${goal.title}`} style={styles.chevronTouch}>
+        <Text style={[styles.chevron, { color: palette.muted }]}>⋯</Text>
       </Pressable>
     </View>
   );
@@ -65,7 +68,7 @@ export function HorizonsScreen() {
   const db = useSQLiteContext();
   const palette = useColorScheme() === 'dark' ? colors.dark : colors.light;
   const [horizon, setHorizon] = useState<Horizon>('week');
-  const [view, setView] = useState<'focus' | 'perspective'>('focus');
+  const [view, setView] = useState<'focus' | 'perspective' | 'archive'>('focus');
   const [anchor, setAnchor] = useState(() => new Date());
   const [goals, setGoals] = useState<Goal[]>([]);
   const [loading, setLoading] = useState(true);
@@ -75,6 +78,10 @@ export function HorizonsScreen() {
   const [perspectiveGoals, setPerspectiveGoals] = useState<Goal[]>([]);
   const [perspectiveLoading, setPerspectiveLoading] = useState(false);
   const [perspectiveError, setPerspectiveError] = useState<string | null>(null);
+  const [archivedGoals, setArchivedGoals] = useState<Goal[]>([]);
+  const [archiveError, setArchiveError] = useState<string | null>(null);
+  const [archiveLoading, setArchiveLoading] = useState(false);
+  const [archiveRevision, setArchiveRevision] = useState(0);
   const [working, setWorking] = useState(false);
   const [detailStack, setDetailStack] = useState<Goal[]>([]);
   const detailRequest = useRef(0);
@@ -136,6 +143,22 @@ export function HorizonsScreen() {
     });
     return () => { active = false; };
   }, [db, anchor, revision, perspectiveRevision, view]);
+
+  useEffect(() => {
+    if (view !== 'archive') return;
+    let active = true;
+    setArchiveLoading(true);
+    void listArchivedGoals(db).then((items) => {
+      if (!active) return;
+      setArchivedGoals(items);
+      setArchiveError(null);
+    }).catch((error: unknown) => {
+      if (active) setArchiveError(error instanceof Error ? error.message : 'Unable to load your archive.');
+    }).finally(() => {
+      if (active) setArchiveLoading(false);
+    });
+    return () => { active = false; };
+  }, [db, view, revision, archiveRevision]);
 
   async function perform(action: () => Promise<void>): Promise<void> {
     if (working) return;
@@ -266,24 +289,43 @@ export function HorizonsScreen() {
     });
   }
 
-  function confirmRemove() {
-    if (!details) return;
-    const id = details.id;
+  function confirmArchive(goal: Goal = details!) {
+    if (!goal) return;
     Alert.alert(
-      'Delete this goal?',
-      'This cannot be undone. Existing next steps will remain as independent goals.',
+      'Archive this goal?',
+      'The goal and its active next steps will be saved in Archive. You can restore them later.',
       [
         { text: 'Cancel', style: 'cancel' },
         {
-          text: 'Delete',
-          style: 'destructive',
+          text: 'Archive',
           onPress: () => void perform(async () => {
-            await removeGoal(db, id);
+            await archiveGoal(db, goal.id);
             closeDetails();
           }),
         },
       ],
     );
+  }
+
+  function organizeGoal(goal: Goal, index: number) {
+    const canUp = index > 0 && goals[index - 1].completed === goal.completed;
+    const canDown = index < goals.length - 1 && goals[index + 1].completed === goal.completed;
+    const options: { text: string; style?: 'cancel'; onPress?: () => void }[] = [];
+    if (canUp) options.push({
+      text: 'Move up',
+      onPress: () => void perform(async () => { await moveGoal(db, goal.id, -1); }),
+    });
+    if (canDown) options.push({
+      text: 'Move down',
+      onPress: () => void perform(async () => { await moveGoal(db, goal.id, 1); }),
+    });
+    options.push({ text: 'Archive', onPress: () => confirmArchive(goal) });
+    options.push({ text: 'Cancel', style: 'cancel' });
+    Alert.alert('Organize goal', goal.title, options);
+  }
+
+  function restoreSelected(goal: Goal) {
+    void perform(async () => { await restoreGoal(db, goal.id); });
   }
 
   const header = (
@@ -302,15 +344,15 @@ export function HorizonsScreen() {
       </Text>
 
       <View style={[styles.modeSwitch, { backgroundColor: palette.surface, borderColor: palette.border }]}>
-        {(['focus', 'perspective'] as const).map((item) => {
+        {(['focus', 'perspective', 'archive'] as const).map((item) => {
           const selected = view === item;
           return (
             <Pressable key={item} accessibilityRole="button" accessibilityState={{ selected }}
-              accessibilityLabel={item === 'focus' ? 'Focus view' : 'Perspective view'}
+              accessibilityLabel={item === 'focus' ? 'Focus view' : item === 'perspective' ? 'Perspective view' : 'Archive view'}
               onPress={() => setView(item)}
               style={[styles.modeButton, selected && { backgroundColor: palette.foreground }]}>
               <Text style={[styles.modeText, { color: selected ? palette.background : palette.muted }]}>
-                {item === 'focus' ? 'Focus' : 'Perspective'}
+                {item === 'focus' ? 'Focus' : item === 'perspective' ? 'Perspective' : 'Archive'}
               </Text>
             </Pressable>
           );
@@ -387,7 +429,7 @@ export function HorizonsScreen() {
         <Text style={[styles.sectionCount, { color: palette.muted }]}>{goals.length}</Text>
       </View>
       </>
-      ) : (
+      ) : view === 'perspective' ? (
         <PerspectiveView
           sections={perspectiveSections}
           palette={palette}
@@ -398,6 +440,16 @@ export function HorizonsScreen() {
           onOpenGoal={(goal) => void openDetails(goal)}
           onAddGoal={openCreateForHorizon}
         />
+      ) : (
+        <ArchiveView
+          items={archivedGoals}
+          palette={palette}
+          loading={archiveLoading}
+          error={archiveError}
+          disabled={working}
+          onRestore={restoreSelected}
+          onRetry={() => setArchiveRevision((value) => value + 1)}
+        />
       )}
     </View>
   );
@@ -407,20 +459,21 @@ export function HorizonsScreen() {
       <FlatList
         data={view === 'focus' && !loading && !failure ? goals : []}
         keyExtractor={(item) => item.id}
-        renderItem={({ item }) => (
+        renderItem={({ item, index }) => (
           <GoalCard
             goal={item}
             palette={palette}
             disabled={working}
             onOpen={() => void openDetails(item)}
             onToggle={() => void toggle(item)}
+            onOrganize={() => organizeGoal(item, index)}
           />
         )}
         ListHeaderComponent={header}
         contentContainerStyle={styles.listContent}
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
-        ListEmptyComponent={view === 'perspective' ? null : (
+        ListEmptyComponent={view !== 'focus' ? null : (
           loading ? (
             <ActivityIndicator color={palette.accent} size="large" style={styles.wait} />
           ) : failure ? (
@@ -448,6 +501,7 @@ export function HorizonsScreen() {
           )
         )}
       />
+      {view !== 'archive' ? (
       <View style={[styles.footer, { borderColor: palette.border, backgroundColor: palette.background }]}>
         <View style={styles.footerCopy}>
           <Text style={[styles.footerStrong, { color: palette.foreground }]}>One step at a time</Text>
@@ -462,6 +516,7 @@ export function HorizonsScreen() {
           <Text style={styles.newButtonText}>＋  New goal</Text>
         </Pressable>
       </View>
+      ) : null}
       <GoalDetails
         goal={details}
         children={children}
@@ -475,7 +530,7 @@ export function HorizonsScreen() {
         onEdit={editSelected}
         onAddStep={addChild}
         onToggle={(goal) => void toggle(goal)}
-        onRemove={confirmRemove}
+        onArchive={() => confirmArchive()}
       />
       <GoalEditor
         visible={editorVisible}
@@ -506,7 +561,7 @@ const styles = StyleSheet.create({
   heroSubtitle: { fontSize: 14, lineHeight: 22, marginTop: 2 },
   modeSwitch: { flexDirection: 'row', gap: 5, padding: 5, borderWidth: 1, borderRadius: radius.full, marginTop: 22 },
   modeButton: { flex: 1, minHeight: 43, borderRadius: radius.full, alignItems: 'center', justifyContent: 'center' },
-  modeText: { fontSize: 13, fontWeight: '700' },
+  modeText: { fontSize: 12, fontWeight: '700' },
   horizonList: { marginTop: 20, marginHorizontal: -spacing.lg, marginBottom: spacing.lg },
   horizonItems: { paddingHorizontal: spacing.lg, gap: 8 },
   horizonChip: { minHeight: 48, minWidth: 64, paddingHorizontal: 15, borderRadius: radius.full, alignItems: 'center', justifyContent: 'center', borderWidth: 1 },
@@ -534,7 +589,7 @@ const styles = StyleSheet.create({
   cardContent: { flex: 1, paddingVertical: 9, gap: 6 },
   goalTitle: { fontSize: 15, lineHeight: 21, fontWeight: '600' },
   goalSubtitle: { fontSize: 12 },
-  chevronTouch: { width: 33, height: 48, alignItems: 'center', justifyContent: 'center' },
+  chevronTouch: { width: 44, height: 48, alignItems: 'center', justifyContent: 'center' },
   chevron: { fontSize: 29 },
   empty: { paddingTop: 38, alignItems: 'center', gap: 13, paddingHorizontal: spacing.md },
   emptySymbol: { height: 68, width: 68, borderRadius: 34, alignItems: 'center', justifyContent: 'center', borderWidth: 1 },

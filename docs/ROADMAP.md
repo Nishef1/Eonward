@@ -85,9 +85,9 @@ This inventory records committed implementation, **not completion of the M1/M2 e
 
 ## M2 — Data model, goals & horizons
 
-- [ ] Introduce SQLite storage and versioned migrations.
-- [ ] Define unique items, parent/child relationships, placements and ordering.
-- [ ] Create, edit, complete, archive, delete and restore goals.
+- [x] Implement SQLite with transactional versioned migrations (v1 → v2); Android upgrade verification pending.
+- [x] Stable IDs, parent relationships and persistent manual ordering implemented for the current single-placement model; multi-placement remains pending.
+- [x] Create/edit/complete, reversible Archive/Restore, and safe subtree handling implemented in source; permanent deletion intentionally deferred.
 - [ ] Support Day, Week, Month, Quarter, Year, Decade and Life horizons.
 - [ ] Implement zoom/navigation and moving items between horizons.
 - [ ] Prevent hierarchy cycles and accidental duplicate records.
@@ -170,10 +170,10 @@ This inventory records committed implementation, **not completion of the M1/M2 e
 - The first Perspective implementation showed period groups, but did not reveal a goal's *actual* parent lineage. We built Goal Path rather than another page.
 - Editing into another horizon could leave the user on an empty previous period. Focus now follows the saved destination.
 - We moved faster on screens than on Android end-to-end QA. Passing TypeScript and Metro is not proof of keyboard, modal or SQLite persistence behavior.
-- Goal ordering is not user-controlled; deleting a goal is irreversible. These are higher priority than decorative drag animation.
+- Goal ordering was not user-controlled and deletion was irreversible. Source now has Move Up/Down and Archive/Restore; device verification remains.
 - A single `period_key` is not a due date or time block. No claim of full feature parity is justified.
 
-**Priority order:** (1) Verify ancestry, CRUD and restarts on Android; (2) reversible archive and manual ordering; (3) strengthen time/placement semantics; (4) gesture refinement; (5) new calendar/board surfaces. No new libraries or automatic tests unless they address a demonstrated risk.
+**Priority order:** (1) Verify existing-data migration plus archive/order and earlier CRUD on Android; (2) fix concrete UX bugs; (3) strengthen time/placement semantics; (4) consider gestures; (5) new calendar/board surfaces. No new libraries or automatic tests unless they address a demonstrated risk.
 
 ## Goal Path slice — source complete, runtime pending
 
@@ -182,11 +182,21 @@ This inventory records committed implementation, **not completion of the M1/M2 e
 - [x] Follow a moved goal to its saved target period while in Focus.
 - [ ] Confirm deep navigation, reschedule, keyboard and restart behavior on Android.
 
+## Data safety & ordering slice — schema v2
+
+- [x] Add transactional SQLite v1 → v2 migration: nullable `archived_at` and stable `sort_rank` (without resetting user data).
+- [x] Implement Archive/Restore of an active goal subtree, preserving already archived descendants.
+- [x] Add Archive view accessible alongside Focus/Perspective; remove destructive Delete action from goal details.
+- [x] Add Move Up/Down actions that persist ordering, with a simple menu and no new dependency.
+- [x] Update existing migration checks to version 2; remain at **12/20** automated tests.
+- [ ] Verify these workflows and migrations on Android with an actual v1 populated database.
+- [ ] Review performance/visual clarity with a large goal list, then assess whether drag-to-reorder is worth adding.
+
 ## Next three actions
 
-1. Verify Goal Path, parent link, destination-following edit and Focus/Perspective on Android.
-2. Verify SQLite persistence across force-close/restart, keyboard and deep navigation.
-3. Fix concrete device problems, then add reversible archive and manual ordering.
+1. On the existing Android emulator, verify upgrading an existing v1 database and preserving its goals.
+2. Test Archive/Restore including an already archived descendant; test Move Up/Down after force-close and re-open.
+3. Confirm Focus/Perspective/Goal Path and editor UX on Android, fix findings, then decide whether drag gestures are justified.
 
 ## Progress log
 
@@ -199,5 +209,5 @@ This inventory records committed implementation, **not completion of the M1/M2 e
 | 2026-10-14 | Initial Horizons shell shown running on Android emulator; Horizons 2.0 priorities set. | User-provided screenshot verifies emulator launch only; goal CRUD, hierarchy and persistence still require runtime testing. |
 | 2026-10-14 | Horizons 2.0 initial implementation: nested navigation, reparenting validation, period editor and visual refinements. | CI checks passed on commit 34710e0; Android UI QA remains outstanding. |
 | 2026-10-14 | Built Focus/Perspective mode with local seven-period overview and test-budget enforcement. | CI passed on `2c1f8e8`: 12/20 tests passed, zero failures; npm ci, Expo alignment, TypeScript and Android Metro export passed. Emulator UX pending. |
-
 | 2026-10-14 | Added a goal ancestor trail, immediate-parent hints and destination-following edits; reviewed sequencing and gaps. | Code committed pending CI; Android UX pending; still 12 core tests. |
+| 2026-10-14 | Added schema v2, archive/restore UI and stored ordering; updated existing migration tests. | Source committed; CI and Android migration/interaction QA pending; 12/20 tests. |

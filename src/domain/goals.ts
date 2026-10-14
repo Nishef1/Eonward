@@ -8,6 +8,8 @@ export interface Goal {
   periodKey: string;
   parentId: string | null;
   parentTitle: string | null;
+  archivedAt: string | null;
+  sortRank: number;
   completed: boolean;
   childrenCount: number;
   createdAt: string;
