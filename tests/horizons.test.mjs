@@ -4,7 +4,7 @@ import { isoWeekKey, periodKey, shiftPeriod, startOfWeek, periodLabel, dateFromP
 import { normalizeGoalTitle, availableGoalParents } from '../src/domain/goals.ts';
 import { buildPerspectiveSections } from '../src/domain/perspective.ts';
 import { layoutBlocks, localDayBounds, localDayKey, timeRangeFromInput } from '../src/domain/timeblocks.ts';
-import { formatFocusTime, getFocusDurationMs, getFocusRemainingMs } from '../src/domain/focus.ts';
+import { formatFocusTime, getFocusDurationMs, getFocusRemainingMs, getFocusElapsedMs } from '../src/domain/focus.ts';
 
 test('all seven horizon keys use independent periods', () => {
   const date = new Date(2026, 9, 14, 12);
@@ -138,4 +138,15 @@ test('timebox duration matches the actual scheduled instants and rejects invalid
   assert.throws(() => getFocusDurationMs('2026-10-14T10:00:00.000Z', '2026-10-14T09:00:00.000Z'));
   assert.throws(() => getFocusDurationMs('bad', '2026-10-14T09:00:00.000Z'));
   assert.throws(() => getFocusDurationMs('2026-10-14T09:00:00.000Z', '2026-10-16T09:00:00.000Z'));
+});
+
+test('focus history counts only active seconds across pause and restart, capped at timebox length', () => {
+  const base = { status: 'running', durationMs: 600000, remainingMs: 600000,
+    elapsedMs: 0, deadlineMs: 1600000 };
+  assert.equal(getFocusElapsedMs(base, 1060000), 60000);
+  const paused = { ...base, status: 'paused', remainingMs: 540000, elapsedMs: 60000 };
+  assert.equal(getFocusElapsedMs(paused, 1800000), 60000);
+  const resumed = { ...paused, status: 'running', deadlineMs: 2340000 };
+  assert.equal(getFocusElapsedMs(resumed, 1920000), 180000);
+  assert.equal(getFocusElapsedMs(resumed, 3000000), 600000);
 });

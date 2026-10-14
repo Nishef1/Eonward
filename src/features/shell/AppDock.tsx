@@ -10,6 +10,7 @@ const routes = [
   { path: '/', label: 'Horizons', glyph: '◈' },
   { path: '/calendar', label: 'Calendar', glyph: '◷' },
   { path: '/boards', label: 'Boards', glyph: '▦' },
+  { path: '/insights', label: 'Insights', glyph: '▥' },
 ] as const;
 
 export function AppDock() {

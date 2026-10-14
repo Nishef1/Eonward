@@ -312,3 +312,16 @@ The initial Create Goal form was appearing partially scrolled in a screenshot; i
 | 2026-10-14 | Rebuilt Calendar as a visible premium day canvas with stable seven-day header, live Now, goal color, quick hour scheduling and separate List. | Source and CI pending, emulator visual and interaction QA required; 14/20 tests. |
 
 | 2026-10-14 | Introduced root-level mobile dock and local, deadline-based persistent Timebox focus sessions (SQLite v5). | Commit `0c66e33`: 16/20 domain tests, npm ci, Expo alignment, TypeScript and Android Metro passed; emulator focus lifecycle still unverified. |
+
+## Focus reliability and Insights — SQLite v6 (2026-10-14)
+
+- [x] Add an additive v5→v6 migration: persistent local focus-session history with immutable title snapshots.
+- [x] Track active time across pause/resume without counting paused intervals or overrunning the Timebox limit.
+- [x] Transactionally record `completed`, `stopped`, or `replaced` outcomes on finalization.
+- [x] Snapshot the current session before deleting its Timebox and disallow editing an actively running Timebox.
+- [x] Add Insights as a fourth global navigation destination with all-time totals, a seven-day focus chart and recent session history.
+- [x] Keep automated test budget at **17/20**; old database migrations still covered.
+- [ ] Verify upgrades from a populated SQLite v5 app (both running and paused session states) and Force Stop/relaunch on Android.
+- [ ] Native reminder/expiry notification permission flows remain intentionally unimplemented pending real device verification.
+
+**Metric definition:** Insights counts finalized sessions only. A session reaches `completed` when its actual countdown expires and is finalized; this does not mark the goal completed. Existing v5 sessions upgraded mid-countdown can only be approximated because v5 did not save elapsed intervals before pausing.

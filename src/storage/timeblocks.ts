@@ -1,4 +1,5 @@
 import { randomUUID } from 'expo-crypto';
+import { closeFocusInTransaction } from './focus';
 import type { SQLiteDatabase } from 'expo-sqlite';
 import { localDayBounds, timeRangeFromInput, type BlockInput, type BlockKind, type TimeBlock } from '../domain/timeblocks';
 
@@ -55,6 +56,10 @@ export async function saveBlock(db: SQLiteDatabase, input: BlockInput, id?: stri
         'SELECT goal_id FROM time_blocks WHERE id = ?', [id],
       );
       if (!existing) throw new Error('The scheduled block no longer exists.');
+      const focusing = await tx.getFirstAsync<{ block_id: string }>(
+        'SELECT block_id FROM focus_session WHERE id = 1 AND block_id = ?', [id],
+      );
+      if (focusing) throw new Error('End the active focus session before editing this Timebox.');
       await tx.runAsync(
         `UPDATE time_blocks SET goal_id = ?, start_at = ?, end_at = ?, kind = ?, intention = ?, updated_at = ?
           WHERE id = ?`,
@@ -71,5 +76,11 @@ export async function saveBlock(db: SQLiteDatabase, input: BlockInput, id?: stri
   return newId;
 }
 export async function removeBlock(db: SQLiteDatabase, blockId: string): Promise<void> {
-  await db.runAsync('DELETE FROM time_blocks WHERE id = ?', [blockId]);
+  await db.withExclusiveTransactionAsync(async (tx) => {
+    const focusing = await tx.getFirstAsync<{ block_id: string }>(
+      'SELECT block_id FROM focus_session WHERE id = 1 AND block_id = ?', [blockId],
+    );
+    if (focusing) await closeFocusInTransaction(tx, Date.now(), 'stopped');
+    await tx.runAsync('DELETE FROM time_blocks WHERE id = ?', [blockId]);
+  });
 }

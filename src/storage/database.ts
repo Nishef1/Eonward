@@ -68,12 +68,33 @@ const V5_SCHEMA = `
   );
 `;
 
+const V6_SCHEMA = `
+  ALTER TABLE focus_session ADD COLUMN started_at_ms INTEGER NOT NULL DEFAULT 0;
+  ALTER TABLE focus_session ADD COLUMN elapsed_ms INTEGER NOT NULL DEFAULT 0;
+  UPDATE focus_session SET
+    started_at_ms = CASE WHEN status = 'running'
+      THEN MAX(0, deadline_ms - duration_ms)
+      ELSE MAX(0, updated_at_ms - (duration_ms - remaining_ms)) END,
+    elapsed_ms = CASE WHEN status = 'paused'
+      THEN MAX(0, duration_ms - remaining_ms) ELSE 0 END;
+  CREATE TABLE IF NOT EXISTS focus_history (
+    id TEXT PRIMARY KEY NOT NULL,
+    goal_title TEXT NOT NULL,
+    started_at_ms INTEGER NOT NULL,
+    ended_at_ms INTEGER NOT NULL,
+    planned_ms INTEGER NOT NULL CHECK (planned_ms > 0),
+    focused_ms INTEGER NOT NULL CHECK (focused_ms >= 0 AND focused_ms <= planned_ms),
+    outcome TEXT NOT NULL CHECK (outcome IN ('completed', 'stopped', 'replaced'))
+  );
+  CREATE INDEX IF NOT EXISTS focus_history_by_end ON focus_history (ended_at_ms DESC);
+`;
+
 export async function migrateDatabase(db: SQLiteDatabase): Promise<void> {
   await db.execAsync('PRAGMA foreign_keys = ON; PRAGMA journal_mode = WAL;');
   const result = await db.getFirstAsync<{ user_version: number }>('PRAGMA user_version');
   const version = result?.user_version ?? 0;
-  if (version > 5) throw new Error('This app version cannot read a newer Eonward database.');
-  if (version === 5) return;
+  if (version > 6) throw new Error('This app version cannot read a newer Eonward database.');
+  if (version === 6) return;
 
   await db.withExclusiveTransactionAsync(async (tx) => {
     if (version === 0) await tx.execAsync(INITIAL_SCHEMA);
@@ -81,6 +102,7 @@ export async function migrateDatabase(db: SQLiteDatabase): Promise<void> {
     if (version <= 2) await tx.execAsync(V3_SCHEMA);
     if (version <= 3) await tx.execAsync(V4_SCHEMA);
     if (version <= 4) await tx.execAsync(V5_SCHEMA);
-    await tx.execAsync('PRAGMA user_version = 5;');
+    if (version <= 5) await tx.execAsync(V6_SCHEMA);
+    await tx.execAsync('PRAGMA user_version = 6;');
   });
 }

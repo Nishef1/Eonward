@@ -23,10 +23,12 @@ export function FocusProvider({ children }: { children: ReactNode }) {
   const [busy, setBusy] = useState(false);
   const blocked = useRef(false);
   const mounted = useRef(true);
+  const refreshSequence = useRef(0);
 
   const refresh = useCallback(async () => {
+    const sequence = ++refreshSequence.current;
     const record = await getFocusSession(db);
-    if (mounted.current) {
+    if (mounted.current && sequence === refreshSequence.current) {
       setSession(record);
       setLoading(false);
     }
