@@ -10,5 +10,6 @@ Working notes for the project. The repository intentionally has no root README.
 | [DESIGN_SYSTEM.md](DESIGN_SYSTEM.md) | Visual and interaction requirements |
 | [ENGINEERING.md](ENGINEERING.md) | Development, verification, dependency policy |
 | [DECISIONS.md](DECISIONS.md) | Dated architectural decisions |
+| [QUALITY.md](QUALITY.md) | Acceptance and device-verification checklist |
 
 All documents in this public repository are publicly readable. Do not commit private research, credentials, customer information, or internal competitor analysis.
