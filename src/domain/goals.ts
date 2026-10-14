@@ -7,6 +7,7 @@ export interface Goal {
   horizon: Horizon;
   periodKey: string;
   parentId: string | null;
+  parentTitle: string | null;
   completed: boolean;
   childrenCount: number;
   createdAt: string;

@@ -11,6 +11,15 @@ Status: **NOT YET VERIFIED** for the latest Horizons 2.0 changes. These are manu
 - [ ] Move a goal between horizons; ensure it appears once in the correct period.
 - [ ] Check empty-state and 20+ goal list behavior, dark mode, large text and touch sizes.
 
+## Goal Path and moved-item visibility (new; device QA pending)
+
+- [ ] Create a Life → Year → Month → Day chain and open the Day goal from Focus.
+- [ ] Verify each ancestor chip opens the original goal, root first; no phantom links.
+- [ ] Confirm Focus/Perspective card subtitles show the immediate parent.
+- [ ] Move an existing goal to another period and confirm Focus follows its saved destination.
+- [ ] Rapidly open siblings and confirm detail content and ancestor chips match the selected ID.
+- [ ] Restart the app and verify links, completion and saved period have persisted.
+
 ## Core goal flow
 
 - [ ] Create a Life goal.

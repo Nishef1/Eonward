@@ -94,11 +94,18 @@ export function PerspectiveView({
                         <Text style={[styles.goalMark, { color: goal.completed ? palette.accent : palette.muted }]}>
                           {goal.completed ? '✓' : '○'}
                         </Text>
-                        <Text numberOfLines={1} style={[styles.goalTitle, {
-                          color: palette.foreground,
-                          opacity: goal.completed ? 0.6 : 1,
-                          textDecorationLine: goal.completed ? 'line-through' : 'none',
-                        }]}>{goal.title}</Text>
+                        <View style={styles.goalCopy}>
+                          <Text numberOfLines={1} style={[styles.goalTitle, {
+                            color: palette.foreground,
+                            opacity: goal.completed ? 0.6 : 1,
+                            textDecorationLine: goal.completed ? 'line-through' : 'none',
+                          }]}>{goal.title}</Text>
+                          {goal.parentTitle ? (
+                            <Text numberOfLines={1} style={[styles.parentHint, { color: palette.muted }]}>
+                              ↳ {goal.parentTitle}
+                            </Text>
+                          ) : null}
+                        </View>
                         {goal.childrenCount ? (
                           <Text style={[styles.stepCount, { color: palette.muted }]}>{goal.childrenCount} ↳</Text>
                         ) : null}
@@ -166,7 +173,9 @@ const styles = StyleSheet.create({
   preview: { borderTopWidth: 1, paddingHorizontal: 16, paddingVertical: 4 },
   goalRow: { minHeight: 45, flexDirection: 'row', gap: 11, alignItems: 'center' },
   goalMark: { fontSize: 18, width: 21, textAlign: 'center' },
-  goalTitle: { fontSize: 13, fontWeight: '500', flex: 1 },
+  goalCopy: { flex: 1, gap: 3, paddingVertical: 8 },
+  goalTitle: { fontSize: 13, fontWeight: '500' },
+  parentHint: { fontSize: 11 },
   stepCount: { fontSize: 12 },
   showAll: { minHeight: 44, justifyContent: 'center', paddingLeft: 31 },
   showAllText: { fontSize: 12, fontWeight: '700' },

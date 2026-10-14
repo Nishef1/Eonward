@@ -62,7 +62,7 @@ This inventory records committed implementation, **not completion of the M1/M2 e
 - [x] Implement child-goal navigation with back-stack and editable nested goal details in source; Android interaction verification pending.
 - [x] Implement parent selection/reparenting with recursive-cycle validation inside a SQLite exclusive transaction; device verification pending.
 - [x] Implement period stepper, current-period jump and precise YYYY-MM-DD entry for daily goals; device verification pending.
-- [ ] Ensure a single goal remains one record across horizon and parent contexts; choose a migration strategy before multiple placements.
+- [x] Keep stable goal IDs across Focus/Perspective/parent context; multi-placement schema remains future work.
 - [x] Implement seven-horizon Perspective overview with goal counts, previews, direct navigation and context-aware Add Goal (code committed; device review pending).
 - [x] Add actionable empty-state guidance and align core action/touch-target dimensions in source.
 - [ ] Validate Android status/system bars, keyboard, touch targets and modal behavior after new UI changes (not yet run on device).
@@ -164,11 +164,29 @@ This inventory records committed implementation, **not completion of the M1/M2 e
 - [x] GitHub Actions locked `npm ci`, Expo package compatibility, TypeScript and Android Metro export passed on commit `34710e0`.
 - [ ] Actual Android emulator UX regression of editor, hierarchy and keyboard remains outstanding.
 
+## Self-review and revised implementation plan (2026-10-14)
+
+**Critical findings:**
+- The first Perspective implementation showed period groups, but did not reveal a goal's *actual* parent lineage. We built Goal Path rather than another page.
+- Editing into another horizon could leave the user on an empty previous period. Focus now follows the saved destination.
+- We moved faster on screens than on Android end-to-end QA. Passing TypeScript and Metro is not proof of keyboard, modal or SQLite persistence behavior.
+- Goal ordering is not user-controlled; deleting a goal is irreversible. These are higher priority than decorative drag animation.
+- A single `period_key` is not a due date or time block. No claim of full feature parity is justified.
+
+**Priority order:** (1) Verify ancestry, CRUD and restarts on Android; (2) reversible archive and manual ordering; (3) strengthen time/placement semantics; (4) gesture refinement; (5) new calendar/board surfaces. No new libraries or automatic tests unless they address a demonstrated risk.
+
+## Goal Path slice — source complete, runtime pending
+
+- [x] Resolve actual ancestors through a bounded recursive SQLite query; root-first.
+- [x] Show parent context in Focus and Perspective, with tap-to-open ancestor chips.
+- [x] Follow a moved goal to its saved target period while in Focus.
+- [ ] Confirm deep navigation, reschedule, keyboard and restart behavior on Android.
+
 ## Next three actions
 
-1. Test Focus/Perspective switching and quick-add per horizon on the Android emulator.
-2. Verify goal editing, multi-level relationships, period changes and persistence after restart.
-3. Fix device findings; improve cross-horizon relationships and ordering before Calendar.
+1. Verify Goal Path, parent link, destination-following edit and Focus/Perspective on Android.
+2. Verify SQLite persistence across force-close/restart, keyboard and deep navigation.
+3. Fix concrete device problems, then add reversible archive and manual ordering.
 
 ## Progress log
 
@@ -179,7 +197,7 @@ This inventory records committed implementation, **not completion of the M1/M2 e
 | 2026-10-14 | Dependency conflict fixed by pinning React DOM 19.2.3 and Worklets 0.10.1; lockfile regenerated. | Expo alignment, typecheck and Android Metro export passed. |
 | 2026-10-14 | Final lockfile-based CI run verified. | npm ci, Expo alignment, typecheck, Android Metro export and domain tests all passed; native APK/device testing remains. |
 | 2026-10-14 | Initial Horizons shell shown running on Android emulator; Horizons 2.0 priorities set. | User-provided screenshot verifies emulator launch only; goal CRUD, hierarchy and persistence still require runtime testing. |
-
 | 2026-10-14 | Horizons 2.0 initial implementation: nested navigation, reparenting validation, period editor and visual refinements. | CI checks passed on commit 34710e0; Android UI QA remains outstanding. |
-
 | 2026-10-14 | Built Focus/Perspective mode with local seven-period overview and test-budget enforcement. | CI passed on `2c1f8e8`: 12/20 tests passed, zero failures; npm ci, Expo alignment, TypeScript and Android Metro export passed. Emulator UX pending. |
+
+| 2026-10-14 | Added a goal ancestor trail, immediate-parent hints and destination-following edits; reviewed sequencing and gaps. | Code committed pending CI; Android UX pending; still 12 core tests. |

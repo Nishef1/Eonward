@@ -8,6 +8,7 @@ type Palette = typeof colors.light | typeof colors.dark;
 interface GoalDetailsProps {
   goal: Goal | null;
   children: Goal[];
+  ancestors: Goal[];
   canGoBack: boolean;
   palette: Palette;
   onClose: () => void;
@@ -15,12 +16,13 @@ interface GoalDetailsProps {
   onEdit: () => void;
   onAddStep: () => void;
   onOpenChild: (child: Goal) => void;
+  onOpenAncestor: (ancestor: Goal) => void;
   onToggle: (goal: Goal) => void;
   onRemove: () => void;
 }
 
 export function GoalDetails({
-  goal, children, canGoBack, palette, onClose, onBack, onEdit, onAddStep, onOpenChild, onToggle, onRemove,
+  goal, children, ancestors, canGoBack, palette, onClose, onBack, onEdit, onAddStep, onOpenChild, onOpenAncestor, onToggle, onRemove,
 }: GoalDetailsProps) {
   return (
     <Modal visible={goal !== null} animationType="slide" transparent onRequestClose={canGoBack ? onBack : onClose}>
@@ -43,6 +45,31 @@ export function GoalDetails({
           </View>
           {goal ? (
             <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+              {ancestors.length > 0 ? (
+                <View style={[styles.pathPanel, { backgroundColor: palette.surface, borderColor: palette.border }]}>
+                  <Text style={[styles.pathLabel, { color: palette.muted }]}>PART OF YOUR BIGGER PICTURE</Text>
+                  <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.pathTrail}>
+                    {ancestors.map((ancestor, index) => (
+                      <View key={ancestor.id} style={styles.pathItem}>
+                        {index > 0 ? <Text style={[styles.pathArrow, { color: palette.muted }]}>›</Text> : null}
+                        <Pressable
+                          onPress={() => onOpenAncestor(ancestor)}
+                          accessibilityRole="button"
+                          accessibilityLabel={`Open parent goal ${ancestor.title}`}
+                          style={[styles.pathChip, { backgroundColor: palette.background, borderColor: palette.border }]}
+                        >
+                          <Text style={[styles.pathHorizon, { color: palette.muted }]}>
+                            {HORIZON_TITLES[ancestor.horizon]}
+                          </Text>
+                          <Text style={[styles.pathTitle, { color: palette.foreground }]} numberOfLines={1}>
+                            {ancestor.title}
+                          </Text>
+                        </Pressable>
+                      </View>
+                    ))}
+                  </ScrollView>
+                </View>
+              ) : null}
               <Text style={[styles.title, { color: palette.foreground }]}>{goal.title}</Text>
               <Text style={[styles.period, { color: palette.muted }]}>{goal.periodKey === 'life' ? 'Life horizon' : goal.periodKey}</Text>
               {goal.notes ? (
@@ -111,6 +138,14 @@ const styles = StyleSheet.create({
   close: { fontSize: 29 },
   back: { fontSize: 33 },
   content: { paddingHorizontal: spacing.lg, paddingBottom: 38, paddingTop: spacing.sm, gap: spacing.md },
+  pathPanel: { borderRadius: radius.lg, borderWidth: 1, padding: 12, gap: 10, marginBottom: 4 },
+  pathLabel: { fontSize: 10, letterSpacing: 1.2, fontWeight: '700' },
+  pathTrail: { alignItems: 'center', gap: 8, paddingRight: 3 },
+  pathItem: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  pathArrow: { fontSize: 19 },
+  pathChip: { minHeight: 51, maxWidth: 184, minWidth: 102, paddingHorizontal: 12, paddingVertical: 8, borderWidth: 1, borderRadius: radius.md, gap: 4, justifyContent: 'center' },
+  pathHorizon: { fontSize: 10, fontWeight: '700' },
+  pathTitle: { fontSize: 12, fontWeight: '600' },
   title: { fontSize: 27, letterSpacing: -0.7, lineHeight: 34, fontWeight: '700' },
   period: { fontSize: 12, fontWeight: '600', marginTop: -8 },
   description: { fontSize: 15, lineHeight: 24 },

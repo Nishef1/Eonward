@@ -1,11 +1,11 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, Alert, FlatList, Pressable, StyleSheet, Text, useColorScheme, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useSQLiteContext } from 'expo-sqlite';
-import { HORIZONS, HORIZON_TITLES, periodKey, periodLabel, shiftPeriod, type Horizon } from '../../domain/horizons';
+import { dateFromPeriodKey, HORIZONS, HORIZON_TITLES, periodKey, periodLabel, shiftPeriod, type Horizon } from '../../domain/horizons';
 import { availableGoalParents, type Goal, type GoalInput } from '../../domain/goals';
 import { buildPerspectiveSections } from '../../domain/perspective';
-import { createGoal, editGoal, getGoal, listAllGoals, listChildGoals, listGoals, listPerspectiveGoals, removeGoal, setGoalCompleted } from '../../storage/goals';
+import { createGoal, editGoal, getGoal, listAllGoals, listChildGoals, listGoalAncestors, listGoals, listPerspectiveGoals, removeGoal, setGoalCompleted } from '../../storage/goals';
 import { colors, radius, spacing } from '../../theme/tokens';
 import { GoalDetails } from './GoalDetails';
 import { GoalEditor } from './GoalEditor';
@@ -44,9 +44,13 @@ function GoalCard({
         >
           {goal.title}
         </Text>
-        {goal.notes || goal.childrenCount > 0 ? (
+        {goal.parentTitle || goal.notes || goal.childrenCount > 0 ? (
           <Text numberOfLines={1} style={[styles.goalSubtitle, { color: palette.muted }]}>
-            {goal.childrenCount > 0 ? `${goal.childrenCount} next step${goal.childrenCount === 1 ? '' : 's'}` : goal.notes}
+            {goal.parentTitle
+              ? `↳ ${goal.parentTitle}`
+              : goal.childrenCount > 0
+                ? `${goal.childrenCount} next step${goal.childrenCount === 1 ? '' : 's'}`
+                : goal.notes}
           </Text>
         ) : null}
       </Pressable>
@@ -73,9 +77,11 @@ export function HorizonsScreen() {
   const [perspectiveError, setPerspectiveError] = useState<string | null>(null);
   const [working, setWorking] = useState(false);
   const [detailStack, setDetailStack] = useState<Goal[]>([]);
+  const detailRequest = useRef(0);
   const details = detailStack[detailStack.length - 1] ?? null;
   const [parentOptions, setParentOptions] = useState<Goal[]>([]);
   const [children, setChildren] = useState<Goal[]>([]);
+  const [ancestors, setAncestors] = useState<Goal[]>([]);
   const [editorVisible, setEditorVisible] = useState(false);
   const [editing, setEditing] = useState<Goal | null>(null);
   const [parent, setParent] = useState<Goal | null>(null);
@@ -151,6 +157,7 @@ export function HorizonsScreen() {
       setEditing(initial);
       setParent(selectedParent);
       setEditorContext({ horizon: selectedParent ? 'day' : targetHorizon, anchor: new Date(anchor.getTime()) });
+      detailRequest.current++;
       setDetailStack([]);
       setEditorVisible(true);
     } catch (error) {
@@ -172,29 +179,53 @@ export function HorizonsScreen() {
   }
 
   async function openDetails(goal: Goal, nested = false) {
+    const request = ++detailRequest.current;
     try {
-      const [latest, nextSteps] = await Promise.all([getGoal(db, goal.id), listChildGoals(db, goal.id)]);
+      const [latest, nextSteps, parentPath] = await Promise.all([
+        getGoal(db, goal.id),
+        listChildGoals(db, goal.id),
+        listGoalAncestors(db, goal.id),
+      ]);
+      if (request !== detailRequest.current) return;
       if (!latest) {
         Alert.alert('Goal unavailable', 'This goal may have been deleted.');
         return;
       }
       setDetailStack((current) => nested ? [...current, latest] : [latest]);
       setChildren(nextSteps);
+      setAncestors(parentPath);
     } catch (error) {
-      Alert.alert('Could not load goal', error instanceof Error ? error.message : 'Please try again.');
+      if (request === detailRequest.current) {
+        Alert.alert('Could not load goal', error instanceof Error ? error.message : 'Please try again.');
+      }
     }
   }
 
+  function closeDetails() {
+    detailRequest.current++;
+    setDetailStack([]);
+    setAncestors([]);
+    setChildren([]);
+  }
+
   function backToParent() {
+    const request = ++detailRequest.current;
     const parentGoal = detailStack[detailStack.length - 2];
     if (!parentGoal) {
-      setDetailStack([]);
+      closeDetails();
       return;
     }
     setDetailStack((items) => items.slice(0, -1));
-    void listChildGoals(db, parentGoal.id).then(setChildren).catch(() => {
-      Alert.alert('Could not load steps', 'Please try again.');
-    });
+    void Promise.all([listChildGoals(db, parentGoal.id), listGoalAncestors(db, parentGoal.id)])
+      .then(([steps, path]) => {
+        if (request === detailRequest.current) {
+          setChildren(steps);
+          setAncestors(path);
+        }
+      })
+      .catch(() => {
+        if (request === detailRequest.current) Alert.alert('Could not load parent goal', 'Please try again.');
+      });
   }
 
   async function saveGoal(input: GoalInput) {
@@ -204,6 +235,12 @@ export function HorizonsScreen() {
         await editGoal(db, editing.id, input);
       } else {
         await createGoal(db, input);
+      }
+      // When a goal moves to a different period, show its destination
+      // instead of leaving the user with an apparently missing goal.
+      if (view === 'focus' && (input.horizon !== horizon || input.periodKey !== key)) {
+        setAnchor(dateFromPeriodKey(input.horizon, input.periodKey, anchor));
+        setHorizon(input.horizon);
       }
       setEditorVisible(false);
       setEditing(null);
@@ -242,8 +279,7 @@ export function HorizonsScreen() {
           style: 'destructive',
           onPress: () => void perform(async () => {
             await removeGoal(db, id);
-            setDetailStack([]);
-            setChildren([]);
+            closeDetails();
           }),
         },
       ],
@@ -429,11 +465,13 @@ export function HorizonsScreen() {
       <GoalDetails
         goal={details}
         children={children}
+        ancestors={ancestors}
         palette={palette}
-        onClose={() => setDetailStack([])}
+        onClose={closeDetails}
         onBack={backToParent}
         canGoBack={detailStack.length > 1}
         onOpenChild={(child) => void openDetails(child, true)}
+        onOpenAncestor={(goal) => void openDetails(goal)}
         onEdit={editSelected}
         onAddStep={addChild}
         onToggle={(goal) => void toggle(goal)}

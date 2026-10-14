@@ -10,6 +10,7 @@ interface GoalRow {
   horizon: Goal['horizon'];
   period_key: string;
   parent_id: string | null;
+  parent_title: string | null;
   completed: number;
   children_count: number;
   created_at: string;
@@ -17,8 +18,10 @@ interface GoalRow {
 }
 
 const SELECT_GOALS = `
-  SELECT g.*, (SELECT count(*) FROM goals children WHERE children.parent_id = g.id) AS children_count
-  FROM goals g
+  SELECT g.*,
+    (SELECT count(*) FROM goals children WHERE children.parent_id = g.id) AS children_count,
+    parent.title AS parent_title
+  FROM goals g LEFT JOIN goals parent ON parent.id = g.parent_id
 `;
 
 function toGoal(row: GoalRow): Goal {
@@ -29,6 +32,7 @@ function toGoal(row: GoalRow): Goal {
     horizon: row.horizon,
     periodKey: row.period_key,
     parentId: row.parent_id,
+    parentTitle: row.parent_title,
     completed: row.completed === 1,
     childrenCount: row.children_count,
     createdAt: row.created_at,
@@ -120,6 +124,31 @@ export async function getGoal(db: SQLiteDatabase, id: string): Promise<Goal | nu
     [id],
   );
   return row ? toGoal(row) : null;
+}
+
+/** Resolve an item's visible connection to longer-term goals (root first).
+ * Cycles are prohibited when saving parents; the depth limit also bounds legacy corruption.
+ */
+export async function listGoalAncestors(db: SQLiteDatabase, goalId: string): Promise<Goal[]> {
+  const rows = await db.getAllAsync<GoalRow>(
+    `WITH RECURSIVE chain(id, parent_id, depth) AS (
+       SELECT id, parent_id, 0 FROM goals WHERE id = ?
+       UNION ALL
+       SELECT parent.id, parent.parent_id, chain.depth + 1
+       FROM goals parent INNER JOIN chain ON parent.id = chain.parent_id
+       WHERE chain.depth < 63
+     )
+     SELECT g.*,
+       (SELECT count(*) FROM goals children WHERE children.parent_id = g.id) AS children_count,
+       parent.title AS parent_title
+     FROM chain
+     JOIN goals g ON g.id = chain.id
+     LEFT JOIN goals parent ON parent.id = g.parent_id
+     WHERE chain.depth > 0
+     ORDER BY chain.depth DESC`,
+    [goalId],
+  );
+  return rows.map(toGoal);
 }
 
 /** Parent picker can display any saved goal, across horizons. */
