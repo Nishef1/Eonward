@@ -1,0 +1,38 @@
+# dependencies
+node_modules/
+.npm/
+.expo/
+.expo-shared/
+dist/
+web-build/
+coverage/
+
+# generated native projects (Expo CNG; revisit if native source is adopted)
+android/
+ios/
+
+# local configuration and secrets
+.env
+.env.*
+!.env.example
+*.keystore
+*.jks
+*.p8
+*.p12
+*.mobileprovision
+
+# local IDE and OS artifacts
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/*
+!.vscode/extensions.json
+
+# local, user-specific databases
+*.db
+*.db-journal
+*.sqlite
+*.sqlite3
+
+# generated Expo types
+expo-env.d.ts

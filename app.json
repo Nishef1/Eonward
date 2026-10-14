@@ -1,0 +1,19 @@
+{
+  "expo": {
+    "name": "Eonward",
+    "slug": "eonward",
+    "scheme": "eonward",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "automatic",
+    "android": {
+      "package": "com.nishef.eonward"
+    },
+    "ios": {
+      "bundleIdentifier": "com.nishef.eonward"
+    },
+    "experiments": {
+      "typedRoutes": true
+    }
+  }
+}
