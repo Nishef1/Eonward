@@ -9,7 +9,7 @@ import {
 } from '../../domain/timeblocks';
 import { createGoal, getGoal, listAllGoals } from '../../storage/goals';
 import { listRangeBlocks, removeBlock, saveBlock } from '../../storage/timeblocks';
-import { colors, depth, radius, spacing, type Palette } from '../../theme/tokens';
+import { colors, depth, radius, spacing, semantic, type Palette } from '../../theme/tokens';
 import ChevronLeft from 'lucide-react-native/icons/chevron-left';
 import ChevronRight from 'lucide-react-native/icons/chevron-right';
 import ListPlus from 'lucide-react-native/icons/list-plus';
@@ -428,7 +428,7 @@ export function CalendarScreen() {
             </View>
           ) : ordered.map((block) => (
             <View key={block.id} style={[styles.listCard, { borderColor: palette.border, backgroundColor: palette.surface }]}>
-              <View style={[styles.listStripe, { backgroundColor: block.kind === 'box' ? '#B38850' : palette.accent }]} />
+              <View style={[styles.listStripe, { backgroundColor: block.goalCompleted ? semantic.timeline.completed : block.kind === 'box' ? semantic.timeline.timebox : semantic.timeline.planned }]} />
               <Pressable onPress={() => edit(block)} accessibilityRole="button" style={styles.listCopy}
                 accessibilityLabel={`Edit time for ${block.goalTitle}`}>
                 <Text numberOfLines={1} style={[styles.listTitle, { color: foreground }]}>{block.goalTitle}</Text>

@@ -461,11 +461,11 @@ const styles = StyleSheet.create({
   eventTitle: { color: '#FFFFFF', fontSize: 14, fontWeight: '700', marginTop: 3 },
   doneTitle: { textDecorationLine: 'line-through' },
   eventIntention: { color: 'rgba(255,255,255,0.83)', fontSize: 11, marginTop: 7 },
-  microTitle: { color: '#FFFFFF', fontSize: 10, fontWeight: '700' },
+  microTitle: { color: '#FFFFFF', fontSize: 11, fontWeight: '700' },
   progressTrack: { backgroundColor: 'rgba(255,255,255,0.25)', height: 4, borderRadius: 4, marginTop: 7, overflow: 'hidden' },
   progressFill: { height: 4, borderRadius: 4, backgroundColor: '#FFFFFF' },
   presentLine: { position: 'absolute', left: 0, right: 0, height: 22, flexDirection: 'row', alignItems: 'center', zIndex: 12, transform: [{ translateY: -11 }] },
   nowPill: { marginLeft: 5, width: 49, borderRadius: 7, height: 23, backgroundColor: semantic.timeline.now, justifyContent: 'center', alignItems: 'center' },
   nowPillText: { fontSize: 10, fontWeight: '700', color: '#FFFFFF', fontVariant: ['tabular-nums'] },
-  nowLine: { flex: 1, height: 2, marginRight: 8, backgroundColor: '#C18457' },
+  nowLine: { flex: 1, height: 2, marginRight: 8, backgroundColor: semantic.timeline.now },
 });
