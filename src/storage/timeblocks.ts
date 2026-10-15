@@ -51,7 +51,6 @@ export async function saveBlock(db: SQLiteDatabase, input: BlockInput, id?: stri
   expected?: TimeBlock): Promise<string> {
   const { startAt, endAt } = timeRangeFromInput(input);
   if (input.kind !== 'block' && input.kind !== 'box') throw new Error('Invalid time planning mode.');
-  const now = new Date().toISOString();
   const newId = id ?? randomUUID();
   await db.withExclusiveTransactionAsync(async (tx) => {
     const goal = await tx.getFirstAsync<{ id: string }>(
@@ -78,12 +77,14 @@ export async function saveBlock(db: SQLiteDatabase, input: BlockInput, id?: stri
         'SELECT block_id FROM focus_session WHERE id = 1 AND block_id = ?', [id],
       );
       if (focusing) throw new Error('End the active focus session before editing this Timebox.');
+      const now = new Date().toISOString();
       await tx.runAsync(
         `UPDATE time_blocks SET goal_id = ?, start_at = ?, end_at = ?, kind = ?, intention = ?, flexible = ?, updated_at = ?
           WHERE id = ?`,
         [input.goalId, startAt, endAt, input.kind, input.intention.trim(), input.flexible ? 1 : 0, now, id],
       );
     } else {
+      const now = new Date().toISOString();
       await tx.runAsync(
         `INSERT INTO time_blocks (id, goal_id, start_at, end_at, kind, intention, flexible, created_at, updated_at)
           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,

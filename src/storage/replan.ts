@@ -20,8 +20,15 @@ const UNDO_WINDOW_MS = 5 * 60 * 1000;
 /** Only exact previewed states may be written; active Focus blocks are immutable. */
 export async function applyReplan(db: SQLiteDatabase, preview: ReplanPreview, expected: readonly {
   id: string; startAt: string; endAt: string; flexible: boolean; kind: string; intention: string; goalId: string; goalCompleted: boolean;
-}[], nowMs = Date.now()): Promise<void> {
-  if (nowMs < preview.atMs - 2000 || nowMs - preview.atMs > 120000 || localDayKey(new Date(nowMs)) !== preview.day)
+}[], nowMs?: number): Promise<void> {
+  const previewIsCurrent = () => {
+    // Only automated fixtures inject a fixed timestamp. Production evaluates the
+    // actual clock again after entering SQLite's exclusive transaction.
+    const current = nowMs ?? Date.now();
+    return current >= preview.atMs - 2000 && current - preview.atMs <= 120000 &&
+      localDayKey(new Date(current)) === preview.day;
+  };
+  if (!previewIsCurrent())
     throw new Error('Recovery preview expired. Reopen it to use the current time.');
   if (!preview.moves.length) throw new Error('There are no changes to apply.');
   const ids = new Set(preview.moves.map((m) => m.id));
@@ -31,6 +38,7 @@ export async function applyReplan(db: SQLiteDatabase, preview: ReplanPreview, ex
       kind: b.kind, intention: b.intention, goal_id: b.goalId, completed: b.goalCompleted ? 1 : 0 }))
     .sort((a, b) => a.id.localeCompare(b.id));
   await db.withExclusiveTransactionAsync(async (tx) => {
+    if (!previewIsCurrent()) throw new Error('Recovery preview expired while waiting to save. Reopen it.');
     if (!same(await snapshot(tx, preview.day), original)) throw new Error('Calendar changed. Review a fresh preview.');
     const running = await tx.getFirstAsync<{ block_id: string }>('SELECT block_id FROM focus_session WHERE id = 1');
     if (running && ids.has(running.block_id)) throw new Error('End the active Focus session before moving its time.');

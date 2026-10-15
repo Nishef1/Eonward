@@ -106,13 +106,16 @@ export async function beginFocusSession(db: SQLiteDatabase, blockId: string, rep
 /** One deliberate action creates both the reservation and running timer, or neither. */
 export async function beginQuickFocus(db: SQLiteDatabase, goalId: string, minutes: number, replace = false): Promise<FocusSession> {
   if (![15, 25, 50].includes(minutes)) throw new Error('Choose a 15, 25 or 50 minute focus window.');
-  const blockId = randomUUID(), now = Date.now(), duration = minutes * 60000;
+  const blockId = randomUUID(), duration = minutes * 60000;
   await db.withExclusiveTransactionAsync(async (tx) => {
     const goal = await tx.getFirstAsync<{ title: string }>(
       'SELECT title FROM goals WHERE id = ? AND completed = 0 AND archived_at IS NULL', [goalId]);
     if (!goal) throw new Error('Choose an open goal to focus on.');
     const existing = await tx.getFirstAsync('SELECT block_id FROM focus_session WHERE id = 1');
     if (existing && !replace) throw new Error('A focus session is already active.');
+    // The queue may have waited for another SQLite transaction: start the clock
+    // only after the new session is actually ready to be committed.
+    const now = Date.now();
     if (existing) await closeFocusInTransaction(tx, now, 'replaced');
     const stamp = new Date(now).toISOString();
     await tx.runAsync(`INSERT INTO time_blocks
