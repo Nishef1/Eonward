@@ -185,6 +185,14 @@ export async function setGoalCompleted(db: SQLiteDatabase, id: string, completed
     if (!goal) throw new Error('The active goal no longer exists.');
     if ((goal.completed === 1) === completed) return;
     const now = new Date().toISOString();
+    if (completed) {
+      // Closing an active session before completing its goal preserves its recorded
+      // Focus without leaving a running timer attached to a finished task.
+      const focused = await tx.getFirstAsync<{ block_id: string }>(`
+        SELECT f.block_id FROM focus_session f JOIN time_blocks b ON b.id = f.block_id
+        WHERE f.id = 1 AND b.goal_id = ?`, [id]);
+      if (focused) await closeFocusInTransaction(tx, Date.now(), 'stopped');
+    }
     await tx.runAsync('UPDATE goals SET completed = ?, updated_at = ? WHERE id = ?', [completed ? 1 : 0, now, id]);
     await tx.runAsync('INSERT INTO goal_activity (id, goal_id, kind, occurred_at) VALUES (?, ?, ?, ?)',
       [randomUUID(), id, completed ? 'completed' : 'reopened', now]);

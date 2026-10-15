@@ -83,7 +83,7 @@ export async function beginFocusSession(db: SQLiteDatabase, blockId: string, rep
     const block = await tx.getFirstAsync<{ kind: string; start_at: string; end_at: string }>(
       `SELECT tb.kind, tb.start_at, tb.end_at FROM time_blocks tb
        JOIN goals g ON g.id = tb.goal_id
-       WHERE tb.id = ? AND g.archived_at IS NULL`, [blockId],
+       WHERE tb.id = ? AND g.archived_at IS NULL AND g.completed = 0`, [blockId],
     );
     if (!block) throw new Error('This timebox is unavailable.');
     if (block.kind !== 'box') throw new Error('Only a Timebox can start a focus session.');

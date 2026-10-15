@@ -6,7 +6,7 @@ import { createGoal, editGoal, planGoal, setGoalCompleted, getGoal, listInboxGoa
 import { exportBackup, restoreBackup } from '../src/storage/backup.ts';
 import { nextOccurrence } from '../src/domain/planning.ts';
 import { createBoard, addGoalToBoard, listBoardGoals } from '../src/storage/boards.ts';
-import { beginQuickFocus, getFocusSession, pauseFocusSession, resumeFocusSession, stopFocusSession, listFocusHistory } from '../src/storage/focus.ts';
+import { beginFocusSession, beginQuickFocus, getFocusSession, pauseFocusSession, resumeFocusSession, stopFocusSession, listFocusHistory } from '../src/storage/focus.ts';
 import { safeNativePath } from '../src/domain/links.ts';
 import { previewReplan } from '../src/domain/replan.ts';
 import { applyReplan, undoReplan, canUndoReplan } from '../src/storage/replan.ts';
@@ -280,6 +280,9 @@ test('offline planning lifecycle preserves identity, recurrence, completion hist
     await restoreGoal(source.db, parent);
     await setGoalCompleted(source.db, step, true);
     await assert.rejects(() => planGoal(source.db, step, { horizon: 'day', periodKey: '2026-02-02' }), /open goal/);
+    const completedBox = await saveBlock(source.db, { goalId: step, date: '2026-10-14',
+      start: '16:00', end: '16:25', kind: 'box', intention: 'Already done', flexible: false });
+    await assert.rejects(() => beginFocusSession(source.db, completedBox), /unavailable/);
     await setGoalCompleted(source.db, step, true); // Double delivery is idempotent.
     assert.equal(await completedGoalsSince(source.db, '2000-01-01T00:00:00.000Z'), 1);
     assert.equal((await listBoardGoals(source.db, board)).find((goal) => goal.id === step).completed, true);
@@ -292,6 +295,13 @@ test('offline planning lifecycle preserves identity, recurrence, completion hist
     assert.equal(nextOccurrence('2026-02-28', 'monthly', '2026-01-31'), '2026-03-31');
     assert.equal(nextOccurrence('2025-02-28', 'yearly', '2024-02-29'), '2026-02-28');
     assert.equal(nextOccurrence('2027-02-28', 'yearly', '2024-02-29'), '2028-02-29');
+    await setGoalCompleted(source.db, step, false);
+    // A completed goal cannot keep its timer alive; completion closes the focus history atomically.
+    await beginFocusSession(source.db, completedBox);
+    assert.equal((await getFocusSession(source.db)).goalId, step);
+    await setGoalCompleted(source.db, step, true);
+    assert.equal(await getFocusSession(source.db), null);
+    assert.equal((await listFocusHistory(source.db))[0].outcome, 'stopped');
     await setGoalCompleted(source.db, step, false);
     assert.equal(await completedGoalsSince(source.db, '2000-01-01T00:00:00.000Z'), 0);
     await setGoalCompleted(source.db, step, true);
