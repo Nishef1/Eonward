@@ -144,7 +144,7 @@ export function TimeBlockEditor({ visible, date, goals, initial, suggestedGoalId
               </View>
               <Text style={[styles.hint, { color: palette.muted }]}>
                 {kind === 'box' ? 'A fixed work limit. Stop or reassess when it ends.' :
-                  'A protected time window you can rearrange as plans change.'}
+                  'A planned reservation. Turn on Flexible below only if Recovery may propose moving it.'}
               </Text>
               <Pressable accessibilityRole="checkbox" accessibilityState={{ checked: flexible }}
                 onPress={() => setFlexible((current) => !current)}

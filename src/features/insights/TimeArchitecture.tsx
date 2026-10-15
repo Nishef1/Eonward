@@ -38,7 +38,7 @@ export function TimeArchitecture({ palette, history, refreshKey }: Props) {
         if (mounted) setError(cause instanceof Error ? cause.message : 'Could not load your allocations.');
       });
     return () => { mounted = false; };
-  }, [db, refreshKey, localRevision]));
+  }, [db, refreshKey, localRevision, history]));
   const minutesByGoal = new Map<string, number>();
   for (const entry of history) {
     if (entry.goalId) minutesByGoal.set(entry.goalId, (minutesByGoal.get(entry.goalId) ?? 0) + entry.focusedMs / 60000);
