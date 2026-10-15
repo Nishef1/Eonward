@@ -1,5 +1,5 @@
 import { useCallback, useState } from 'react';
-import { useFocusEffect } from 'expo-router';
+import { useFocusEffect, useRouter } from 'expo-router';
 import { Alert, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { useSQLiteContext } from 'expo-sqlite';
 import type { FocusHistory } from '../../domain/focus';
@@ -16,6 +16,7 @@ const format = (minutes: number) => minutes >= 60
 interface Props { palette: Palette; history: FocusHistory[]; refreshKey: number }
 export function TimeArchitecture({ palette, history, refreshKey }: Props) {
   const db = useSQLiteContext();
+  const router = useRouter();
   const [goals, setGoals] = useState<Goal[]>([]);
   const [budgets, setBudgets] = useState<WeeklyCapacity[]>([]);
   const [chooser, setChooser] = useState(false);
@@ -43,6 +44,7 @@ export function TimeArchitecture({ palette, history, refreshKey }: Props) {
     goal: goals.find((g) => g.id === id), minutes,
   })).filter((item) => item.goal).sort((a, b) => b.minutes - a.minutes).slice(0, 5);
   const selected = goals.find((g) => g.id === goalId);
+  const available = goals.find((g) => !g.completed);
   const openGoals = goals.filter((g) => !g.completed && g.title.toLowerCase().includes(filter.toLowerCase().trim())).slice(0, 40);
   function pick(goal: Goal) {
     setGoalId(goal.id);
@@ -86,9 +88,11 @@ export function TimeArchitecture({ palette, history, refreshKey }: Props) {
     </Text>}
     <View style={[styles.head, { marginTop: 15 }]}>
       <Text style={[styles.title, { color: palette.foreground }]}>Time architecture</Text>
-      <Pressable accessibilityRole="button" onPress={() => {
-        if (goals.length) { pick(goals[0]); setChooser(true); setFilter(''); }
-      }} style={styles.add}>
+      <Pressable accessibilityRole="button" disabled={!available}
+        accessibilityState={{ disabled: !available }}
+        onPress={() => {
+          if (available) { pick(available); setChooser(true); setFilter(''); }
+        }} style={[styles.add, { opacity: available ? 1 : 0.45 }]}>
         <Text style={{ color: palette.accent, fontWeight: '700' }}>+ Allocate</Text>
       </Pressable>
     </View>
@@ -97,10 +101,8 @@ export function TimeArchitecture({ palette, history, refreshKey }: Props) {
       Nested goals count toward their parent's allocation.
     </Text>
     {error ? <Text style={{ color: palette.foreground }}>{error}</Text> : null}
-    {budgets.length ? budgets.map((b) => <Pressable accessibilityRole="button"
-      accessibilityLabel={`Edit weekly allocation for ${b.title}`} onPress={() => {
-        const goal = goals.find((g) => g.id === b.goalId); if (goal) pick(goal);
-      }} key={b.goalId} style={[styles.budget, { backgroundColor: palette.surface, borderColor: palette.border }]}>
+    {budgets.length ? budgets.map((b) => <View key={b.goalId}
+      style={[styles.budget, { backgroundColor: palette.surface, borderColor: palette.border }]}>
       <View style={styles.head}>
         <Text numberOfLines={2} style={{ color: palette.foreground, fontWeight: '700', flex: 1 }}>{b.title}</Text>
         <Text style={{ color: palette.accent, fontWeight: '700' }}>{format(b.weeklyMinutes)} / week</Text>
@@ -115,7 +117,19 @@ export function TimeArchitecture({ palette, history, refreshKey }: Props) {
         <Text style={[styles.caption, { color: palette.muted }]}>Reserved {format(b.plannedMinutes)}</Text>
         <Text style={[styles.caption, { color: palette.muted }]}>Focused {format(b.focusedMinutes)}</Text>
       </View>
-    </Pressable>) : <Text style={[styles.caption, { color: palette.muted }]}>No weekly allocations yet. Select a goal to get started.</Text>}
+      <View style={styles.head}>
+        <Pressable accessibilityRole="button" accessibilityLabel={`Edit weekly hours for ${b.title}`}
+          onPress={() => { const goal = goals.find((g) => g.id === b.goalId); if (goal) pick(goal); }}
+          style={styles.add}>
+          <Text style={{ color: palette.muted, fontWeight: '700' }}>Adjust budget</Text>
+        </Pressable>
+        <Pressable accessibilityRole="button" accessibilityLabel={`Reserve time for ${b.title} in Calendar`}
+          onPress={() => router.push({ pathname: '/calendar', params: { goalId: b.goalId } })}
+          style={styles.add}>
+          <Text style={{ color: palette.accent, fontWeight: '700' }}>Plan time →</Text>
+        </Pressable>
+      </View>
+    </View>) : <Text style={[styles.caption, { color: palette.muted }]}>No weekly allocations yet. Select a goal to get started.</Text>}
     {chooser ? <View style={[styles.editor, { backgroundColor: palette.surface, borderColor: palette.border }]}>
       <Text style={[styles.title, { color: palette.foreground }]}>Weekly allocation</Text>
       <TextInput value={filter} onChangeText={setFilter} placeholder="Find a goal…" placeholderTextColor={palette.muted}
