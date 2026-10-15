@@ -91,7 +91,7 @@ export async function undoReplan(db: SQLiteDatabase): Promise<void> {
           AND EXISTS (SELECT 1 FROM goals WHERE goals.id = time_blocks.goal_id
             AND goals.completed = 0 AND goals.archived_at IS NULL)`,
         [original.start, original.end, new Date().toISOString(), item.id, item.start, item.end,
-          item.appliedAt, item.goalId, item.kind, item.intention]);
+          item.appliedAt!, item.goalId!, item.kind!, item.intention!]);
       if (result.changes !== 1) throw new Error('Calendar changed since replanning. Undo is no longer safe.');
     }
     await tx.runAsync('DELETE FROM replan_checkpoint WHERE id = 1');
