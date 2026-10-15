@@ -1,5 +1,7 @@
 import { useEffect, useState } from 'react';
 import { usePathname, useRouter } from 'expo-router';
+import { useSQLiteContext } from 'expo-sqlite';
+import { getGoalPath } from '../../storage/goals';
 import { AppState, Alert, Keyboard, Linking, Modal, Pressable, StyleSheet, Text, useColorScheme, View } from 'react-native';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import { getFocusRemainingMs, formatFocusTime } from '../../domain/focus';
@@ -24,11 +26,13 @@ const routes = [
 export function AppDock() {
   const reducedMotion = useReducedMotion();
   const router = useRouter();
+  const db = useSQLiteContext();
   const pathname = usePathname();
   const palette = useColorScheme() === 'dark' ? colors.dark : colors.light;
   const { session, busy, error, notificationNotice, pause, resume, finish, refresh } = useFocusSession();
   const [clock, setClock] = useState(() => Date.now());
   const [expanded, setExpanded] = useState(false);
+  const [goalPath, setGoalPath] = useState<string[]>([]);
   const [typing, setTyping] = useState(() => Keyboard.isVisible());
   useEffect(() => {
     const show = Keyboard.addListener('keyboardDidShow', () => setTyping(true));
@@ -45,6 +49,14 @@ export function AppDock() {
     return () => { clearInterval(timer); listener.remove(); };
   }, [session?.status, session?.deadlineMs, session?.blockId]);
   useEffect(() => { if (!session) setExpanded(false); }, [session]);
+  useEffect(() => {
+    if (!session?.goalId) { setGoalPath([]); return; }
+    let mounted = true;
+    void getGoalPath(db, session.goalId).then((path) => {
+      if (mounted) setGoalPath(path);
+    }).catch(() => { if (mounted) setGoalPath([]); });
+    return () => { mounted = false; };
+  }, [db, session?.goalId]);
   // A block may be removed or its goal archived from another page.
   useEffect(() => {
     void refresh().catch(() => {});
@@ -126,6 +138,19 @@ export function AppDock() {
               <View style={[styles.grabber, { backgroundColor: palette.border }]} />
               <Text style={[styles.eyebrow, { color: palette.accent }]}>YOUR FOCUS SESSION</Text>
               <Text numberOfLines={2} style={[styles.goalTitle, { color: palette.foreground }]}>{session?.goalTitle}</Text>
+              {goalPath.length > 1 ? <Text numberOfLines={2} style={[styles.goalPath, { color: palette.muted }]}>
+                {goalPath.slice(0, -1).join('  /  ')}  →  {session?.goalTitle}
+              </Text> : null}
+              {session?.goalId ? <Pressable accessibilityRole="button"
+                accessibilityLabel="Open focus goal and its long-term path in Plan"
+                onPress={() => {
+                  setExpanded(false);
+                  router.push({ pathname: '/', params: { goalId: session.goalId } });
+                }} style={styles.pathAction}>
+                <Text style={{ color: palette.accent, fontWeight: '700', fontSize: 12 }}>
+                  See this step in your goal path →
+                </Text>
+              </Pressable> : null}
               <Text style={[styles.clock, { color: finished ? '#BA7C4A' : palette.foreground }]}>
                 {formatFocusTime(remaining)}
               </Text>
@@ -192,6 +217,8 @@ const styles = StyleSheet.create({
   grabber: { width: 38, height: 4, alignSelf: 'center', borderRadius: 3, marginBottom: 24 },
   eyebrow: { fontSize: 10, letterSpacing: 1.5, fontWeight: '800', marginBottom: 10 },
   goalTitle: { fontSize: 20, fontWeight: '700', lineHeight: 27 },
+  goalPath: { fontSize: 12, lineHeight: 20, marginTop: 6 },
+  pathAction: { minHeight: 48, alignItems: 'flex-start', justifyContent: 'center' },
   clock: { fontSize: 58, fontWeight: '800', textAlign: 'center', marginTop: 24, fontVariant: ['tabular-nums'], letterSpacing: -1.4 },
   explainer: { fontSize: 13, lineHeight: 21, textAlign: 'center', marginVertical: 21 },
   noticeSection: { alignItems: 'center', marginBottom: 13, gap: 4 },
