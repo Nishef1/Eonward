@@ -44,7 +44,7 @@ export function DayTimeline({ date, blocks, palette, onEdit, onQuickAdd, onOpenG
   const zoomedHeight = useRef<number>(hourHeight);
   const scrollOffset = useRef(0);
   const dragOriginY = useRef(0);
-  const [draft, setDraft] = useState<{ id: string; mode: TimelineEditMode; delta: number } | null>(null);
+  const [draft, setDraft] = useState<{ id: string; mode: TimelineEditMode; delta: number; sourceRevision?: string } | null>(null);
   const dateKey = localDayKey(date);
   const isToday = localDayKey(now) === dateKey;
   const offset = now.getTimezoneOffset();
@@ -65,6 +65,8 @@ export function DayTimeline({ date, blocks, palette, onEdit, onQuickAdd, onOpenG
   const editing = draft && blocks.find((block) => block.id === draft.id);
   const candidate = useMemo(() => {
     if (!draft || !editing) return { preview: null as TimelineEditPreview | null, error: '' };
+    if (editing.updatedAt !== draft.sourceRevision)
+      return { preview: null, error: 'This reservation changed while your preview was open. Cancel and start again.' };
     if (activeSession?.blockId === draft.id) return { preview: null, error: 'End Focus before changing its reserved time.' };
     try {
       return { preview: previewTimelineEdit(editing, blocks, date, draft.mode, draft.delta), error: '' };
@@ -82,12 +84,12 @@ export function DayTimeline({ date, blocks, palette, onEdit, onQuickAdd, onOpenG
   }, [candidate.preview?.toStart, candidate.preview?.toEnd, editing, blocks, hourHeight, dateKey]);
   function beginDrag(block: TimeBlock, mode: TimelineEditMode, pageY: number) {
     dragOriginY.current = pageY;
-    setDraft({ id: block.id, mode, delta: 0 });
+    setDraft({ id: block.id, mode, delta: 0, sourceRevision: block.updatedAt });
   }
   function continueDrag(block: TimeBlock, mode: TimelineEditMode, pageY: number) {
     const delta = pixelsToQuarterHours(pageY - dragOriginY.current, hourHeight);
     setDraft((previous) => previous?.id === block.id && previous.mode === mode && previous.delta === delta
-      ? previous : { id: block.id, mode, delta });
+      ? previous : { id: block.id, mode, delta, sourceRevision: previous?.id === block.id ? previous.sourceRevision : block.updatedAt });
   }
   const firstHour = positioned.length
     ? Math.max(0, Math.floor(Math.min(...positioned.map((item) => item.top / hourHeight)) - 1))
@@ -307,7 +309,7 @@ export function DayTimeline({ date, blocks, palette, onEdit, onQuickAdd, onOpenG
                   <Pressable key={block.id} accessibilityRole="button"
                     accessibilityLabel={`${block.goalTitle}, ${visibleRange(block)}, ${block.kind === 'box' ? 'Timebox' : 'time reservation'}, ${block.flexible ? 'flexible' : 'fixed'}, ${block.goalCompleted ? 'completed' : 'open'}. Tap to edit, hold to adjust.`}
                     onPress={() => onEdit(block)}
-                    onLongPress={() => setDraft({ id: block.id, mode: 'move', delta: 0 })}
+                    onLongPress={() => setDraft({ id: block.id, mode: 'move', delta: 0, sourceRevision: block.updatedAt })}
                     hitSlop={compact ? 5 : 0}
                     style={[styles.event, {
                       top: top + 1, height: Math.max(21, height - 3),
@@ -349,6 +351,7 @@ export function DayTimeline({ date, blocks, palette, onEdit, onQuickAdd, onOpenG
                         accessibilityActions={[{ name: 'increment' }, { name: 'decrement' }]}
                         onAccessibilityAction={(e) => setDraft({
                           id: block.id, mode: 'move', delta: e.nativeEvent.actionName === 'increment' ? 15 : -15,
+                          sourceRevision: block.updatedAt,
                         })}
                         onResponderGrant={(e) => beginDrag(block, 'move', e.nativeEvent.pageY)}
                         onResponderMove={(e) => continueDrag(block, 'move', e.nativeEvent.pageY)}
@@ -364,6 +367,7 @@ export function DayTimeline({ date, blocks, palette, onEdit, onQuickAdd, onOpenG
                         accessibilityActions={[{ name: 'increment' }, { name: 'decrement' }]}
                         onAccessibilityAction={(e) => setDraft({
                           id: block.id, mode: 'resize', delta: e.nativeEvent.actionName === 'increment' ? 15 : -15,
+                          sourceRevision: block.updatedAt,
                         })}
                         onResponderGrant={(e) => beginDrag(block, 'resize', e.nativeEvent.pageY)}
                         onResponderMove={(e) => continueDrag(block, 'resize', e.nativeEvent.pageY)}
