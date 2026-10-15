@@ -26,7 +26,7 @@ npm run start
 
 Start Android with `npm run android` once an emulator or real device is configured. Use an Expo development build for native modules not included in Expo Go when needed.
 
-**Current verification:** The last accepted Studio baseline had TypeScript, 20 domain/SQLite cases and Android bundle verification. The new adaptive planning slice requires its own native-device acceptance. Expo patch-version drift (Expo and Router expected patch versions) currently causes the dependency-alignment CI gate to fail even when TypeScript and bundles pass; do not claim a green release build until the npm lockfile is refreshed and validated. The debug APK has been built and installed on Android; sampled interaction evidence and remaining acceptance gates are recorded in ROADMAP.md. iOS and physical-device release behavior remain unverified.
+**Current verification:** The last accepted Studio baseline had TypeScript, 20 domain/SQLite cases and Android bundle verification. The new adaptive planning slice requires its own native-device acceptance. Expo SDK 57 patch dependencies (Expo ~57.0.30 and Router ~57.0.28) were realigned with a reproducible npm lockfile and passed SDK compatibility, TypeScript, all 20 domain/SQLite tests and both JS exports in the one-time lock refresh workflow. This does not certify native behavior or store readiness. The debug APK has been built and installed on Android; sampled interaction evidence and remaining acceptance gates are recorded in ROADMAP.md. iOS and physical-device release behavior remain unverified.
 
 ## Dependency workflow
 

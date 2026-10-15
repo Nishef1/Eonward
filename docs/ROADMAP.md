@@ -41,7 +41,8 @@ The following items describe code merged into `main`, **not independently accept
 - [ ] Validate complete Recovery UI on a real Android device/emulator (font scaling, keyboard, overlapping time blocks, Focus running/paused, canceled dialogs, app suspension, undo).
 - [ ] Validate iOS native runtime and VoiceOver; do not treat JavaScript export as iOS certification.
 - [ ] Validate daylight-saving transition days, timezone changes, overnight sessions and backup migration from native test data.
-- [ ] Resolve Expo patch-version compatibility drift before release, and retain the existing native SQLite configuration-change crash as a separate release blocker.
+- [x] Regenerate locked Expo 57/Expo Router patch dependencies; clean npm ci, SDK compatibility, TypeScript, 20/20 tests and both JS exports passed in the one-time verification workflow.
+- [ ] Investigate and close the previously reproduced native SQLite configuration-change crash; it remains a separate release blocker.
 
 **Product boundary:** No AI scheduler, automatic task deletion, invisible reshuffle, implicit promotion of existing events to flexible, or cross-midnight move is implemented. The current week budget is a target, not a hard restriction; overlapping planned reservations are not deduplicated. Older Focus entries without goal IDs cannot be retroactively assigned reliably.
 
@@ -71,7 +72,7 @@ This section is the current acceptance summary. Earlier dated slices below prese
 - [ ] Resolve remaining dependency advisories and store permission/privacy requirements. Current audit: 22 affected dependency entries from three root advisories; see ENGINEERING.md for reachability and mitigation boundaries.
 - [ ] Configure store signing and public release metadata when the core app is ready. Publisher/contact details remain deferred at the user's request. No store upload or publication has occurred.
 
-Next three actions: (1) native Android QA for Recovery preview/apply/Undo and the SQLite configuration-change crash; (2) update Expo/Router patch versions with a new reproducible npm lock and complete native iOS acceptance; (3) close physical-device/accessibility, signing and store gates before release. Widgets, native localization/Jalali, share-to-capture, templates and calendar drag remain unimplemented roadmap work.
+Next three actions: (1) native Android QA for Recovery preview/apply/Undo and the SQLite configuration-change crash; (2) complete native iOS and VoiceOver acceptance, including backup upgrade with real-device data; (3) close physical-device/accessibility, signing and store gates before release. Widgets, native localization/Jalali, share-to-capture, templates and calendar drag remain unimplemented roadmap work.
 
 ## M0 — Foundation
 
