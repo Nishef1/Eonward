@@ -27,6 +27,22 @@ This file is the single source of truth for **planned vs completed** work. It is
 | M5 — Mobile integration | Notifications, widgets, localization, backup | Native picker/backup/reminders implemented; widgets/localization remain open | Physical-device and Apple acceptance |
 | M6 — Quality & release | Performance, accessibility, testing, release build | Isolated Android release QA APK built; iOS JS export passes | Store signing, native iOS, physical-device and accessibility gates |
 
+## SSOT and StyleSheet review (2026-10-15)
+
+**Code-level findings resolved:**
+- [x] Calendar's header previously summed overlapping reservations while Week and Month cards displayed unique occupied wall time. Day, Week and Month headers now use `analyzeRangeLoad` / `analyzeDayLoad` from `src/domain/timeblocks.ts`, with both `reservedMinutes` and `occupiedMinutes` available but the on-screen label explicitly saying **occupied**.
+- [x] Calendar previously executed three overlapping block-range SQLite reads and kept three independent React arrays. It now loads the visible month-grid range **once** into `calendarBlocks`, and derives Day/Week selections using one common `blockOverlapsRange` predicate. The selected week is always inside the selected month's Monday–Sunday grid. Focus-history and goals remain separate canonical datasets.
+- [x] Month no longer carries an extra local overlap calculation; Week and Month both reuse domain time accounting. The daily list and weekly/monthly cards agree on interval inclusion.
+- [x] Shared semantic schedule colors are defined in `src/theme/tokens.ts`, not repeated as literals in Timeline, Calendar List, time-allocation bars and Now line. Completion no longer fades the *entire block* and therefore does not reduce its already-small label's contrast.
+- [x] Light/dark warning and danger ink use explicit theme variants. Critical destructive actions and Focus alert text no longer rely on one color that was hard to read in one scheme.
+- [x] The duplicate `Palette` union used in thirteen screens/sheets was replaced by a single exported type.
+- [x] Month activity count increased from 8dp to 11dp with more vertical room. Existing zoom levels and large touch controls remain unchanged.
+- [x] Real domain tests cover clipped overlaps and the 4.5:1 white-text contrast of primary schedule surfaces. `scripts/check-design-ssot.mjs` runs in Domain CI to reject palette-type duplication, reintroduced inline semantic colors and multiple calendar event collections.
+
+**Deliberately not generalized:** React Native's `StyleSheet.create` is local to each screen by design: flex structures and page-specific dimensions are not duplicated concepts just because their numeric values match. A global "CSS class for every row" would add complexity and conceal intent. Standard `colors`, `spacing`, `radius`, `depth`, `semantic` and the shared `Palette` type are the appropriate cross-screen contract.
+
+**Remaining acceptance and risks:** Text at maximum OS font scale may still need responsive restructuring (not blanket fontSize replacement), especially Calendar ribbon, compact blocks, Board lens and Review graph. Native dynamic font scaling, TalkBack/VoiceOver, clipped flex layouts and gesture negotiation must be checked on Android/iOS. The native SQLite SIGSEGV remains [P0 issue #2](https://github.com/Nishef1/Eonward/issues/2), unrelated to StyleSheet tokens. UI appearance has not been physically screenshot-reviewed. This source audit is not a claim of full visual polish or store readiness.
+
 ## Premium daily time interaction: design correction pass (2026-10-15)
 
 - [x] Repair the zoom-dependent empty-hour hit target: its actual pressable height now follows the displayed zoom-level hour height.

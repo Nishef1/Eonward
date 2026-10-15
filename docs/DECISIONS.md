@@ -121,3 +121,10 @@ Record significant decisions and reversals here. A future change should cite its
 - Keep the one-step Undo promise strict: store the applied block's timestamp, owner, type and intention. Decline Undo if any moved block was subsequently edited, completed, archived or assigned to an active Focus session; never silently overwrite a later user edit. Hide an unavailable Undo CTA using a read-only comparison, but require the transaction to recheck atomically before writing.
 - Timebox-based and shortcut-based Focus must obey the same completion constraints. Completing the linked goal closes its running/paused Focus in the same SQLite transaction and persists an accurate stopped/completed record; Plan and Boards immediately refresh the globally visible Focus provider.
 - Keep the 20-test automatic policy, extending meaningful real SQLite assertions rather than adding large synthetic regression suites. Native iOS, Android SIGSEGV stress, OS notification permissions and large-font/screen-reader UX still require direct device evidence.
+
+## 2026-10-15 — Restore SSOT between calendar read model and style semantics
+
+- Calendar previously had three overlapping SQLite queries and React state copies for its Day, Week and Month views; reduce to one visible-grid dataset with pure selectors. This reduces redundant reads and makes all three views originate from the same response. Separate canonical goals and Focus history remain intentional domain boundaries.
+- Consolidate time accounting into shared `analyzeRangeLoad` / `analyzeDayLoad` with explicit reserved-versus-occupied semantics. Show uniquely occupied time consistently across summaries; display overlaps separately.
+- Centralize meaningful semantic time/status and themed error/warning colors in `src/theme/tokens.ts`. A `Palette` type defined in thirteen screens was a real structural duplicate, now replaced by one exported type. Keep per-screen StyleSheets for genuinely different layout concerns.
+- Use one small CI source guard to prevent reintroducing this specific drift, and tests on clipped overlap and readable status colors. Native contrast/large-font QA is not subsumed by source tests.

@@ -56,3 +56,11 @@ This document describes whole-gate validation. Sampled current evidence is in RO
 - [ ] No secrets or private user data in repository.
 - [ ] Signed build and documented versioning.
 - [ ] Known limitations explicitly recorded.
+
+## Calendar SSOT / StyleSheet review
+
+- [x] One derived calendar event collection feeds Day, Week, Month; domain interval predicates are shared. In-memory source contract checked in CI.
+- [x] Consistent occupied-time summaries with explicit overlap handling and clipped-range assertions.
+- [x] Shared `Palette` type and semantic schedule/warning/error tokens, including static text contrast checks.
+- [ ] Check at 100/130/200% OS font scale, TalkBack/VoiceOver, tiny screens, dense overlaps and dark/light on actual native builds.
+- [ ] Confirm touch interactions in native runtime; TypeScript and JavaScript export acceptance cannot certify gestures or screenshots.

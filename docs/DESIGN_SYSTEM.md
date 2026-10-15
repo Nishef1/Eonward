@@ -88,3 +88,19 @@ The October 15 direction was grounded in a user-supplied reference collection an
 - Reduced-motion mode avoids decorative animation dependencies. Confirm/cancel control state is explicit; never depend solely on a swipe gesture.
 
 **Evidence boundary:** TypeScript/JS exports and SQLite unit/integration tests have passed this source slice. Direct drag hit-testing, nested ScrollView negotiation, 130–200% font scaling, TalkBack/VoiceOver, keyboard, landscape and low-end device FPS still require rendered native interaction testing. No screenshot, prototype or build result should be called user aesthetic acceptance on its own.
+
+## Source of truth for styling and calendar data (2026-10-15)
+
+`src/theme/tokens.ts` is the only shared source for Studio palette, spacing, radii, depth, semantic schedule tones, feedback colors and the `Palette` type. Keep screen-specific layout and placement in its own `StyleSheet.create`; duplicate meaning, not all similar numeric values, is what should be eliminated.
+
+`src/domain/timeblocks.ts` is the single place for interval clipping, overlap predicates, reserved duration and occupied-wall-time math. The Calendar screen performs one block-range read for the month grid containing the selected week, then derives Day/Week/Month slices from the result. Both cards and their parent header refer to occupied wall time. Never multiply-report overlapping Timeboxes as separate elapsed hours.
+
+The CI source contract `scripts/check-design-ssot.mjs` blocks repeated Palette definitions, semantic schedule hex colors in feature code and independent Day/Week/Month block arrays. Read-only domain tests protect overlap math and contrast. This is source verification, not native font-scaling or device aesthetic acceptance.
+
+### Remaining visual QA
+
+- [ ] Font scaling at 100%, 130% and 200%; allow title wrapping and avoid truncating touch labels.
+- [ ] Correct handling for calendar blocks shorter than 30 minutes and dense overlap, especially drag/resize affordances and 48dp interaction surfaces.
+- [ ] Light/dark contrast of warnings and destructive links in Android TalkBack and iOS VoiceOver.
+- [ ] Navigation, Month grid and Focus dock at small screen width and landscape.
+- [ ] Manual screenshots/recordings and user review before calling the entire Studio design final.
