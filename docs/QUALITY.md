@@ -11,6 +11,13 @@ This document describes whole-gate validation. Sampled current evidence is in RO
 - [ ] Device timezone and locale changes preserve stored UTC instants and civil planning keys.
 - [ ] Board filters and weekly budget actions behave reliably with empty and populated data.
 
+## Native E2E tooling status
+
+- [x] CI rejects a raw `useSQLiteContext` outside the canonical serialized storage hook, including the formerly bypassing Focus dock.
+- [x] EAS smoke definitions, isolated QA profile and Maestro flows are source-controlled, with a CI check that the QA IDs cannot overwrite the production app IDs.
+- [ ] Actually execute Maestro on native Android/iOS artifacts; record pass/fail and resulting device evidence. A source-controlled flow is not test execution.
+- [ ] Exercise the Android issue #2 font/theme lifecycle reproduction on an emulator and capture the native crash buffer. See [NATIVE_ACCEPTANCE.md](NATIVE_ACCEPTANCE.md).
+
 ## Native SQLite release blocker
 
 - [ ] Android (including live font/theme/rotation transitions with dirty forms) passes native SQLite lifecycle stress without SIGSEGV/NPE. Track [issue #2](https://github.com/Nishef1/Eonward/issues/2).
