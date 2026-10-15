@@ -1,7 +1,7 @@
 import { useCallback, useState } from 'react';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { Alert, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
-import { useSQLiteContext } from 'expo-sqlite';
+import { useEonwardDatabase } from '../../storage/use-database';
 import type { FocusHistory } from '../../domain/focus';
 import type { Goal } from '../../domain/goals';
 import { startOfWeek } from '../../domain/horizons';
@@ -15,7 +15,7 @@ const format = (minutes: number) => minutes >= 60
   : `${Math.floor(minutes)}m`;
 interface Props { palette: Palette; history: FocusHistory[]; refreshKey: number }
 export function TimeArchitecture({ palette, history, refreshKey }: Props) {
-  const db = useSQLiteContext();
+  const db = useEonwardDatabase();
   const router = useRouter();
   const [goals, setGoals] = useState<Goal[]>([]);
   const [budgets, setBudgets] = useState<WeeklyCapacity[]>([]);

@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import { ActivityIndicator, Alert, AppState, Pressable, ScrollView, StyleSheet, Text, useColorScheme, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useSQLiteContext } from 'expo-sqlite';
+import { useEonwardDatabase } from '../../storage/use-database';
 import type { Goal, GoalInput } from '../../domain/goals';
 import {
   analyzeDayLoad, localDayBounds, localDayKey, monthGridDays, parseLocalDay, shiftLocalDay, type BlockInput, type TimeBlock,
@@ -48,7 +48,7 @@ function durationLabel(minutes: number) {
 }
 
 export function CalendarScreen() {
-  const db = useSQLiteContext();
+  const db = useEonwardDatabase();
   const focus = useFocusSession();
   const router = useRouter();
   const { goalId } = useLocalSearchParams<{ goalId?: string }>();

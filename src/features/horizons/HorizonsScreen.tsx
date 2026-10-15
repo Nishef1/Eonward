@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import { ActivityIndicator, Alert, AppState, FlatList, Keyboard, Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, useColorScheme, View } from 'react-native';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
-import { useSQLiteContext } from 'expo-sqlite';
+import { useEonwardDatabase } from '../../storage/use-database';
 import { dateFromPeriodKey, HORIZONS, HORIZON_TITLES, periodKey, periodLabel, shiftPeriod, type Horizon } from '../../domain/horizons';
 import { availableGoalParents, type Goal, type GoalInput } from '../../domain/goals';
 import { buildPerspectiveSections } from '../../domain/perspective';
@@ -96,7 +96,7 @@ function GoalCard({
 
 export function HorizonsScreen() {
   const reducedMotion = useReducedMotion();
-  const db = useSQLiteContext();
+  const db = useEonwardDatabase();
   const router = useRouter();
   const focus = useFocusSession();
   const { goalId } = useLocalSearchParams<{ goalId?: string }>();

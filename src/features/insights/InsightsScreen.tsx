@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { ActivityIndicator, Alert, AppState, Pressable, ScrollView, StyleSheet, Text, useColorScheme, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useSQLiteContext } from 'expo-sqlite';
+import { useEonwardDatabase } from '../../storage/use-database';
 import type { FocusHistory } from '../../domain/focus';
 import type { Goal } from '../../domain/goals';
 import { periodKey, startOfWeek } from '../../domain/horizons';
@@ -21,7 +21,7 @@ function duration(ms: number): string {
 }
 export function InsightsScreen() {
   const focus = useFocusSession();
-  const db = useSQLiteContext(), router = useRouter();
+  const db = useEonwardDatabase(), router = useRouter();
   const palette = useColorScheme() === 'dark' ? colors.dark : colors.light;
   const [weekHistory, setWeekHistory] = useState<FocusHistory[]>([]);
   const [recent, setRecent] = useState<FocusHistory[]>([]);

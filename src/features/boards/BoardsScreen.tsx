@@ -3,7 +3,7 @@ import { useReducedMotion } from '../../theme/useReducedMotion';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { Alert, ActivityIndicator, KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, useColorScheme, View } from 'react-native';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
-import { useSQLiteContext } from 'expo-sqlite';
+import { useEonwardDatabase } from '../../storage/use-database';
 import { colors, depth, radius, spacing } from '../../theme/tokens';
 import Check from 'lucide-react-native/icons/check';
 import ChevronLeft from 'lucide-react-native/icons/chevron-left';
@@ -24,7 +24,7 @@ import {
 
 export function BoardsScreen() {
   const reducedMotion = useReducedMotion();
-  const db = useSQLiteContext();
+  const db = useEonwardDatabase();
   const router = useRouter();
   const palette = useColorScheme() === 'dark' ? colors.dark : colors.light;
   const [boards, setBoards] = useState<Board[]>([]);
