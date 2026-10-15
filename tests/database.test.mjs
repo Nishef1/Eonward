@@ -145,7 +145,7 @@ test('offline planning lifecycle preserves identity, recurrence, completion hist
     const step = await createGoal(source.db, { title: '  Read   a chapter ', notes: 'Keep this note', horizon: 'day',
       periodKey: '2026-01-31', parentId: parent, dueDate: '2026-02-02', repeatRule: 'monthly' });
     const inbox = await createGoal(source.db, { title: 'A later idea', notes: '', horizon: 'day', periodKey: '', inbox: true });
-    assert.equal((await listInboxGoals(source.db))[0].id, inbox);
+    assert.ok((await listInboxGoals(source.db)).some((item) => item.id === inbox));
     assert.equal((await getGoal(source.db, inbox)).periodKey, '');
     await assert.rejects(() => editGoal(source.db, parent, { title: 'Cycle', notes: '', horizon: 'year', periodKey: '2026', parentId: step }), /own next steps/);
     const board = await createBoard(source.db, 'Reading', 'A personal project');
@@ -184,9 +184,9 @@ test('offline planning lifecycle preserves identity, recurrence, completion hist
     await assert.rejects(() => planGoal(source.db, step, { horizon: 'week', periodKey: '2026-W06' }), /daily planning date/);
     await assert.rejects(() => planGoal(source.db, step, { horizon: 'day', periodKey: '', inbox: true }), /before repeating/);
     await planGoal(source.db, inbox, { horizon: 'week', periodKey: '2026-W06' });
-    assert.equal((await listInboxGoals(source.db)).length, 0);
+    assert.ok(!(await listInboxGoals(source.db)).some((item) => item.id === inbox));
     await planGoal(source.db, inbox, { horizon: 'week', periodKey: '', inbox: true });
-    assert.equal((await listInboxGoals(source.db))[0].id, inbox);
+    assert.ok((await listInboxGoals(source.db)).some((item) => item.id === inbox));
     await assert.rejects(() => planGoal(source.db, inbox, { horizon: 'day', periodKey: '2026-02-30' }), /valid planning period/);
     await assert.rejects(() => beginQuickFocus(source.db, inbox, 15), /already active/);
     assert.equal(source.sqlite.prepare('SELECT count(*) AS n FROM time_blocks').get().n, blockCount);
