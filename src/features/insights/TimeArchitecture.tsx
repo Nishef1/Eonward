@@ -1,6 +1,6 @@
 import { useCallback, useState } from 'react';
 import { useFocusEffect } from 'expo-router';
-import { Alert, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Alert, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { useSQLiteContext } from 'expo-sqlite';
 import type { FocusHistory } from '../../domain/focus';
 import type { Goal } from '../../domain/goals';
@@ -120,14 +120,14 @@ export function TimeArchitecture({ palette, history, refreshKey }: Props) {
       <Text style={[styles.title, { color: palette.foreground }]}>Weekly allocation</Text>
       <TextInput value={filter} onChangeText={setFilter} placeholder="Find a goal…" placeholderTextColor={palette.muted}
         accessibilityLabel="Find a goal to allocate time" style={[styles.input, { color: palette.foreground, borderColor: palette.border }]} />
-      <View style={{ maxHeight: 190, overflow: 'hidden' }}>
+      <ScrollView nestedScrollEnabled keyboardShouldPersistTaps="always" style={{ maxHeight: 190 }}>
         {openGoals.map((g) => <Pressable key={g.id} accessibilityRole="radio"
           accessibilityState={{ checked: goalId === g.id }} onPress={() => pick(g)} style={styles.choice}>
           <Text numberOfLines={1} style={{ color: goalId === g.id ? palette.accent : palette.foreground }}>
             {goalId === g.id ? '✓ ' : '○ '}{g.title}
           </Text>
         </Pressable>)}
-      </View>
+      </ScrollView>
       <Text style={[styles.caption, { color: palette.muted }]}>Weekly hours for {selected?.title ?? 'selected goal'} (0 removes allocation)</Text>
       <TextInput keyboardType="decimal-pad" value={hours} onChangeText={setHours}
         accessibilityLabel="Hours per week" style={[styles.input, { color: palette.foreground, borderColor: palette.border }]} />
