@@ -247,12 +247,22 @@ export function CalendarScreen() {
           Alert.alert('Could not start focus', error instanceof Error ? error.message : 'Try again.');
         });
     };
-    if (focus.session) {
-      Alert.alert('Replace current focus?', 'Starting this Timebox will end your existing focus session. Its goal remains unchanged.', [
+    const proceed = () => {
+      if (focus.session) {
+        Alert.alert('Replace current focus?', 'Starting this Timebox ends your existing session and saves its recorded work.', [
+          { text: 'Cancel', style: 'cancel' },
+          { text: 'Start new focus', onPress: () => begin(true) },
+        ]);
+      } else begin();
+    };
+    // A scheduled date is not the same as the actual start of a new Focus timer.
+    // Avoid presenting a months-old reservation as if its wall-clock slot is today.
+    if (Date.parse(block.endAt) < Date.now()) {
+      Alert.alert('Start a past Timebox?', 'This reservation was scheduled earlier. The new Focus timer starts now using its original duration; the old calendar dates will not move.', [
         { text: 'Cancel', style: 'cancel' },
-        { text: 'Start new timebox', onPress: () => begin(true) },
+        { text: 'Start now', onPress: proceed },
       ]);
-    } else begin();
+    } else proceed();
   }
   function applyPreview(preview: ReplanPreview) {
     return write(async () => { await applyReplan(db, preview, blocks); setRecoveryOpen(false); });
