@@ -3,6 +3,10 @@ import { localDayBounds, localDayKey, type TimeBlock } from './timeblocks';
 export type TimelineEditMode = 'move' | 'resize';
 export interface TimelineEditPreview {
   blockId: string;
+  goalId: string;
+  kind: TimeBlock['kind'];
+  intention: string;
+  flexible: boolean;
   day: string;
   mode: TimelineEditMode;
   fromStart: string;
@@ -48,7 +52,8 @@ export function previewTimelineEdit(
   }
   const conflicts = others.filter((other) => other.id !== block.id &&
     Date.parse(other.startAt) < proposedEnd && Date.parse(other.endAt) > proposedStart).length;
-  return { blockId: block.id, day: localDayKey(day), mode,
+  return { blockId: block.id, goalId: block.goalId, kind: block.kind,
+    intention: block.intention, flexible: block.flexible, day: localDayKey(day), mode,
     fromStart: block.startAt, fromEnd: block.endAt,
     toStart: new Date(proposedStart).toISOString(),
     toEnd: new Date(proposedEnd).toISOString(), conflicts };

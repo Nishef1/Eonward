@@ -15,12 +15,16 @@ export async function applyTimelineEdit(db: SQLiteDatabase, preview: TimelineEdi
     throw new Error('The proposed time is outside the supported day.');
   }
   await db.withExclusiveTransactionAsync(async (tx) => {
-    const row = await tx.getFirstAsync<{ id: string; goal_id: string; completed: number }>(`
-      SELECT tb.id, tb.goal_id, g.completed FROM time_blocks tb
+    const row = await tx.getFirstAsync<{ id: string; goal_id: string; completed: number;
+      kind: string; intention: string; flexible: number }>(`
+      SELECT tb.id, tb.goal_id, tb.kind, tb.intention, tb.flexible, g.completed FROM time_blocks tb
       JOIN goals g ON g.id = tb.goal_id
       WHERE tb.id = ? AND tb.start_at = ? AND tb.end_at = ? AND g.archived_at IS NULL
     `, [preview.blockId, preview.fromStart, preview.fromEnd]);
-    if (!row || row.completed) throw new Error('Reservation changed. Review a new preview.');
+    if (!row || row.completed || row.goal_id !== preview.goalId ||
+      row.kind !== preview.kind || row.intention !== preview.intention ||
+      (row.flexible === 1) !== preview.flexible)
+      throw new Error('Reservation changed. Review a new preview.');
     const focus = await tx.getFirstAsync('SELECT id FROM focus_session WHERE id = 1 AND block_id = ?', [preview.blockId]);
     if (focus) throw new Error('End the active Focus session before changing its reservation.');
     const currentConflicts = await tx.getFirstAsync<{ total: number }>(`

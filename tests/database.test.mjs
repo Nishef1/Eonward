@@ -238,6 +238,13 @@ test('offline planning lifecycle preserves identity, recurrence, completion hist
     // A manual timeline drag is an explicit, isolated move with atomic stale-preview checks.
     const sourceBlock = beforeRecovery.find((block) => block.goalId === flexibleGoal);
     const directPreview = previewTimelineEdit(sourceBlock, beforeRecovery, selectedDay, 'move', 15);
+    // Editing the intent after a preview must invalidate the visual confirmation,
+    // even when timestamps have not changed.
+    source.sqlite.prepare('UPDATE time_blocks SET intention = ? WHERE id = ?')
+      .run('Someone edited the plan', sourceBlock.id);
+    await assert.rejects(() => applyTimelineEdit(source.db, directPreview), /Reservation changed/);
+    source.sqlite.prepare('UPDATE time_blocks SET intention = ? WHERE id = ?')
+      .run(sourceBlock.intention, sourceBlock.id);
     await applyTimelineEdit(source.db, directPreview);
     assert.equal((await listDayBlocks(source.db, selectedDay)).find((block) => block.id === sourceBlock.id).startAt,
       directPreview.toStart);
