@@ -3,7 +3,7 @@ import test from 'node:test';
 import { isoWeekKey, periodKey, shiftPeriod, startOfWeek, periodLabel, dateFromPeriodKey, parseDateInput } from '../src/domain/horizons.ts';
 import { normalizeGoalTitle, availableGoalParents } from '../src/domain/goals.ts';
 import { buildPerspectiveSections } from '../src/domain/perspective.ts';
-import { analyzeDayLoad, clockWithUtcOffset, analyzeRangeLoad, blockOverlapsRange, blockClockRangeForDay, layoutBlocks, localDayBounds, localDayKey, monthGridDays, timeRangeFromInput } from '../src/domain/timeblocks.ts';
+import { analyzeDayLoad, clockWithUtcOffset, analyzeRangeLoad, peakOverlap, blockOverlapsRange, blockClockRangeForDay, layoutBlocks, localDayBounds, localDayKey, monthGridDays, timeRangeFromInput } from '../src/domain/timeblocks.ts';
 import { formatFocusTime, getFocusDurationMs, getFocusRemainingMs, getFocusElapsedMs } from '../src/domain/focus.ts';
 import { previewReplan } from '../src/domain/replan.ts';
 import { semantic } from '../src/theme/tokens.ts';
@@ -168,6 +168,12 @@ test('overlapping time blocks split their timeline lanes, consecutive blocks reu
   assert.deepEqual(range, { reservedMinutes: 120, occupiedMinutes: 90, overlapMinutes: 30 });
   assert.equal(blockOverlapsRange(calendar[0], from, to), true);
   assert.equal(blockOverlapsRange(calendar[2], from, to), false);
+  const dense = [
+    ...Array.from({ length: 4 }, (_, index) => ({ startAt: instant(9, index * 5), endAt: instant(10, 0) })),
+    { startAt: instant(10, 0), endAt: instant(11, 0) },
+  ];
+  assert.equal(peakOverlap(dense, from, to), 4);
+  assert.equal(peakOverlap([], from, to), 0);
   assert.deepEqual(analyzeRangeLoad([], from, to), {
     reservedMinutes: 0, occupiedMinutes: 0, overlapMinutes: 0,
   });
