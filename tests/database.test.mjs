@@ -402,6 +402,16 @@ test('offline planning lifecycle preserves identity, recurrence, completion hist
     await archiveGoal(source.db, parent); await restoreGoal(source.db, parent);
     const snapshot = await exportBackup(source.db), text = JSON.stringify(snapshot);
     assert.equal(snapshot.version, 2);
+    // Portable backups must not bypass the same 1-minute to 24-hour time bounds as the editor.
+    const impossibleDuration = structuredClone(snapshot);
+    impossibleDuration.tables.time_blocks[0].end_at =
+      new Date(Date.parse(String(impossibleDuration.tables.time_blocks[0].start_at)) +
+        25 * 60 * 60 * 1000).toISOString();
+    assert.throws(() => parseBackup(JSON.stringify(impossibleDuration)), /invalid time block/);
+    const subMinute = structuredClone(snapshot);
+    subMinute.tables.time_blocks[0].end_at =
+      new Date(Date.parse(String(subMinute.tables.time_blocks[0].start_at)) + 30000).toISOString();
+    assert.throws(() => parseBackup(JSON.stringify(subMinute)), /invalid time block/);
     assert.equal(snapshot.tables.time_budgets.length, 2);
     assert.equal(snapshot.tables.focus_history.filter((row) => row.goal_id === step).length, 3);
     const legacy = structuredClone(snapshot);

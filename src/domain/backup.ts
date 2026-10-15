@@ -128,7 +128,9 @@ export function parseBackup(text: string): Backup {
   }
   for (const row of data.tables.time_blocks) {
     if (!goals.has(row.goal_id) || !stamp(row.start_at) || !stamp(row.end_at)
-      || String(row.end_at) <= String(row.start_at) || !['block', 'box'].includes(String(row.kind))
+      || (Date.parse(String(row.end_at)) - Date.parse(String(row.start_at))) < 60000
+      || (Date.parse(String(row.end_at)) - Date.parse(String(row.start_at))) > 86400000
+      || !['block', 'box'].includes(String(row.kind))
       || typeof row.intention !== 'string' || ![0, 1].includes(row.flexible as number)) fail('invalid time block.');
   }
   for (const row of data.tables.goal_activity) {
