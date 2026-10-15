@@ -3,7 +3,7 @@ import test from 'node:test';
 import { DatabaseSync } from 'node:sqlite';
 import { migrateDatabase } from '../src/storage/database.ts';
 import { createGoal, editGoal, planGoal, setGoalCompleted, getGoal, listInboxGoals, completedGoalsSince, archiveGoal, restoreGoal, reviewPastGoal } from '../src/storage/goals.ts';
-import { exportBackup, restoreBackup } from '../src/storage/backup.ts';
+import { exportBackup, previewBackupMerge, restoreBackup } from '../src/storage/backup.ts';
 import { nextOccurrence } from '../src/domain/planning.ts';
 import { createBoard, addGoalToBoard, listBoardGoals } from '../src/storage/boards.ts';
 import { beginFocusSession, beginQuickFocus, getFocusSession, pauseFocusSession, resumeFocusSession, stopFocusSession, listFocusHistory } from '../src/storage/focus.ts';
@@ -433,8 +433,14 @@ test('offline planning lifecycle preserves identity, recurrence, completion hist
     for (const row of legacy.tables.time_blocks) delete row.flexible;
     for (const row of legacy.tables.focus_history) { delete row.goal_id; delete row.block_id; }
     assert.equal(parseBackup(JSON.stringify(legacy)).tables.time_blocks.every((row) => row.flexible === 0), true);
-    assert.ok(await restoreBackup(target.db, text) > 0);
-    assert.equal(await restoreBackup(target.db, text), 0);
+    const firstMerge = await previewBackupMerge(target.db, text);
+    assert.equal(firstMerge.missing, firstMerge.incoming);
+    assert.equal(firstMerge.different, 0);
+    assert.ok(await restoreBackup(target.db, text, firstMerge) > 0);
+    const secondMerge = await previewBackupMerge(target.db, text);
+    assert.equal(secondMerge.missing, 0);
+    assert.equal(secondMerge.identical, secondMerge.incoming);
+    assert.equal(await restoreBackup(target.db, text, secondMerge), 0);
     const restored = await exportBackup(target.db);
     for (const table of Object.keys(snapshot.tables)) {
       assert.deepEqual(restored.tables[table].map(JSON.stringify).sort(), snapshot.tables[table].map(JSON.stringify).sort());
@@ -457,7 +463,18 @@ test('offline planning lifecycle preserves identity, recurrence, completion hist
     assert.equal(target.sqlite.prepare('SELECT id FROM goals WHERE id = ?').get('must-roll-back'), undefined);
     const localTitle = (await getGoal(target.db, step)).title;
     snapshot.tables.goals.find((row) => row.id === step).title = 'Do not overwrite local edits';
-    await restoreBackup(target.db, JSON.stringify(snapshot));
+    const divergent = JSON.stringify(snapshot);
+    const conflicts = await previewBackupMerge(target.db, divergent);
+    assert.equal(conflicts.different, 1);
+    assert.deepEqual(conflicts.differentTables, ['goals']);
+    // A local edit after confirmation invalidates the preview.
+    const stalePreview = await previewBackupMerge(target.db, text);
+    target.sqlite.prepare('UPDATE boards SET description = ? WHERE id = ?')
+      .run('Edited after preview', snapshot.tables.boards[0].id);
+    await assert.rejects(() => restoreBackup(target.db, text, stalePreview), /Local data changed/);
+    assert.equal(target.sqlite.prepare('SELECT description FROM boards WHERE id = ?')
+      .get(snapshot.tables.boards[0].id).description, 'Edited after preview');
+    await restoreBackup(target.db, divergent);
     assert.equal((await getGoal(target.db, step)).title, localTitle);
     assert.equal(target.sqlite.prepare('PRAGMA foreign_key_check').all().length, 0);
   } finally { source.sqlite.close(); target.sqlite.close(); }

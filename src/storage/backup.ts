@@ -12,11 +12,69 @@ export async function exportBackup(db: SQLiteDatabase): Promise<Backup> {
     createdAt: new Date().toISOString(), tables }));
 }
 
+export interface BackupMergePreview {
+  incoming: number;
+  missing: number;
+  identical: number;
+  different: number;
+  differentTables: BackupTable[];
+}
+function rowIdentity(table: BackupTable, row: BackupRow): string {
+  return table === 'board_goals' ? JSON.stringify([row.board_id, row.goal_id])
+    : String(table === 'time_budgets' ? row.goal_id : row.id);
+}
+function sameRow(table: BackupTable, a: BackupRow, b: BackupRow): boolean {
+  return BACKUP_COLUMNS[table].every((column) => a[column] === b[column]);
+}
+/** Read a consistent local snapshot; an ID collision does not mean equal content. */
+async function countMerge(
+  db: Pick<SQLiteDatabase, 'getAllAsync'>, backup: Backup,
+): Promise<BackupMergePreview> {
+  const summary: BackupMergePreview = { incoming: 0, missing: 0, identical: 0,
+    different: 0, differentTables: [] };
+  for (const table of Object.keys(BACKUP_COLUMNS) as BackupTable[]) {
+    const incoming = backup.tables[table];
+    summary.incoming += incoming.length;
+    if (!incoming.length) continue;
+    const columns = BACKUP_COLUMNS[table];
+    const saved = await db.getAllAsync<BackupRow>(
+      `SELECT ${columns.join(', ')} FROM ${table}`);
+    const existing = new Map(saved.map((row) => [rowIdentity(table, row), row]));
+    for (const row of incoming) {
+      const local = existing.get(rowIdentity(table, row));
+      if (!local) summary.missing++;
+      else if (sameRow(table, local, row)) summary.identical++;
+      else {
+        summary.different++;
+        if (!summary.differentTables.includes(table)) summary.differentTables.push(table);
+      }
+    }
+  }
+  return summary;
+}
+export async function previewBackupMerge(db: SQLiteDatabase, text: string): Promise<BackupMergePreview> {
+  const backup = parseBackup(text);
+  let result: BackupMergePreview | null = null;
+  await db.withExclusiveTransactionAsync(async (tx) => {
+    result = await countMerge(tx, backup);
+  });
+  return result!;
+}
+
 /** Add missing records atomically; existing IDs always keep their current local values. */
-export async function restoreBackup(db: SQLiteDatabase, text: string): Promise<number> {
+export async function restoreBackup(db: SQLiteDatabase, text: string,
+  expected?: BackupMergePreview): Promise<number> {
   const backup = parseBackup(text);
   let added = 0;
   await db.withExclusiveTransactionAsync(async (tx) => {
+    if (expected) {
+      const actual = await countMerge(tx, backup);
+      if (actual.incoming !== expected.incoming || actual.missing !== expected.missing ||
+        actual.identical !== expected.identical || actual.different !== expected.different ||
+        actual.differentTables.join('|') !== expected.differentTables.join('|')) {
+        throw new Error('Local data changed after the restore preview. Preview the backup again.');
+      }
+    }
     await tx.execAsync('PRAGMA defer_foreign_keys = ON;');
     for (const name of Object.keys(BACKUP_COLUMNS) as BackupTable[]) {
       const columns = BACKUP_COLUMNS[name];

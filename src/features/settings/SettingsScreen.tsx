@@ -8,7 +8,7 @@ import * as Sharing from 'expo-sharing';
 import * as DocumentPicker from 'expo-document-picker';
 import Constants from 'expo-constants';
 import { MAX_BACKUP_BYTES, parseBackup } from '../../domain/backup';
-import { exportBackup, restoreBackup } from '../../storage/backup';
+import { exportBackup, previewBackupMerge, restoreBackup } from '../../storage/backup';
 import { checkLocalHealth, type LocalHealth } from '../../storage/health';
 import { colors } from '../../theme/tokens';
 import ChevronLeft from 'lucide-react-native/icons/chevron-left';
@@ -70,12 +70,16 @@ export function SettingsScreen() {
     try {
       if ((file.size ?? 0) > MAX_BACKUP_BYTES) throw new Error('Choose an Eonward backup smaller than 10 MB.');
       const text = await file.text();
-      const preview = parseBackup(text);
-      Alert.alert('Restore missing data?', `${preview.tables.goals.length} goals, ${preview.tables.boards.length} boards and ${preview.tables.time_blocks.length} time blocks.\n\nExisting items keep their current values. No items are deleted. Active timers are not imported.`, [
+      const merge = await previewBackupMerge(db, text);
+      const conflictNotice = merge.different
+        ? `\n\nImportant: ${merge.different} records have the same ID but different local content (${merge.differentTables.join(', ')}). The LOCAL version wins. These incoming differences will NOT be imported.`
+        : '';
+      Alert.alert('Preview backup merge',
+        `${merge.missing} missing records to add · ${merge.identical} already identical${conflictNotice}\n\nNo existing data will be deleted or overwritten. Active Focus timers are not included.`, [
         { text: 'Cancel', style: 'cancel' },
-        { text: 'Restore', onPress: () => { void run(async () => {
-          const count = await restoreBackup(db, text);
-          setNotice(`${count} missing record${count === 1 ? '' : 's'} restored. Your existing data was preserved.`);
+        { text: 'Restore missing', onPress: () => { void run(async () => {
+          const count = await restoreBackup(db, text, merge);
+          setNotice(`${count} missing record${count === 1 ? '' : 's'} restored. ${merge.different} differences kept their current local values.`);
         }); } },
       ]);
     } finally { if (file.exists) file.delete(); }
