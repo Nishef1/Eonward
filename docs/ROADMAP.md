@@ -27,6 +27,35 @@ This file is the single source of truth for **planned vs completed** work. It is
 | M5 — Mobile integration | Notifications, widgets, localization, backup | Native picker/backup/reminders implemented; widgets/localization remain open | Physical-device and Apple acceptance |
 | M6 — Quality & release | Performance, accessibility, testing, release build | Isolated Android release QA APK built; iOS JS export passes | Store signing, native iOS, physical-device and accessibility gates |
 
+## CTO feature gate — whole-product audit (2026-10-15)
+
+**Decision: improve the shipped core, do not add another headline feature in this slice.** The seven horizons, editable goals, Boards, day/week/month Calendar, global Focus, Review, Guided Plans and protected Recovery provide a sufficiently complete first-version workflow. More feature inventory does not solve unverified Android SQLite lifecycle or native platform acceptance. See `docs/CAPABILITIES.md` for implementation boundaries.
+
+| Area | Existing value | Main gap and next gate | Decision |
+| --- | --- | --- | --- |
+| Horizons, Inbox, Guided Plans | Capture, editable long-term goals, starter paths | Native first-run discoverability, many-goal performance and keyboard/screen-reader acceptance | Refine, no new goal model |
+| Boards | Shared goal collections with open/scheduled/done lenses | Persistent independent board order/sections would require schema and new backup contract | Defer feature; test current UI |
+| Calendar & Living Timeline | Detailed day, week, month, measured linked Focus and overlapping reservations | Native UI, DST, overnight attribution and Recovery safety | Improve and validate |
+| Ripple/Recovery | Explicit Flexible flag, safe preview, guarded apply and temporary Undo | Avoid overwriting later edits and never suggest an unusable Undo | **Fixed in source** |
+| Focus | Persistent running/paused session and recorded outcomes | Completed-goal Timeboxes were inconsistent with Quick Focus; global panel could show a stale session | **Fixed in source** |
+| Review & Time Architecture | Goal-linked Focus and user-set weekly capacity | Overlapping same-goal reservations overstated actual occupied weekly time | **Fixed in source** |
+| Backup, settings & privacy | Offline v2 export, strict legacy v1 import, local health checks | Unencrypted cache files and device recipient/cancellation acceptance | Native test before claiming safe |
+| Mobile integration | Native navigation, pickers and notifications | P0 expo-sqlite crash, native iOS, VoiceOver/TalkBack, OEM notification behavior | **Release blockers** |
+| Next-wave ideas | Habits, widgets, capture from shares, Jalali/RTL, saved templates | Platform/API or schema investment without verified core journeys | Defer; reopen only after release gates |
+
+**Reliability changes in this slice:**
+
+- [x] Weekly Time Architecture counts the union of each goal's own reservations and descendants' reservations, rather than double-counting overlapping periods; independent goal budgets remain independently scoped.
+- [x] Undo checkpoints retain the applied block's timestamp, owner, type and intention. Undo rejects changes made after the preview and does not reverse newly completed or archived goals.
+- [x] The Undo action now checks that all moved reservations are still eligible, instead of showing a button until a transaction fails; SQL transaction remains the definitive guard.
+- [x] Timebox-based Focus now rejects completed goals, matching the existing Quick Focus rules. Completing a goal closes its active Focus within the completion transaction, keeping recorded history.
+- [x] Plan and Boards refresh the shared Focus provider after completion so the cross-screen Focus panel does not continue displaying the closed timer.
+- [x] Real SQLite/Node test coverage extends existing test scenarios for overlapping weekly allocations, protected Undo following a later edit, and Focus completion behavior; retain the 20-test suite policy.
+- [ ] Native Android/iOS verification of completion while running/paused Focus, Expo notifications, and corrupted/recreated Undo checkpoints.
+- [ ] Native Android SQLite SIGSEGV P0 issue #2. Source fixes and JavaScript bundle CI do **not** close this blocker.
+
+**Remaining product decision:** Next engineering capacity should go to native QA and the data lifecycle; do not prematurely add AI suggestions, habits, team sync, or more navigation destinations. After P0 and Android/iOS acceptance, evaluate localization/Jalali and share-to-capture with user tests and explicit platform scope, then saved templates or habits. If Core journeys fail, return to fixes before growth features.
+
 ## Self-critical reliability and usability pass (2026-10-15)
 
 **This pass intentionally improves previous work instead of adding a parallel subsystem.**
