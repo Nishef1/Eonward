@@ -20,7 +20,8 @@ export const colors = {
     surface: '#FFFFFF',
     foreground: '#202927',
     muted: '#66736E',
-    accent: '#587A6D',
+    accent: '#527265',
+    onAccent: '#FFFFFF',
     border: '#E6EAE4',
   },
   dark: {
@@ -29,6 +30,7 @@ export const colors = {
     foreground: '#F0F3F0',
     muted: '#A8B7AF',
     accent: '#92B2A3',
+    onAccent: '#151A19',
     border: '#36413B',
   },
 } as const;

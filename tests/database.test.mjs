@@ -2,6 +2,28 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { DatabaseSync } from 'node:sqlite';
 import { migrateDatabase } from '../src/storage/database.ts';
+import { createGoal, editGoal, setGoalCompleted, getGoal, listInboxGoals, completedGoalsSince, archiveGoal, restoreGoal, reviewPastGoal } from '../src/storage/goals.ts';
+import { exportBackup, restoreBackup } from '../src/storage/backup.ts';
+import { nextOccurrence } from '../src/domain/planning.ts';
+import { createBoard, addGoalToBoard, listBoardGoals } from '../src/storage/boards.ts';
+
+function realDatabase() {
+  const sqlite = new DatabaseSync(':memory:');
+  const query = {
+    execAsync: async (sql) => { sqlite.exec(sql); },
+    getFirstAsync: async (sql, values = []) => sqlite.prepare(sql).get(...values) ?? null,
+    getAllAsync: async (sql, values = []) => sqlite.prepare(sql).all(...values),
+    runAsync: async (sql, values = []) => sqlite.prepare(sql).run(...values),
+  };
+  const db = { ...query, withExclusiveTransactionAsync: async (callback) => {
+    sqlite.exec('BEGIN IMMEDIATE');
+    try { await callback(query); sqlite.exec('COMMIT'); }
+    catch (error) { sqlite.exec('ROLLBACK'); throw error; }
+  }};
+  db.withTransactionAsync = async (callback) => db.withExclusiveTransactionAsync(() => callback());
+  return { sqlite, db };
+}
+
 
 function fakeDatabase(version) {
   const queries = [];
@@ -9,94 +31,41 @@ function fakeDatabase(version) {
   const db = {
     execAsync: async (sql) => { queries.push(sql); },
     getFirstAsync: async () => ({ user_version: version }),
-    withExclusiveTransactionAsync: async (callback) => {
+    withTransactionAsync: async (callback) => {
       transactionCalls++;
-      await callback({ execAsync: db.execAsync });
+      await callback();
     },
   };
   return { db, queries, get transactionCalls() { return transactionCalls; } };
 }
 
-test('new database installs goal, board, calendar, focus and history schemas atomically', async () => {
-  const fake = fakeDatabase(0);
-  await migrateDatabase(fake.db);
-  assert.equal(fake.transactionCalls, 1);
-  assert.ok(fake.queries.some((sql) => sql.includes('CREATE TABLE IF NOT EXISTS goals')));
-  assert.ok(fake.queries.some((sql) => sql.includes('ADD COLUMN archived_at TEXT')));
-  assert.ok(fake.queries.some((sql) => sql.includes('ADD COLUMN sort_rank INTEGER NOT NULL DEFAULT 0')));
-  assert.ok(fake.queries.some((sql) => sql.includes('CREATE TABLE IF NOT EXISTS boards')));
-  assert.ok(fake.queries.some((sql) => sql.includes('CREATE TABLE IF NOT EXISTS board_goals')));
-  assert.ok(fake.queries.some((sql) => sql.includes('PRIMARY KEY (board_id, goal_id)')));
-  assert.ok(fake.queries.some((sql) => sql.includes('CREATE TABLE IF NOT EXISTS time_blocks')));
-  assert.ok(fake.queries.some((sql) => sql.includes('REFERENCES goals(id) ON DELETE CASCADE')));
-  assert.ok(fake.queries.some((sql) => sql.includes('CREATE TABLE IF NOT EXISTS focus_session')));
-  assert.ok(fake.queries.some((sql) => sql.includes('CREATE TABLE IF NOT EXISTS focus_history')));
-  assert.ok(fake.queries.some((sql) => sql.includes('PRAGMA user_version = 6')));
-});
-
-test('existing v1–v5 data upgrades to v6 without recreating goals', async () => {
-  const old = fakeDatabase(1);
-  await migrateDatabase(old.db);
-  assert.equal(old.transactionCalls, 1);
-  assert.ok(old.queries.some((sql) => sql.includes('ALTER TABLE goals ADD COLUMN archived_at')));
-  assert.equal(old.queries.some((sql) => sql.includes('CREATE TABLE IF NOT EXISTS goals')), false);
-  assert.ok(old.queries.some((sql) => sql.includes('CREATE TABLE IF NOT EXISTS boards')));
-  const v2 = fakeDatabase(2);
-  await migrateDatabase(v2.db);
-  assert.equal(v2.transactionCalls, 1);
-  assert.equal(v2.queries.some((sql) => sql.includes('ALTER TABLE goals')), false);
-  assert.ok(v2.queries.some((sql) => sql.includes('CREATE TABLE IF NOT EXISTS board_goals')));
-
-  const v3 = fakeDatabase(3);
-  await migrateDatabase(v3.db);
-  assert.equal(v3.transactionCalls, 1);
-  assert.ok(v3.queries.some((sql) => sql.includes('CREATE TABLE IF NOT EXISTS time_blocks')));
-  assert.equal(v3.queries.some((sql) => sql.includes('CREATE TABLE IF NOT EXISTS boards')), false);
-
-  const v4 = fakeDatabase(4);
-  await migrateDatabase(v4.db);
-  assert.equal(v4.transactionCalls, 1);
-  assert.ok(v4.queries.some((sql) => sql.includes('CREATE TABLE IF NOT EXISTS focus_session')));
-  assert.equal(v4.queries.some((sql) => sql.includes('CREATE TABLE IF NOT EXISTS time_blocks')), false);
-
-  const v5 = fakeDatabase(5);
-  await migrateDatabase(v5.db);
-  assert.equal(v5.transactionCalls, 1);
-  assert.ok(v5.queries.some((sql) => sql.includes('ALTER TABLE focus_session ADD COLUMN elapsed_ms')));
-  assert.ok(v5.queries.some((sql) => sql.includes('elapsed_ms = MAX(0, duration_ms - remaining_ms)')));
-  assert.ok(v5.queries.some((sql) => sql.includes('CREATE TABLE IF NOT EXISTS focus_history')));
-  assert.equal(v5.queries.some((sql) => sql.includes('CREATE TABLE IF NOT EXISTS focus_session')), false);
-
-  const upgraded = fakeDatabase(6);
-  await migrateDatabase(upgraded.db);
-  assert.equal(upgraded.transactionCalls, 0);
+test('schema upgrades are atomic, additive and idempotent for each supported starting version', async () => {
+  for (let version = 0; version <= 7; version++) {
+    const fake = fakeDatabase(version);
+    await migrateDatabase(fake.db);
+    assert.equal(fake.transactionCalls, version === 7 ? 0 : 1);
+    assert.equal(fake.queries.some((sql) => sql.includes('CREATE TABLE IF NOT EXISTS goals')), version === 0);
+    assert.equal(fake.queries.some((sql) => sql.includes('ADD COLUMN archived_at')), version <= 1);
+    assert.equal(fake.queries.some((sql) => sql.includes('CREATE TABLE IF NOT EXISTS boards')), version <= 2);
+    assert.equal(fake.queries.some((sql) => sql.includes('CREATE TABLE IF NOT EXISTS time_blocks')), version <= 3);
+    assert.equal(fake.queries.some((sql) => sql.includes('CREATE TABLE IF NOT EXISTS focus_session')), version <= 4);
+    assert.equal(fake.queries.some((sql) => sql.includes('ADD COLUMN elapsed_ms')), version <= 5);
+    assert.equal(fake.queries.some((sql) => sql.includes('CREATE TABLE goal_activity')), version <= 6);
+    assert.equal(fake.queries.some((sql) => sql.includes('PRAGMA user_version = 7')), version <= 6);
+  }
 });
 
 test('newer database is rejected rather than overwritten', async () => {
-  const fake = fakeDatabase(7);
+  const fake = fakeDatabase(8);
   await assert.rejects(() => migrateDatabase(fake.db), /newer Eonward database/);
   assert.equal(fake.transactionCalls, 0);
 });
 
-test('real SQLite migrates populated v5 data to v6 without losing goals, boards or timer state', async () => {
-  const sqlite = new DatabaseSync(':memory:');
-  const db = {
-    execAsync: async (sql) => { sqlite.exec(sql); },
-    getFirstAsync: async (sql) => sqlite.prepare(sql).get() ?? null,
-    withExclusiveTransactionAsync: async (callback) => {
-      sqlite.exec('BEGIN IMMEDIATE');
-      try {
-        await callback({ execAsync: async (sql) => { sqlite.exec(sql); } });
-        sqlite.exec('COMMIT');
-      } catch (error) {
-        sqlite.exec('ROLLBACK');
-        throw error;
-      }
-    },
-  };
+test('real SQLite migrates populated v5 data to v7 without losing goals, boards or timer state', async () => {
+  const { sqlite, db } = realDatabase();
   try {
     await migrateDatabase(db);
-    assert.equal(sqlite.prepare('PRAGMA user_version').get().user_version, 6);
+    assert.equal(sqlite.prepare('PRAGMA user_version').get().user_version, 7);
     const stamp = '2026-10-14T21:00:00.000Z';
     sqlite.prepare(`INSERT INTO goals
       (id, title, notes, horizon, period_key, created_at, updated_at)
@@ -113,6 +82,15 @@ test('real SQLite migrates populated v5 data to v6 without losing goals, boards 
     );
     // Emulate the exact structural difference from v5 (not a fresh v6 database).
     sqlite.exec(`
+      DROP TABLE goal_activity;
+      DROP INDEX goals_recurrence_source;
+      DROP INDEX goals_inbox;
+      ALTER TABLE goals DROP COLUMN in_inbox;
+      ALTER TABLE goals DROP COLUMN due_date;
+      ALTER TABLE goals DROP COLUMN repeat_rule;
+      ALTER TABLE goals DROP COLUMN repeat_anchor;
+      ALTER TABLE goals DROP COLUMN recurrence_from_id;
+      ALTER TABLE goals DROP COLUMN reviewed_period;
       DROP TABLE focus_history;
       ALTER TABLE focus_session DROP COLUMN started_at_ms;
       ALTER TABLE focus_session DROP COLUMN elapsed_ms;
@@ -122,7 +100,7 @@ test('real SQLite migrates populated v5 data to v6 without losing goals, boards 
       (id, block_id, status, duration_ms, remaining_ms, deadline_ms, updated_at_ms)
       VALUES (1, ?, 'paused', ?, ?, ?, ?)`).run('t1', 1200000, 720000, 1500000, 1500000);
     await migrateDatabase(db);
-    assert.equal(sqlite.prepare('PRAGMA user_version').get().user_version, 6);
+    assert.equal(sqlite.prepare('PRAGMA user_version').get().user_version, 7);
     assert.equal(sqlite.prepare('SELECT notes FROM goals WHERE id = ?').get('g1').notes, 'Keep this note');
     assert.equal(sqlite.prepare('SELECT count(*) AS n FROM board_goals').get().n, 1);
     assert.equal(sqlite.prepare('SELECT intention FROM time_blocks WHERE id = ?').get('t1').intention, 'Deep work');
@@ -137,4 +115,68 @@ test('real SQLite migrates populated v5 data to v6 without losing goals, boards 
   } finally {
     sqlite.close();
   }
+});
+
+
+test('offline planning lifecycle preserves identity, recurrence, completion history and recoverable backup graphs', async () => {
+  const source = realDatabase(), target = realDatabase();
+  try {
+    await migrateDatabase(source.db); await migrateDatabase(target.db);
+    const parent = await createGoal(source.db, { title: 'My direction', notes: '', horizon: 'year', periodKey: '2026' });
+    const step = await createGoal(source.db, { title: '  Read   a chapter ', notes: 'Keep this note', horizon: 'day',
+      periodKey: '2026-01-31', parentId: parent, dueDate: '2026-02-02', repeatRule: 'monthly' });
+    const inbox = await createGoal(source.db, { title: 'A later idea', notes: '', horizon: 'day', periodKey: '', inbox: true });
+    assert.equal((await listInboxGoals(source.db))[0].id, inbox);
+    assert.equal((await getGoal(source.db, inbox)).periodKey, '');
+    await assert.rejects(() => editGoal(source.db, parent, { title: 'Cycle', notes: '', horizon: 'year', periodKey: '2026', parentId: step }), /own next steps/);
+    const board = await createBoard(source.db, 'Reading', 'A personal project');
+    await addGoalToBoard(source.db, board, step);
+    await setGoalCompleted(source.db, step, true);
+    await setGoalCompleted(source.db, step, true); // Double delivery is idempotent.
+    assert.equal(await completedGoalsSince(source.db, '2000-01-01T00:00:00.000Z'), 1);
+    assert.equal((await listBoardGoals(source.db, board)).find((goal) => goal.id === step).completed, true);
+    assert.equal(source.sqlite.prepare('SELECT count(*) AS n FROM goal_activity').get().n, 1);
+    const next = source.sqlite.prepare('SELECT * FROM goals WHERE recurrence_from_id = ?').get(step);
+    assert.equal(next.period_key, '2026-02-28');
+    assert.equal(next.parent_id, parent); assert.equal(next.due_date, null);
+    assert.equal(next.notes, 'Keep this note');
+    assert.equal(nextOccurrence('2026-02-28', 'monthly', '2026-01-31'), '2026-03-31');
+    assert.equal(nextOccurrence('2025-02-28', 'yearly', '2024-02-29'), '2026-02-28');
+    assert.equal(nextOccurrence('2027-02-28', 'yearly', '2024-02-29'), '2028-02-29');
+    await setGoalCompleted(source.db, step, false);
+    assert.equal(await completedGoalsSince(source.db, '2000-01-01T00:00:00.000Z'), 0);
+    await setGoalCompleted(source.db, step, true);
+    assert.equal(source.sqlite.prepare('SELECT count(*) AS n FROM goals WHERE recurrence_from_id = ?').get(step).n, 1);
+    await reviewPastGoal(source.db, next.id, true);
+    assert.equal((await getGoal(source.db, step)).dueDate, '2026-02-02');
+    await archiveGoal(source.db, parent); await restoreGoal(source.db, parent);
+    const snapshot = await exportBackup(source.db), text = JSON.stringify(snapshot);
+    assert.ok(await restoreBackup(target.db, text) > 0);
+    assert.equal(await restoreBackup(target.db, text), 0);
+    const restored = await exportBackup(target.db);
+    for (const table of Object.keys(snapshot.tables)) {
+      assert.deepEqual(restored.tables[table].map(JSON.stringify).sort(), snapshot.tables[table].map(JSON.stringify).sort());
+    }
+    const before = target.sqlite.prepare('SELECT count(*) AS n FROM goals').get().n;
+    const broken = structuredClone(snapshot);
+    broken.tables.goals[0].parent_id = broken.tables.goals[0].id;
+    await assert.rejects(() => restoreBackup(target.db, JSON.stringify(broken)), /cycle/);
+    assert.equal(target.sqlite.prepare('SELECT count(*) AS n FROM goals').get().n, before);
+    // A valid standalone snapshot can conflict with a local recurrence source.
+    // Even rows inserted before that SQL conflict must roll back.
+    const conflicting = structuredClone(snapshot);
+    conflicting.tables.goals.find((row) => row.id === next.id).id = 'conflicting-occurrence';
+    for (const row of conflicting.tables.board_goals) {
+      if (row.goal_id === next.id) row.goal_id = 'conflicting-occurrence';
+    }
+    conflicting.tables.goals.unshift({ ...snapshot.tables.goals.find((row) => row.id === inbox), id: 'must-roll-back' });
+    await assert.rejects(() => restoreBackup(target.db, JSON.stringify(conflicting)), /UNIQUE constraint/);
+    assert.equal(target.sqlite.prepare('SELECT count(*) AS n FROM goals').get().n, before);
+    assert.equal(target.sqlite.prepare('SELECT id FROM goals WHERE id = ?').get('must-roll-back'), undefined);
+    const localTitle = (await getGoal(target.db, step)).title;
+    snapshot.tables.goals.find((row) => row.id === step).title = 'Do not overwrite local edits';
+    await restoreBackup(target.db, JSON.stringify(snapshot));
+    assert.equal((await getGoal(target.db, step)).title, localTitle);
+    assert.equal(target.sqlite.prepare('PRAGMA foreign_key_check').all().length, 0);
+  } finally { source.sqlite.close(); target.sqlite.close(); }
 });

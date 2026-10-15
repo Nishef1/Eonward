@@ -55,7 +55,7 @@ export function WeekOverview({ days, blocks, selectedDay, palette, onSelectDay }
               borderColor: selected ? palette.accent : palette.border }]}>
             <View style={styles.cardTop}>
               <View style={[styles.dayBubble, { backgroundColor: selected ? palette.accent : palette.background }]}>
-                <Text style={[styles.dayNumber, { color: selected ? '#FFFFFF' : palette.foreground }]}>
+                <Text style={[styles.dayNumber, { color: selected ? palette.onAccent : palette.foreground }]}>
                   {day.getDate()}
                 </Text>
               </View>

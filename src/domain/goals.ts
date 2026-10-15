@@ -1,4 +1,5 @@
 import type { Horizon } from './horizons';
+import type { RepeatRule } from './planning';
 
 export interface Goal {
   id: string;
@@ -15,6 +16,9 @@ export interface Goal {
   childrenCount: number;
   createdAt: string;
   updatedAt: string;
+  inbox: boolean;
+  dueDate: string | null;
+  repeatRule: RepeatRule;
 }
 
 export interface GoalInput {
@@ -23,6 +27,9 @@ export interface GoalInput {
   horizon: Horizon;
   periodKey: string;
   parentId?: string | null;
+  inbox?: boolean;
+  dueDate?: string | null;
+  repeatRule?: RepeatRule;
 }
 
 export function normalizeGoalTitle(title: string): string {

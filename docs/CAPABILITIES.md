@@ -1,43 +1,24 @@
 # Capability inventory
 
-Public, implementation-level capability status. This is a neutral tracking document, not a product launch page or a competitor cloning specification.
+Last reviewed: 2026-10-15. This document records implementation and its evidence, not release readiness.
 
-Legend:
-- **Implemented in source**: committed functionality; device acceptance still outstanding.
-- **Partial**: usable foundation without full workflows.
-- **Planned**: not built. No mock screen may be marked complete.
-
-| Area | Status | Limitations / next work |
+| Area | Current implementation | Verification boundary / remaining work |
 | --- | --- | --- |
-| Seven planning horizons | Implemented in source | Period navigation, hierarchy and persistence need end-to-end Android QA |
-| Focus / Perspective overview | Implemented in source | Multi-placement and advanced views not available |
-| Nested goals / parent relationships | Implemented in source | Deep hierarchy and rescheduling require device QA |
-| Goal editing, completion and notes | Partial | Plain-text notes, no rich editor or attachments |
-| Archive / Restore | Implemented in source | Validate upgrades and child restoration on real device |
-| Manual goal order | Partial | Up/down only; no drag, sorting filters or custom board order |
-| **Boards (local, multi-membership)** | **Implemented in source (M3 first slice)** | Create/edit/delete board; create a new goal inside a board atomically; link/unlink existing goals; completion and open original goal; device QA pending |
-| Tags and saved filters | Planned | Requires clear search/filter UX and schema design |
-| Primary mobile navigation | Implemented in source | Persistent labeled dock across Horizons, Calendar and Boards; device QA pending |\n| Calendar | Partial | Premium daily timeline with week strip, live current-time line, visual overlapping blocks, quick hour scheduling and separate List; week/month grid, drag, reminders and Android acceptance pending |
-| Time blocking and Timeboxing | Partial | Multiple goal-linked local-day blocks, 24h times, fixed-limit mode and optional outcome; deadline-based persistent in-app Focus Timer with pause/resume and global mini-player; no native alerts, session history, cross-midnight blocks or DST fall-back disambiguation |
-| Recurrence and habits | Planned | Needs rule/occurrence model and DST correctness |
-| Templates | Planned | Requires versioned reusable blueprint/clone behavior |
-| Guided step sequences | Planned | Needs progress/step state and explicit data model |
-| Rich text, links and attachments | Planned | Editor UX, local file storage and backup implications |
-| Local search | Planned | Should search across goals, notes and boards |
-| Insights / periodic review | Planned | Depends on reliable activity history |
-| Offline backups / restore | Planned | Blocking release gate; preserve original relationships |
-| Native reminders and widgets | Planned | Verify permissions, power management and refresh behavior |
-| Localization / RTL / alternate calendar | Planned | Display must not corrupt stored dates |
-| Accounts, realtime sync, collaboration | Deferred | No server until local mobile experience is stable |
+| Seven horizons and hierarchy | Day through Life, editable parent path, period navigation, archive/restore | Native populated hierarchy and large-text acceptance still needed |
+| Plan and overview | Compact labeled navigation, seven compact overview rows, readable completed goals | Android render sampled; physical-device accessibility remains open |
+| Fast capture | Inline title-only capture in selected period or Inbox; synchronous duplicate-write guard | Keyboard and rapid-input device checks recorded in ROADMAP |
+| Inbox | Explicit unscheduled state; no invented planning date | Board and detail views identify Inbox; schedule by editing its planning details |
+| Search | Local cross-horizon title, note and parent-name search; Persian yeh/kaf normalization | Active goals only; no attachment/full-text indexing |
+| Deadlines | Optional civil date independent of planning horizon and time blocks | No deadline notification or automatic rescheduling |
+| Recurring steps | Daily, weekly, monthly, yearly; next occurrence after completion; stable month/year anchor | Repeats the step and board memberships, not children, deadlines or calendar reservations; no background generation |
+| Boards | Multi-membership references; create/edit/link/unlink and shared completion | Custom sections, board ordering and drag still deferred |
+| Calendar | Day/week/month/list, explicit view selector, untimed daily goals, overlapping and overnight blocks | Editor remains the accessible move/resize path; drag and external calendar sync are not implemented |
+| Focus | Persistent session, pause/resume, global mini-bar, actual elapsed history, local expiry alert | Exact delivery, denied permissions, idle and OEM power restrictions require physical-device acceptance |
+| Weekly review | Recorded completed-step count, focus rhythm, previous-period Keep / Move / Archive | No synthetic historical counts; pre-v7 completions are not backfilled; no automatic rollover |
+| Backup and restore | Versioned JSON export to native share sheet, native file picker, atomic merge of missing IDs | Existing records keep local values; running timers are excluded; encrypted backups and older future formats need a separate contract |
+| Appearance | Existing light/dark identity, semantic foreground on accent, system theme integration | Native large text, TalkBack and reduced-motion regression still open |
+| Localization / Jalali | Not implemented | Current UI remains English; do not claim native RTL or Persian-calendar acceptance |
+| Widgets / share-to-capture | Not implemented | Requires separately implemented platform integration and lifecycle testing |
+| Accounts / sync / teams / billing | Deferred by product scope | No placeholder login, backend or monetization added |
 
-**Next vertical slice:** Android v4→v5 migration and focus-timer lifecycle verification; then decide whether to prioritize focus history/Insights, native end notifications or scheduling gestures.
-
-### Calendar improvements (October 14 follow-up)
-- Week overview with per-day planned duration, overlap count and direct access to the corresponding daily canvas.
-- Explicit next-day end times, chronological overlap queries, day clipping for overnight timeline entries and DST ambiguity rejection.
-- Pending: monthly calendar, native reminders, recurring schedule, drag-to-move/resize and multi-day blocks beyond one midnight.
-
-- Month overview: 5–6 week grid with daily activity, previous/next month navigation and drill-down into Daily Timeline.
-
-### Local Focus reminders
-- One native local notification at the persisted session deadline, when permitted; cancels/reschedules across Pause, Resume, Replace and Stop. Deliberately generic lock-screen text. Android exact-alarm access may be denied and must be tested; timer is still usable without it.
+Automated coverage remains within the 20-case policy. Real SQLite coverage now exercises completion history, recurrence idempotency, parent integrity, archive recovery and backup round trips, with a Node-only UUID boundary adapter. Native evidence and unresolved acceptance items are tracked in ROADMAP.md.

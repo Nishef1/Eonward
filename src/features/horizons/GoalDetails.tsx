@@ -40,7 +40,7 @@ export function GoalDetails({
               </Pressable>
             ) : null}
             <Text style={[styles.eyebrow, { color: palette.muted }]}>
-              {goal ? HORIZON_TITLES[goal.horizon].toUpperCase() : ''} HORIZON
+              {goal?.inbox ? 'INBOX' : goal ? HORIZON_TITLES[goal.horizon].toUpperCase() + ' HORIZON' : ''}
             </Text>
             <Pressable accessibilityRole="button" accessibilityLabel="Close details" style={styles.headerAction} onPress={onClose}>
               <Text style={[styles.close, { color: palette.muted }]}>×</Text>
@@ -62,7 +62,7 @@ export function GoalDetails({
                           style={[styles.pathChip, { backgroundColor: palette.background, borderColor: palette.border }]}
                         >
                           <Text style={[styles.pathHorizon, { color: palette.muted }]}>
-                            {HORIZON_TITLES[ancestor.horizon]}
+                            {ancestor.inbox ? 'Inbox' : HORIZON_TITLES[ancestor.horizon]}
                           </Text>
                           <Text style={[styles.pathTitle, { color: palette.foreground }]} numberOfLines={1}>
                             {ancestor.title}
@@ -74,7 +74,9 @@ export function GoalDetails({
                 </View>
               ) : null}
               <Text style={[styles.title, { color: palette.foreground }]}>{goal.title}</Text>
-              <Text style={[styles.period, { color: palette.muted }]}>{goal.periodKey === 'life' ? 'Life horizon' : goal.periodKey}</Text>
+              <Text style={[styles.period, { color: palette.muted }]}>{goal.inbox ? 'Not yet planned' : goal.periodKey === 'life' ? 'Life horizon' : goal.periodKey}</Text>
+              {goal.dueDate ? <Text style={[styles.period, { color: palette.foreground }]}>Deadline · {goal.dueDate}</Text> : null}
+              {goal.repeatRule !== 'none' ? <Text style={[styles.period, { color: palette.accent }]}>Repeats {goal.repeatRule} after completion</Text> : null}
               {goal.notes ? (
                 <Text style={[styles.description, { color: palette.muted }]}>{goal.notes}</Text>
               ) : null}
@@ -82,7 +84,7 @@ export function GoalDetails({
                 onPress={() => onToggle(goal)}
                 style={[styles.complete, { backgroundColor: palette.surface, borderColor: palette.border }]}>
                 <View style={[styles.check, { borderColor: goal.completed ? palette.accent : palette.muted, backgroundColor: goal.completed ? palette.accent : 'transparent' }]}>
-                  {goal.completed ? <Text style={styles.tick}>✓</Text> : null}
+                  {goal.completed ? <Text style={[styles.tick, { color: palette.onAccent }]}>✓</Text> : null}
                 </View>
                 <Text style={[styles.completeText, { color: palette.foreground }]}>
                   {goal.completed ? 'Completed · tap to reopen' : 'Mark this goal complete'}
@@ -104,7 +106,7 @@ export function GoalDetails({
                   <Pressable accessibilityRole="button" accessibilityLabel={`Open ${child.title}`}
                     onPress={() => onOpenChild(child)} style={styles.childContent}>
                     <Text style={[styles.childTitle, { color: palette.foreground, textDecorationLine: child.completed ? 'line-through' : 'none' }]} numberOfLines={2}>{child.title}</Text>
-                    <Text style={[styles.childHorizon, { color: palette.muted }]}>{HORIZON_TITLES[child.horizon]} · {child.periodKey}</Text>
+                    <Text style={[styles.childHorizon, { color: palette.muted }]}>{child.inbox ? 'Inbox · not yet planned' : HORIZON_TITLES[child.horizon] + ' · ' + child.periodKey}</Text>
                   </Pressable>
                   <Pressable style={styles.childNavigate} onPress={() => onOpenChild(child)}
                     accessibilityRole="button" accessibilityLabel={`View details for ${child.title}`}>
@@ -121,7 +123,7 @@ export function GoalDetails({
               </Pressable>
               <View style={styles.actions}>
                 <Pressable accessibilityRole="button" onPress={onEdit} style={[styles.actionButton, { backgroundColor: palette.accent }]}>
-                  <Text style={styles.primaryAction}>Edit goal</Text>
+                  <Text style={[styles.primaryAction, { color: palette.onAccent }]}>Edit goal</Text>
                 </Pressable>
                 <Pressable accessibilityRole="button" onPress={onArchive} style={[styles.actionButton, { backgroundColor: palette.surface, borderColor: palette.border, borderWidth: 1 }]}>
                   <Text style={styles.removeText}>Archive</Text>
@@ -159,7 +161,7 @@ const styles = StyleSheet.create({
   description: { fontSize: 15, lineHeight: 24 },
   complete: { minHeight: 56, borderWidth: 1, borderRadius: radius.lg, flexDirection: 'row', alignItems: 'center', paddingHorizontal: spacing.md, gap: spacing.md, marginTop: spacing.sm },
   check: { width: 23, height: 23, borderWidth: 1.5, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
-  tick: { color: '#FFFFFF', fontWeight: '700' },
+  tick: { fontWeight: '700' },
   completeText: { fontSize: 14, fontWeight: '600', flex: 1 },
   sectionHeading: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, marginTop: spacing.lg },
   sectionTitle: { fontSize: 18, fontWeight: '700' },

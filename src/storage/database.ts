@@ -88,20 +88,46 @@ const V6_SCHEMA = `
   CREATE INDEX IF NOT EXISTS focus_history_by_end ON focus_history (ended_at_ms DESC);
 `;
 
+const V7_SCHEMA = `
+  ALTER TABLE goals ADD COLUMN in_inbox INTEGER NOT NULL DEFAULT 0 CHECK (in_inbox IN (0, 1));
+  ALTER TABLE goals ADD COLUMN due_date TEXT;
+  ALTER TABLE goals ADD COLUMN repeat_rule TEXT NOT NULL DEFAULT 'none'
+    CHECK (repeat_rule IN ('none', 'daily', 'weekly', 'monthly', 'yearly'));
+  ALTER TABLE goals ADD COLUMN repeat_anchor TEXT;
+  ALTER TABLE goals ADD COLUMN recurrence_from_id TEXT REFERENCES goals(id) ON DELETE SET NULL;
+  ALTER TABLE goals ADD COLUMN reviewed_period TEXT;
+  CREATE UNIQUE INDEX goals_recurrence_source ON goals(recurrence_from_id)
+    WHERE recurrence_from_id IS NOT NULL;
+  CREATE INDEX goals_inbox ON goals(in_inbox, archived_at);
+  CREATE TABLE goal_activity (
+    id TEXT PRIMARY KEY NOT NULL,
+    goal_id TEXT NOT NULL REFERENCES goals(id) ON DELETE CASCADE,
+    kind TEXT NOT NULL CHECK (kind IN ('completed', 'reopened')),
+    occurred_at TEXT NOT NULL
+  );
+  CREATE INDEX goal_activity_by_time ON goal_activity(occurred_at, goal_id);
+`;
+
+export const SCHEMA_VERSION = 7;
+
 export async function migrateDatabase(db: SQLiteDatabase): Promise<void> {
   await db.execAsync('PRAGMA foreign_keys = ON; PRAGMA journal_mode = WAL;');
   const result = await db.getFirstAsync<{ user_version: number }>('PRAGMA user_version');
   const version = result?.user_version ?? 0;
-  if (version > 6) throw new Error('This app version cannot read a newer Eonward database.');
-  if (version === 6) return;
+  if (version > SCHEMA_VERSION) throw new Error('This app version cannot read a newer Eonward database.');
+  if (version === SCHEMA_VERSION) return;
 
-  await db.withExclusiveTransactionAsync(async (tx) => {
+  // SQLiteProvider still owns this connection during startup. Opening an exclusive
+  // second connection here can contend with initialization on Android.
+  await db.withTransactionAsync(async () => {
+    const tx = db;
     if (version === 0) await tx.execAsync(INITIAL_SCHEMA);
     if (version <= 1) await tx.execAsync(V2_SCHEMA);
     if (version <= 2) await tx.execAsync(V3_SCHEMA);
     if (version <= 3) await tx.execAsync(V4_SCHEMA);
     if (version <= 4) await tx.execAsync(V5_SCHEMA);
     if (version <= 5) await tx.execAsync(V6_SCHEMA);
-    await tx.execAsync('PRAGMA user_version = 6;');
+    if (version <= 6) await tx.execAsync(V7_SCHEMA);
+    await tx.execAsync(`PRAGMA user_version = ${SCHEMA_VERSION};`);
   });
 }

@@ -1,6 +1,16 @@
-# Architecture (proposed, not yet fully implemented)
+# Current architecture status (2026-10-15)
 
-Status: **Goal schema v2 with an in-place v1 migration and Horizons UI committed; upgrade/UX not yet verified on Android.** Other entity boundaries remain a draft.
+The current database is schema **v7**. Earlier version-specific sections below describe historical slices, not the current capability boundary. See CAPABILITIES.md for the current inventory.
+
+v7 adds explicit Inbox state (`in_inbox = 1`, empty planning key), optional civil `due_date`, repeat rule/anchor/source metadata, a unique recurrence-source index, and `goal_activity` completion/reopen transitions. Existing goals, boards, reservations and Focus history are preserved. Startup migration uses `withTransactionAsync` on the provider connection; ordinary multi-record writes use exclusive transactions.
+
+A recurring occurrence is a new goal identity representing a genuinely new step, generated atomically with its predecessor's completion and copied board memberships. Source IDs enforce idempotence. UTC time blocks and civil planning/deadline dates remain distinct.
+
+Backup format v1 contains strict schema-v7 allowlisted rows for goals, boards, memberships, time blocks, focus history and goal activity. Restore validates complete graphs and cycles, then merges missing IDs in a single transaction with deferred FK validation. Existing rows are never overwritten; active timers are not restored. The native file picker copies input into cache; only that copied file is removed after reading.
+
+# Original architecture proposal and historical slices
+
+The proposal below includes the historical v2 baseline. Current implementation and verification are described above and in CAPABILITIES.md; draft entities are not a claim that separate tables exist.
 
 ## Stack
 

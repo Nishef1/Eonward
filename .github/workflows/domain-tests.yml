@@ -16,4 +16,4 @@ jobs:
       - name: Test time and migration logic (no package install required)
         run: |-
           node scripts/check-test-budget.mjs
-          node --experimental-strip-types --test tests/horizons.test.mjs tests/database.test.mjs
+          node --experimental-strip-types --import ./tests/register-runtime.mjs --test tests/horizons.test.mjs tests/database.test.mjs

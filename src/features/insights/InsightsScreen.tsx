@@ -1,222 +1,134 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useFocusEffect, useRouter } from 'expo-router';
-import { ActivityIndicator, AppState, Pressable, ScrollView, StyleSheet, Text, useColorScheme, View } from 'react-native';
+import { ActivityIndicator, Alert, AppState, Pressable, ScrollView, StyleSheet, Text, useColorScheme, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useSQLiteContext } from 'expo-sqlite';
-import type { FocusHistory, FocusSummary } from '../../domain/focus';
+import type { FocusHistory } from '../../domain/focus';
+import type { Goal } from '../../domain/goals';
+import { periodKey, startOfWeek } from '../../domain/horizons';
 import { localDayKey, shiftLocalDay } from '../../domain/timeblocks';
-import { getFocusSummary, listFocusHistory, listFocusHistorySince } from '../../storage/focus';
-import { colors, radius, spacing } from '../../theme/tokens';
+import { listFocusHistory, listFocusHistorySince } from '../../storage/focus';
+import { archiveGoal, completedGoalsSince, listOpenPastGoals, reviewPastGoal } from '../../storage/goals';
+import { colors } from '../../theme/tokens';
 
 function duration(ms: number): string {
-  const minutes = Math.floor(ms / 60000);
-  if (minutes < 1) return ms > 0 ? '<1m' : '0m';
-  const hours = Math.floor(minutes / 60);
-  return hours ? hours + 'h ' + (minutes % 60) + 'm' : minutes + 'm';
+  const minutes = Math.floor(ms / 60000), hours = Math.floor(minutes / 60);
+  return minutes < 1 ? ms > 0 ? '<1m' : '0m' : hours ? `${hours}h ${minutes % 60}m` : `${minutes}m`;
 }
-function dateLabel(ms: number): string {
-  return new Intl.DateTimeFormat('en-US', {
-    month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit',
-  }).format(new Date(ms));
-}
-type Palette = typeof colors.light | typeof colors.dark;
-const EMPTY: FocusSummary = { sessions: 0, completed: 0, focusedMs: 0 };
-
 export function InsightsScreen() {
-  const db = useSQLiteContext();
-  const router = useRouter();
-  const palette: Palette = useColorScheme() === 'dark' ? colors.dark : colors.light;
-  const [summary, setSummary] = useState<FocusSummary>(EMPTY);
+  const db = useSQLiteContext(), router = useRouter();
+  const palette = useColorScheme() === 'dark' ? colors.dark : colors.light;
   const [weekHistory, setWeekHistory] = useState<FocusHistory[]>([]);
   const [recent, setRecent] = useState<FocusHistory[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [past, setPast] = useState<Goal[]>([]);
+  const [completed, setCompleted] = useState(0);
+  const [loading, setLoading] = useState(true), [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [revision, setRevision] = useState(0);
-  const [todayKey, setTodayKey] = useState(() => localDayKey(new Date()));
+  const [revision, setRevision] = useState(0), [todayKey, setTodayKey] = useState(() => localDayKey(new Date()));
+  const locked = useRef(false);
   useEffect(() => {
-    const update = () => setTodayKey(localDayKey(new Date()));
-    const interval = setInterval(update, 60_000);
-    const listener = AppState.addEventListener('change', (state) => {
-      if (state === 'active') {
-        update();
-        setRevision((count) => count + 1);
-      }
-    });
+    const update = () => { setTodayKey(localDayKey(new Date())); setRevision((n) => n + 1); };
+    const interval = setInterval(() => setTodayKey(localDayKey(new Date())), 60000);
+    const listener = AppState.addEventListener('change', (state) => { if (state === 'active') update(); });
     return () => { clearInterval(interval); listener.remove(); };
   }, []);
-
   useFocusEffect(useCallback(() => {
     let live = true;
-    const now = new Date();
-    const start = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 6).getTime();
+    const monday = startOfWeek(new Date()); monday.setHours(0, 0, 0, 0);
     setLoading(true);
-    void Promise.all([getFocusSummary(db), listFocusHistorySince(db, start), listFocusHistory(db)]).then(
-      ([stats, week, entries]) => {
+    void Promise.all([listFocusHistorySince(db, monday.getTime()), listFocusHistory(db), listOpenPastGoals(db), completedGoalsSince(db, monday.toISOString())])
+      .then(([week, log, open, done]) => {
         if (!live) return;
-        setSummary(stats);
-        setWeekHistory(week);
-        setRecent(entries);
-        setError(null);
-      },
-    ).catch((reason: unknown) => {
-      if (live) setError(reason instanceof Error ? reason.message : 'Could not load focus history.');
-    }).finally(() => { if (live) setLoading(false); });
+        setWeekHistory(week); setRecent(log); setPast(open); setCompleted(done); setError(null);
+      }).catch((reason: unknown) => { if (live) setError(reason instanceof Error ? reason.message : 'Could not load your review.'); })
+      .finally(() => { if (live) setLoading(false); });
     return () => { live = false; };
   }, [db, revision, todayKey]));
-
-  const today = new Date();
-  const days = Array.from({ length: 7 }, (_, i) => shiftLocalDay(today, i - 6));
-  const totals = days.map((d) => weekHistory
-    .filter((entry) => localDayKey(new Date(entry.endedAtMs)) === localDayKey(d))
-    .reduce((sum, entry) => sum + entry.focusedMs, 0));
-  const max = Math.max(...totals, 60000);
-  const weekMs = totals.reduce((sum, ms) => sum + ms, 0);
-
-  return (
-    <SafeAreaView edges={['top', 'left', 'right']}
-      style={[styles.screen, { backgroundColor: palette.background }]}>
-      <ScrollView contentContainerStyle={styles.content}>
-        <View style={styles.header}>
-          <View style={{ flex: 1 }}>
-            <Text style={[styles.brand, { color: palette.accent }]}>EONWARD / INSIGHTS</Text>
-            <Text style={[styles.title, { color: palette.foreground }]}>Make time visible.</Text>
-            <Text style={[styles.subtitle, { color: palette.muted }]}>Focus that counts, not another checklist.</Text>
+  async function decide(goal: Goal, action: 'keep' | 'move' | 'archive') {
+    if (locked.current) return;
+    locked.current = true; setBusy(true);
+    try {
+      if (action === 'archive') await archiveGoal(db, goal.id);
+      else await reviewPastGoal(db, goal.id, action === 'move');
+      setRevision((n) => n + 1);
+    } catch (reason) { Alert.alert('Could not update goal', reason instanceof Error ? reason.message : 'Try again.'); }
+    finally { locked.current = false; setBusy(false); }
+  }
+  function confirmArchive(goal: Goal) {
+    Alert.alert('Archive this goal?', 'Its active next steps are archived together. Restore them from Plan → tools → Archive.', [
+      { text: 'Cancel', style: 'cancel' }, { text: 'Archive', onPress: () => { void decide(goal, 'archive'); } },
+    ]);
+  }
+  const monday = startOfWeek(new Date());
+  const days = Array.from({ length: 7 }, (_, i) => shiftLocalDay(monday, i));
+  const totals = days.map((day) => weekHistory.filter((row) => localDayKey(new Date(row.endedAtMs)) === localDayKey(day))
+    .reduce((sum, row) => sum + row.focusedMs, 0));
+  const weekMs = totals.reduce((sum, ms) => sum + ms, 0), max = Math.max(...totals, 60000);
+  const hasProgress = weekMs > 0 || completed > 0;
+  return <SafeAreaView edges={['top', 'left', 'right']} style={{ flex: 1, backgroundColor: palette.background }}>
+    <ScrollView contentContainerStyle={styles.content}>
+      <View style={styles.header}>
+        <View style={{ flex: 1, gap: 5 }}><Text style={[styles.title, { color: palette.foreground }]}>This week</Text><Text style={[styles.muted, { color: palette.muted }]}>{periodKey('day', monday)} – {periodKey('day', days[6])}</Text></View>
+        <Pressable accessibilityRole="button" accessibilityLabel="Refresh weekly review" onPress={() => setRevision((n) => n + 1)} style={styles.icon}><Text style={{ color: palette.accent, fontSize: 24 }}>↻</Text></Pressable>
+      </View>
+      {loading ? <ActivityIndicator color={palette.accent} /> : error ? <View style={styles.section}>
+        <Text style={{ color: palette.foreground }}>{error}</Text><Pressable accessibilityRole="button" style={styles.icon} onPress={() => setRevision((n) => n + 1)}><Text style={{ color: palette.accent }}>Try again</Text></Pressable>
+      </View> : <>
+        {hasProgress ? <>
+          <View style={styles.stats}>
+            <View style={{ flex: 1 }}><Text style={[styles.number, { color: palette.foreground }]}>{duration(weekMs)}</Text><Text style={[styles.muted, { color: palette.muted }]}>recorded focus</Text></View>
+            <View style={{ flex: 1 }}><Text style={[styles.number, { color: palette.foreground }]}>{completed}</Text><Text style={[styles.muted, { color: palette.muted }]}>completed steps</Text></View>
           </View>
-          <Pressable accessibilityRole="button" accessibilityLabel="Refresh focus insights"
-            onPress={() => setRevision((n) => n + 1)}
-            style={[styles.refresh, { borderColor: palette.border }]}>
-            <Text style={{ color: palette.foreground, fontSize: 21 }}>↻</Text>
-          </Pressable>
+          {weekMs > 0 ? <View style={[styles.chart, { borderBottomColor: palette.border }]}>
+            {days.map((day, i) => <Pressable key={localDayKey(day)} accessibilityRole="button"
+              accessibilityLabel={`${localDayKey(day)}: ${duration(totals[i])} recorded focus`}
+              onPress={() => Alert.alert(localDayKey(day), `${duration(totals[i])} of recorded focus. A timer ending does not complete a goal.`)}
+              style={styles.day}>
+              <View style={styles.track}>{totals[i] > 0 ? <View style={{ height: Math.max(5, totals[i] / max * 78), backgroundColor: palette.accent, width: 18, borderRadius: 4 }} /> : <View style={{ height: 3, width: 18, backgroundColor: palette.border }} />}</View>
+              <Text style={{ color: palette.muted, fontSize: 10 }}>{new Intl.DateTimeFormat('en-US', { weekday: 'narrow' }).format(day)}</Text>
+              <Text style={{ color: palette.foreground, fontSize: 11 }}>{day.getDate()}</Text>
+            </Pressable>)}
+          </View> : null}
+          <Text style={[styles.caption, { color: palette.muted }]}>Reopened goals are excluded. Completions from before progress recording began may not appear.</Text>
+        </> : <View style={[styles.card, { borderColor: palette.border, backgroundColor: palette.surface }]}>
+          <Text style={[styles.sectionTitle, { color: palette.foreground }]}>Progress starts with one step.</Text>
+          <Text style={[styles.muted, { color: palette.muted }]}>Complete a goal or finish a focus session. Your recorded progress will appear here.</Text>
+          <Pressable accessibilityRole="button" onPress={() => router.navigate('/')} style={styles.action}><Text style={{ color: palette.accent, fontWeight: '700' }}>Open your plan →</Text></Pressable>
+        </View>}
+        <View style={styles.section}>
+          <Text style={[styles.sectionTitle, { color: palette.foreground }]}>Still open from earlier periods</Text>
+          <Text style={[styles.muted, { color: palette.muted }]}>Keep the original plan, move it forward, or archive it. Deadlines and reserved calendar times stay as you set them.</Text>
         </View>
-        {loading ? <ActivityIndicator color={palette.accent} size="large" /> : error ? (
-          <View style={[styles.card, { backgroundColor: palette.surface, borderColor: palette.border }]}>
-            <Text style={{ color: palette.foreground }}>{error}</Text>
-            <Pressable accessibilityRole="button" onPress={() => setRevision((n) => n + 1)}>
-              <Text style={{ color: palette.accent, fontWeight: '700' }}>Try again</Text>
-            </Pressable>
+        {past.length === 0 ? <Text style={[styles.muted, { color: palette.muted }]}>Nothing needs a decision right now.</Text> : past.map((goal) => <View key={goal.id} style={[styles.card, { backgroundColor: palette.surface, borderColor: palette.border }]}>
+          <Pressable accessibilityRole="button" accessibilityLabel={`Open ${goal.title}`} onPress={() => router.push({ pathname: '/', params: { goalId: goal.id } })} style={styles.goalTitle}>
+            <Text style={{ color: palette.foreground, fontWeight: '700', fontSize: 15 }}>{goal.title}</Text>
+            <Text style={[styles.caption, { color: palette.muted }]}>Planned {goal.periodKey}{goal.dueDate ? ` · Deadline ${goal.dueDate}` : ''}</Text>
+          </Pressable>
+          <View style={styles.decisions}>
+            <Pressable accessibilityRole="button" disabled={busy} accessibilityLabel={`Keep original period for ${goal.title}`} onPress={() => { void decide(goal, 'keep'); }} style={styles.action}><Text style={{ color: palette.accent }}>Keep</Text></Pressable>
+            <Pressable accessibilityRole="button" disabled={busy} accessibilityLabel={`Move ${goal.title} to current period`} onPress={() => { void decide(goal, 'move'); }} style={styles.action}><Text style={{ color: palette.accent }}>Move to now</Text></Pressable>
+            <Pressable accessibilityRole="button" disabled={busy} accessibilityLabel={`Archive ${goal.title}`} onPress={() => confirmArchive(goal)} style={styles.action}><Text style={{ color: palette.muted }}>Archive</Text></Pressable>
           </View>
-        ) : (
-          <>
-            <View style={styles.stats}>
-              <View style={[styles.stat, { backgroundColor: palette.surface, borderColor: palette.border }]}>
-                <Text style={[styles.statLabel, { color: palette.muted }]}>TOTAL FOCUS</Text>
-                <Text style={[styles.statNumber, { color: palette.foreground }]}>{duration(summary.focusedMs)}</Text>
-                <Text style={[styles.statHint, { color: palette.muted }]}>Finalized sessions only</Text>
-              </View>
-              <View style={[styles.stat, { backgroundColor: palette.surface, borderColor: palette.border }]}>
-                <Text style={[styles.statLabel, { color: palette.muted }]}>SESSIONS</Text>
-                <Text style={[styles.statNumber, { color: palette.foreground }]}>{summary.sessions}</Text>
-                <Text style={[styles.statHint, { color: palette.muted }]}>{summary.completed} reached the limit</Text>
-              </View>
-            </View>
-            <View style={[styles.card, { backgroundColor: palette.surface, borderColor: palette.border }]}>
-              <Text style={[styles.sectionLabel, { color: palette.accent }]}>PAST SEVEN DAYS</Text>
-              <View style={styles.cardHeading}>
-                <Text style={[styles.sectionTitle, { color: palette.foreground }]}>Your focus rhythm</Text>
-                <Text style={[styles.total, { color: palette.accent }]}>{duration(weekMs)}</Text>
-              </View>
-              <View style={styles.chart}>
-                {days.map((d, index) => (
-                  <View key={localDayKey(d)} style={styles.day}>
-                    <View style={styles.barTrack}
-                      accessibilityLabel={localDayKey(d) + ': ' + duration(totals[index])}>
-                      {totals[index] > 0 ? (
-                        <View style={[styles.bar, {
-                          height: Math.max(4, totals[index] / max * 94),
-                          backgroundColor: index === 6 ? '#B58D60' : palette.accent,
-                        }]} />
-                      ) : <View style={[styles.zero, { backgroundColor: palette.border }]} />}
-                    </View>
-                    <Text style={[styles.dayLabel, { color: index === 6 ? palette.foreground : palette.muted }]}>
-                      {new Intl.DateTimeFormat('en-US', { weekday: 'narrow' }).format(d)}
-                    </Text>
-                    <Text style={[styles.dayDate, { color: palette.muted }]}>{d.getDate()}</Text>
-                  </View>
-                ))}
-              </View>
-            </View>
-            <View style={styles.historyHeader}>
-              <View>
-                <Text style={[styles.sectionLabel, { color: palette.accent }]}>YOUR LOG</Text>
-                <Text style={[styles.sectionTitle, { color: palette.foreground }]}>Recent focus</Text>
-              </View>
-              <Text style={[styles.historyCount, { color: palette.muted }]}>Last 12</Text>
-            </View>
-            {recent.length ? recent.map((entry) => (
-              <View key={entry.id}
-                style={[styles.entry, { backgroundColor: palette.surface, borderColor: palette.border }]}>
-                <View style={[styles.entryDot, {
-                  backgroundColor: entry.outcome === 'completed' ? '#5E9579' : '#B58D60',
-                }]} />
-                <View style={{ flex: 1, gap: 6 }}>
-                  <Text numberOfLines={2} style={[styles.entryTitle, { color: palette.foreground }]}>
-                    {entry.goalTitle}
-                  </Text>
-                  <Text style={[styles.entryMeta, { color: palette.muted }]}>
-                    {dateLabel(entry.endedAtMs)} · {
-                      entry.outcome === 'completed' ? 'Completed' :
-                        entry.outcome === 'replaced' ? 'Switched' : 'Stopped'
-                    }
-                  </Text>
-                </View>
-                <Text style={[styles.entryTime, { color: palette.foreground }]}>
-                  {duration(entry.focusedMs)}
-                </Text>
-              </View>
-            )) : (
-              <View style={[styles.empty, { backgroundColor: palette.surface, borderColor: palette.border }]}>
-                <Text style={[styles.emptyTitle, { color: palette.foreground }]}>
-                  Progress begins with one session.
-                </Text>
-                <Text style={[styles.emptyCopy, { color: palette.muted }]}>
-                  Start a Timebox in Calendar. Once you finish or stop it, your real focus time appears here.
-                </Text>
-                <Pressable accessibilityRole="button" onPress={() => router.navigate('/calendar')}
-                  style={[styles.cta, { backgroundColor: palette.accent }]}>
-                  <Text style={{ color: '#FFFFFF', fontWeight: '700' }}>Open Calendar</Text>
-                </Pressable>
-              </View>
-            )}
-          </>
-        )}
-      </ScrollView>
-    </SafeAreaView>
-  );
+        </View>)}
+        {recent.length ? <View style={styles.section}>
+          <Text style={[styles.sectionTitle, { color: palette.foreground }]}>Recent focus</Text>
+          {recent.map((row) => <View key={row.id} style={[styles.log, { borderBottomColor: palette.border }]}>
+            <View style={{ flex: 1, gap: 5 }}><Text style={{ color: palette.foreground, fontSize: 14 }}>{row.goalTitle}</Text>
+              <Text style={[styles.caption, { color: palette.muted }]}>{new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric' }).format(new Date(row.endedAtMs))} · {row.outcome === 'completed' ? 'Time limit reached' : row.outcome === 'replaced' ? 'Switched' : 'Stopped'}</Text>
+            </View><Text style={{ color: palette.accent, fontWeight: '700' }}>{duration(row.focusedMs)}</Text>
+          </View>)}
+        </View> : null}
+      </>}
+    </ScrollView>
+  </SafeAreaView>;
 }
 const styles = StyleSheet.create({
-  screen: { flex: 1 },
-  content: { paddingHorizontal: spacing.md, paddingTop: 23, paddingBottom: 44, gap: 19 },
-  header: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 6 },
-  brand: { fontWeight: '800', fontSize: 10, letterSpacing: 1.5, marginBottom: 12 },
-  title: { fontWeight: '800', fontSize: 28, letterSpacing: -1, lineHeight: 35 },
-  subtitle: { fontSize: 13, marginTop: 7 },
-  refresh: { width: 44, height: 44, borderWidth: 1, borderRadius: radius.full, alignItems: 'center', justifyContent: 'center' },
-  stats: { flexDirection: 'row', gap: 12 },
-  stat: { flex: 1, minHeight: 136, borderWidth: 1, borderRadius: radius.xl, padding: 16, justifyContent: 'space-between' },
-  statLabel: { fontSize: 10, fontWeight: '800', letterSpacing: 1.2 },
-  statNumber: { fontSize: 27, fontWeight: '800', fontVariant: ['tabular-nums'], letterSpacing: -0.6 },
-  statHint: { fontSize: 11, lineHeight: 16 },
-  card: { borderWidth: 1, borderRadius: radius.xl, padding: 19, gap: 7 },
-  sectionLabel: { fontWeight: '800', fontSize: 10, letterSpacing: 1.3 },
-  sectionTitle: { fontWeight: '700', fontSize: 19, letterSpacing: -0.4 },
-  cardHeading: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 6 },
-  total: { fontSize: 13, fontWeight: '800', fontVariant: ['tabular-nums'] },
-  chart: { flexDirection: 'row', height: 147, marginTop: 14, alignItems: 'flex-end', gap: 8 },
-  day: { flex: 1, alignItems: 'center', gap: 4 },
-  barTrack: { flex: 1, width: '100%', justifyContent: 'flex-end', alignItems: 'center' },
-  bar: { width: '70%', maxWidth: 28, borderTopLeftRadius: 7, borderTopRightRadius: 7, minHeight: 4 },
-  zero: { height: 3, width: '65%', borderRadius: 2 },
-  dayLabel: { fontSize: 12, fontWeight: '700' },
-  dayDate: { fontSize: 10 },
-  historyHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-end', marginTop: 8 },
-  historyCount: { fontSize: 11 },
-  entry: { borderWidth: 1, borderRadius: radius.lg, padding: 15, flexDirection: 'row', alignItems: 'center', gap: 11 },
-  entryDot: { height: 9, width: 9, borderRadius: 5 },
-  entryTitle: { fontSize: 14, fontWeight: '700' },
-  entryMeta: { fontSize: 11 },
-  entryTime: { fontSize: 16, fontWeight: '800', fontVariant: ['tabular-nums'] },
-  empty: { borderWidth: 1, borderRadius: radius.xl, padding: 23, gap: 16 },
-  emptyTitle: { fontWeight: '700', fontSize: 18 },
-  emptyCopy: { fontSize: 13, lineHeight: 21 },
-  cta: { minHeight: 48, borderRadius: radius.lg, alignItems: 'center', justifyContent: 'center' },
+  content: { padding: 18, paddingBottom: 32, gap: 15 }, header: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 8 },
+  title: { fontSize: 28, fontWeight: '700', letterSpacing: -.6 }, muted: { fontSize: 13, lineHeight: 21 }, caption: { fontSize: 11, lineHeight: 18 },
+  icon: { minHeight: 48, minWidth: 48, justifyContent: 'center', alignItems: 'center' }, stats: { flexDirection: 'row', gap: 20, marginVertical: 10 },
+  number: { fontSize: 34, fontWeight: '700', letterSpacing: -1 }, section: { gap: 9, marginTop: 10 }, sectionTitle: { fontSize: 18, fontWeight: '700' },
+  card: { padding: 15, borderWidth: 1, borderRadius: 15, gap: 8 }, goalTitle: { minHeight: 48, gap: 6, justifyContent: 'center' },
+  decisions: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', gap: 5 }, action: { minHeight: 48, minWidth: 48, justifyContent: 'center', paddingHorizontal: 5 },
+  chart: { flexDirection: 'row', justifyContent: 'space-between', borderBottomWidth: 1, paddingBottom: 12 }, day: { flex: 1, minHeight: 120, alignItems: 'center', gap: 5 },
+  track: { height: 80, justifyContent: 'flex-end' }, log: { flexDirection: 'row', gap: 10, alignItems: 'center', minHeight: 68, borderBottomWidth: 1, paddingVertical: 10 },
 });

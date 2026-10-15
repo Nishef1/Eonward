@@ -1,6 +1,6 @@
 # Eonward development roadmap
 
-Last reviewed: 2026-10-14  
+Last reviewed: 2026-10-15
 Status: **M0 complete (emulator launch verified); M1 + M2 in progress (CRUD behavior not yet device-verified)**  
 Platform priority: Android first; iOS compatible; desktop is a later decision.
 
@@ -406,3 +406,30 @@ The initial Create Goal form was appearing partially scrolled in a screenshot; i
 - [x] Surface notification/alarms configuration problems as explicit non-fatal warnings in the Focus UI.
 - [ ] Android 13/14/15 physical-device acceptance: test notification denial, special alarm access denied/granted, notification delivery after app force-stop/idle, resume and replacement. **Exact delivery is not guaranteed solely by a successful JS bundle.**
 - [ ] Play policy review for exact-alarm permission before store release. If approval is not appropriate, implement an inexact fallback and update the UX.
+
+
+## Personal planning refinement — 2026-10-15
+
+Target: implement the approved compact personal-planning direction and real offline workflows. This is not an M6/release completion claim.
+
+- [x] Replace the oversized Horizons introduction with a compact Plan header, labeled Plan / Overview / Inbox views and inline capture.
+- [x] Keep seven planning horizons; simplify empty overview rows and preserve canonical goal details and hierarchy.
+- [x] Add local search across titles, notes and parent names; consume goal deep links so the same goal can be opened again.
+- [x] Add non-destructive v6→v7 migration: Inbox state, optional deadline, recurrence metadata and actual completion/reopen history.
+- [x] Keep startup migration on the already-open SQLite connection; the previous exclusive second connection reproduced a startup lock during the native upgrade.
+- [x] Generate exactly one next recurring occurrence per completed source, including board memberships; retain original monthly/yearly day anchors.
+- [x] Add weekly Review with recorded completion count, actual Focus history and explicit Keep / Move / Archive decisions for previous-period open goals.
+- [x] Make Month an explicit Calendar view and offer scheduling for daily goals without a time reservation; reduce repeated calendar explanation/header chrome.
+- [x] Fix the native month grid wrapping into six columns: render explicit seven-day rows, and use readable accent foregrounds for selected dates in Month/Week.
+- [x] Add file export/share and file-picker restore, strict snapshot validation and all-or-nothing merge of missing IDs; no current local record is overwritten.
+- [x] Fix foreground contrast on accent surfaces in light/dark; explicitly configure the Expo SystemUI plugin after native inspection exposed a forced-light resource default.
+- [x] Keep the automated suite at 20 focused cases, replacing redundant migration mocks with a real SQLite planning/restore workflow.
+- [x] Pass TypeScript and Expo dependency compatibility checks; build and install the Android debug APK with native backup modules.
+- [x] On Android, verify schema v7 and run actual Expo SQLite recurrence + backup/restore (including duplicate restore and corrupt-reference rejection).
+- [x] Sample Android inline capture, completion, Inbox, Overview and Review; open the native export share sheet and file-picker restore preview. Keep screenshots and probe results outside the public repository.
+- [x] Verify native automatic dark theme after rebuilding with SystemUI. Finish file-picker restore through success: one deliberately missing QA goal restored; repeated import adds zero records and preserves six existing goals.
+- [ ] Full IME/keyboard matrix remains open; emulator samples do not establish physical-device keyboard acceptance.
+- [ ] Release-build startup profile, physical-device alerts/idle behavior, TalkBack, large text and native RTL/Jalali remain unverified.
+- [ ] Widgets, incoming share capture, timeline drag/resize and external calendar sync remain separate platform work.
+
+Next three actions after this slice: (1) physical Android lifecycle/notification and accessibility acceptance; (2) decide and implement localization/calendar preferences; (3) implement widget/share capture against the stable capture workflow.

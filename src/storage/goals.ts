@@ -2,6 +2,7 @@ import { randomUUID } from 'expo-crypto';
 import type { SQLiteDatabase } from 'expo-sqlite';
 import { normalizeGoalTitle, type Goal, type GoalInput } from '../domain/goals';
 import { HORIZONS, periodKey } from '../domain/horizons';
+import { nextOccurrence, validatePlanning, type RepeatRule } from '../domain/planning';
 
 interface GoalRow {
   id: string;
@@ -18,6 +19,9 @@ interface GoalRow {
   children_count: number;
   created_at: string;
   updated_at: string;
+  in_inbox: number;
+  due_date: string | null;
+  repeat_rule: RepeatRule;
 }
 
 const SELECT_GOALS = `
@@ -46,12 +50,15 @@ function toGoal(row: GoalRow): Goal {
     childrenCount: row.children_count,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
+    inbox: row.in_inbox === 1,
+    dueDate: row.due_date,
+    repeatRule: row.repeat_rule,
   };
 }
 
 export async function listGoals(db: SQLiteDatabase, horizon: Goal['horizon'], key: string): Promise<Goal[]> {
   const rows = await db.getAllAsync<GoalRow>(
-    `${SELECT_GOALS} WHERE g.horizon = ? AND g.period_key = ? AND g.archived_at IS NULL ORDER BY g.completed ASC, g.sort_rank ASC, g.created_at DESC, g.id ASC`,
+    `${SELECT_GOALS} WHERE g.in_inbox = 0 AND g.horizon = ? AND g.period_key = ? AND g.archived_at IS NULL ORDER BY g.completed ASC, g.sort_rank ASC, g.created_at DESC, g.id ASC`,
     [horizon, key],
   );
   return rows.map(toGoal);
@@ -62,7 +69,7 @@ export async function listPerspectiveGoals(db: SQLiteDatabase, date: Date): Prom
   const filters = HORIZONS.map(() => '(g.horizon = ? AND g.period_key = ?)').join(' OR ');
   const values = HORIZONS.flatMap((horizon) => [horizon, periodKey(horizon, date)]);
   const rows = await db.getAllAsync<GoalRow>(
-    `${SELECT_GOALS} WHERE (${filters}) AND g.archived_at IS NULL ORDER BY g.completed ASC, g.sort_rank ASC, g.created_at DESC, g.id ASC`,
+    `${SELECT_GOALS} WHERE (${filters}) AND g.in_inbox = 0 AND g.archived_at IS NULL ORDER BY g.completed ASC, g.sort_rank ASC, g.created_at DESC, g.id ASC`,
     values,
   );
   return rows.map(toGoal);
@@ -77,6 +84,7 @@ export async function listChildGoals(db: SQLiteDatabase, parentId: string): Prom
 }
 
 export async function createGoal(db: SQLiteDatabase, input: GoalInput, boardId?: string): Promise<string> {
+  validatePlanning(input);
   const id = randomUUID();
   const now = new Date().toISOString();
   await db.withExclusiveTransactionAsync(async (tx) => {
@@ -91,13 +99,16 @@ export async function createGoal(db: SQLiteDatabase, input: GoalInput, boardId?:
       if (!board) throw new Error('Board no longer exists.');
     }
     await tx.runAsync(
-      `INSERT INTO goals (id, title, notes, horizon, period_key, parent_id, created_at, updated_at, sort_rank)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, (
+      `INSERT INTO goals (id, title, notes, horizon, period_key, parent_id, created_at, updated_at,
+         in_inbox, due_date, repeat_rule, repeat_anchor, sort_rank)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, (
          SELECT COALESCE(MAX(sort_rank), -1) + 1 FROM goals
          WHERE horizon = ? AND period_key = ? AND archived_at IS NULL
        ))`,
-      [id, normalizeGoalTitle(input.title), input.notes.trim(), input.horizon, input.periodKey,
-        input.parentId ?? null, now, now, input.horizon, input.periodKey],
+      [id, normalizeGoalTitle(input.title), input.notes.trim(), input.horizon, input.inbox ? '' : input.periodKey,
+        input.parentId ?? null, now, now, input.inbox ? 1 : 0, input.dueDate?.trim() || null,
+        input.repeatRule ?? 'none', input.repeatRule && input.repeatRule !== 'none' ? input.periodKey : null,
+        input.horizon, input.inbox ? '' : input.periodKey],
     );
     if (boardId) {
       await tx.runAsync(
@@ -111,6 +122,7 @@ export async function createGoal(db: SQLiteDatabase, input: GoalInput, boardId?:
 }
 
 export async function editGoal(db: SQLiteDatabase, id: string, input: GoalInput): Promise<void> {
+  validatePlanning(input);
   const title = normalizeGoalTitle(input.title);
   const parentId = input.parentId ?? null;
   if (id === parentId) throw new Error('A goal cannot be its own parent.');
@@ -132,21 +144,77 @@ export async function editGoal(db: SQLiteDatabase, id: string, input: GoalInput)
     }
     await tx.runAsync(
       `UPDATE goals SET title = ?, notes = ?, horizon = ?, period_key = ?, parent_id = ?,
+         in_inbox = ?, due_date = ?, repeat_rule = ?,
+         repeat_anchor = CASE WHEN repeat_rule = ? AND period_key = ? THEN repeat_anchor ELSE ? END,
+         reviewed_period = NULL,
          sort_rank = CASE WHEN horizon = ? AND period_key = ? THEN sort_rank
            ELSE (SELECT COALESCE(MAX(other.sort_rank), -1) + 1 FROM goals other
              WHERE other.horizon = ? AND other.period_key = ? AND other.archived_at IS NULL) END,
          updated_at = ? WHERE id = ? AND archived_at IS NULL`,
-      [title, input.notes.trim(), input.horizon, input.periodKey, parentId,
+      [title, input.notes.trim(), input.horizon, input.inbox ? '' : input.periodKey, parentId,
+        input.inbox ? 1 : 0, input.dueDate?.trim() || null, input.repeatRule ?? 'none', input.repeatRule ?? 'none',
+        input.periodKey, input.repeatRule && input.repeatRule !== 'none' ? input.periodKey : null,
         input.horizon, input.periodKey, input.horizon, input.periodKey, new Date().toISOString(), id],
     );
   });
 }
 
 export async function setGoalCompleted(db: SQLiteDatabase, id: string, completed: boolean): Promise<void> {
-  await db.runAsync(
-    'UPDATE goals SET completed = ?, updated_at = ? WHERE id = ? AND archived_at IS NULL',
-    [completed ? 1 : 0, new Date().toISOString(), id],
-  );
+  await db.withExclusiveTransactionAsync(async (tx) => {
+    const goal = await tx.getFirstAsync<GoalRow & { repeat_anchor: string | null }>(
+      'SELECT * FROM goals WHERE id = ? AND archived_at IS NULL', [id]);
+    if (!goal) throw new Error('The active goal no longer exists.');
+    if ((goal.completed === 1) === completed) return;
+    const now = new Date().toISOString();
+    await tx.runAsync('UPDATE goals SET completed = ?, updated_at = ? WHERE id = ?', [completed ? 1 : 0, now, id]);
+    await tx.runAsync('INSERT INTO goal_activity (id, goal_id, kind, occurred_at) VALUES (?, ?, ?, ?)',
+      [randomUUID(), id, completed ? 'completed' : 'reopened', now]);
+    if (!completed || goal.repeat_rule === 'none' || goal.in_inbox) return;
+    const existing = await tx.getFirstAsync<{ id: string }>('SELECT id FROM goals WHERE recurrence_from_id = ?', [id]);
+    if (existing) return;
+    const nextId = randomUUID();
+    const nextDay = nextOccurrence(goal.period_key, goal.repeat_rule, goal.repeat_anchor ?? goal.period_key);
+    // A fresh occurrence gets its own completion state. Never copy children, deadlines or time reservations.
+    await tx.runAsync(`INSERT INTO goals
+      (id, title, notes, horizon, period_key, parent_id, created_at, updated_at,
+       sort_rank, repeat_rule, repeat_anchor, recurrence_from_id)
+      VALUES (?, ?, ?, 'day', ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [nextId, goal.title, goal.notes, nextDay, goal.parent_id, now, now,
+        goal.sort_rank, goal.repeat_rule, goal.repeat_anchor ?? goal.period_key, id]);
+    await tx.runAsync(`INSERT INTO board_goals (board_id, goal_id, added_at)
+      SELECT board_id, ?, ? FROM board_goals WHERE goal_id = ?`, [nextId, now, id]);
+  });
+}
+
+export async function listInboxGoals(db: SQLiteDatabase): Promise<Goal[]> {
+  const rows = await db.getAllAsync<GoalRow>(`${SELECT_GOALS}
+    WHERE g.in_inbox = 1 AND g.archived_at IS NULL ORDER BY g.completed, g.sort_rank, g.created_at DESC`);
+  return rows.map(toGoal);
+}
+
+export async function listOpenPastGoals(db: SQLiteDatabase, now = new Date()): Promise<Goal[]> {
+  const rows = await db.getAllAsync<GoalRow & { reviewed_period: string | null }>(`${SELECT_GOALS}
+    WHERE g.completed = 0 AND g.in_inbox = 0 AND g.archived_at IS NULL AND g.horizon != 'life'
+    ORDER BY g.period_key, g.created_at`);
+  return rows.filter((row) => row.period_key < periodKey(row.horizon, now)
+    && row.reviewed_period !== periodKey(row.horizon, now)).map(toGoal);
+}
+
+export async function reviewPastGoal(db: SQLiteDatabase, id: string, move: boolean): Promise<void> {
+  await db.withExclusiveTransactionAsync(async (tx) => {
+    const goal = await tx.getFirstAsync<GoalRow>('SELECT * FROM goals WHERE id = ? AND completed = 0 AND archived_at IS NULL', [id]);
+    if (!goal) throw new Error('This open goal is no longer available.');
+    const current = periodKey(goal.horizon, new Date());
+    await tx.runAsync(`UPDATE goals SET period_key = ?, reviewed_period = ?, updated_at = ? WHERE id = ?`,
+      [move ? current : goal.period_key, current, new Date().toISOString(), id]);
+  });
+}
+
+export async function completedGoalsSince(db: SQLiteDatabase, since: string): Promise<number> {
+  const row = await db.getFirstAsync<{ total: number }>(`SELECT COUNT(DISTINCT a.goal_id) AS total
+    FROM goal_activity a JOIN goals g ON g.id = a.goal_id
+    WHERE a.kind = 'completed' AND a.occurred_at >= ? AND g.completed = 1`, [since]);
+  return row?.total ?? 0;
 }
 
 /** Archive the active subtree as one recoverable unit; pre-archived descendants stay untouched. */

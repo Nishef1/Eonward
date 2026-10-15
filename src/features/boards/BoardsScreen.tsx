@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { Alert, ActivityIndicator, Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, useColorScheme, View } from 'react-native';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
@@ -32,6 +32,7 @@ export function BoardsScreen() {
   const [boardTitle, setBoardTitle] = useState('');
   const [boardDescription, setBoardDescription] = useState('');
   const [busy, setBusy] = useState(false);
+  const writeLock = useRef(false);
   const [loading, setLoading] = useState(true);
   const [failure, setFailure] = useState<string | null>(null);
   const [revision, setRevision] = useState(0);
@@ -64,7 +65,8 @@ export function BoardsScreen() {
   }, [db, current?.id, revision]);
 
   async function write(task: () => Promise<void>) {
-    if (busy) return;
+    if (writeLock.current) return;
+    writeLock.current = true;
     setBusy(true);
     try {
       await task();
@@ -72,6 +74,7 @@ export function BoardsScreen() {
     } catch (err) {
       Alert.alert('Could not save', err instanceof Error ? err.message : 'Please try again.');
     } finally {
+      writeLock.current = false;
       setBusy(false);
     }
   }
@@ -230,7 +233,7 @@ export function BoardsScreen() {
             <View style={styles.boardEntryActions}>
               <Pressable onPress={() => void startNewGoal()} accessibilityRole="button"
                 style={[styles.boardPrimaryAction, { backgroundColor: palette.accent }]}>
-                <Text style={styles.primaryText}>＋  New goal</Text>
+                <Text style={[styles.primaryText, { color: palette.onAccent }]}>＋  New goal</Text>
               </Pressable>
               <Pressable onPress={() => void startPicker()} accessibilityRole="button"
                 style={[styles.boardSecondaryAction, { backgroundColor: palette.surface, borderColor: palette.border }]}>
@@ -259,7 +262,7 @@ export function BoardsScreen() {
                   <Text style={[styles.goalTitle, { color: palette.foreground, textDecorationLine: goal.completed ? 'line-through' : 'none' }]}
                     numberOfLines={2}>{goal.title}</Text>
                   <Text style={[styles.goalMeta, { color: palette.muted }]} numberOfLines={1}>
-                    {HORIZON_TITLES[goal.horizon]} · {goal.periodKey}{goal.parentTitle ? ` · ↳ ${goal.parentTitle}` : ''}
+                    {goal.inbox ? 'Inbox · not yet planned' : HORIZON_TITLES[goal.horizon] + ' · ' + goal.periodKey}{goal.parentTitle ? ` · ↳ ${goal.parentTitle}` : ''}
                   </Text>
                   {goal.nextBlockAt ? (
                     <Text style={[styles.goalMeta, { color: palette.accent }]} numberOfLines={1}>
@@ -283,7 +286,7 @@ export function BoardsScreen() {
           <>
             <Pressable onPress={createFromList} accessibilityRole="button"
               style={[styles.primary, { backgroundColor: palette.accent }]}>
-              <Text style={styles.primaryText}>＋  Create a board</Text>
+              <Text style={[styles.primaryText, { color: palette.onAccent }]}>＋  Create a board</Text>
             </Pressable>
             {boards.length === 0 ? (
               <View style={[styles.notice, { backgroundColor: palette.surface, borderColor: palette.border }]}>
@@ -316,6 +319,7 @@ export function BoardsScreen() {
         initial={null}
         parent={null}
         parentOptions={goalOptions}
+        defaultInbox
         defaultHorizon="week"
         anchorDate={goalAnchor}
         palette={palette}
@@ -341,7 +345,7 @@ export function BoardsScreen() {
                 style={[styles.field, styles.multi, { backgroundColor: palette.surface, borderColor: palette.border, color: palette.foreground }]} />
               <Pressable disabled={busy || !boardTitle.trim()} accessibilityRole="button" onPress={() => void saveBoard()}
                 style={[styles.primary, { backgroundColor: palette.accent, opacity: !boardTitle.trim() || busy ? .45 : 1 }]}>
-                <Text style={styles.primaryText}>{busy ? 'Saving…' : 'Save board'}</Text>
+                <Text style={[styles.primaryText, { color: palette.onAccent }]}>{busy ? 'Saving…' : 'Save board'}</Text>
               </Pressable>
               <Pressable onPress={() => setEditing(false)} accessibilityRole="button" style={styles.cancel}>
                 <Text style={[styles.actionText, { color: palette.muted }]}>Cancel</Text>
@@ -378,7 +382,7 @@ export function BoardsScreen() {
                     <View style={{ flex: 1, gap: 5 }}>
                       <Text style={[styles.goalTitle, { color: palette.foreground }]} numberOfLines={2}>{goal.title}</Text>
                       <Text style={[styles.goalMeta, { color: palette.muted }]}>
-                        {HORIZON_TITLES[goal.horizon]} · {goal.periodKey}
+                        {goal.inbox ? 'Inbox · not yet planned' : HORIZON_TITLES[goal.horizon] + ' · ' + goal.periodKey}
                       </Text>
                     </View>
                     <Text style={[styles.actionText, { color: palette.accent }]}>＋ Add</Text>

@@ -45,7 +45,8 @@ export function MonthOverview({ month, blocks, todayKey, selectedKey, palette, o
           ))}
         </View>
         <View style={styles.grid}>
-          {metrics.map(({ day, key, hours, count: events, active }) => {
+          {Array.from({ length: metrics.length / 7 }, (_, week) => <View key={week} style={styles.weekRow}>
+          {metrics.slice(week * 7, week * 7 + 7).map(({ day, key, hours, count: events, active }) => {
             const today = key === todayKey;
             const selected = key === selectedKey;
             return (
@@ -57,21 +58,22 @@ export function MonthOverview({ month, blocks, todayKey, selectedKey, palette, o
                   opacity: active ? 1 : 0.38,
                   borderColor: selected && !today ? palette.accent : 'transparent',
                 }]}>
-                <Text style={[styles.dateNumber, { color: today ? '#FFFFFF' : palette.foreground }]}>
+                <Text style={[styles.dateNumber, { color: today ? palette.onAccent : palette.foreground }]}>
                   {day.getDate()}
                 </Text>
                 {events ? (
                   <View style={[styles.activity, {
                     width: `${Math.min(80, Math.max(18, (hours / 8) * 80))}%` as const,
-                    backgroundColor: today ? '#FFFFFF' : palette.accent,
+                    backgroundColor: today ? palette.onAccent : palette.accent,
                   }]} />
                 ) : null}
-                {events > 1 ? <Text style={[styles.eventCount, { color: today ? '#FFFFFF' : palette.muted }]}>
+                {events > 1 ? <Text style={[styles.eventCount, { color: today ? palette.onAccent : palette.muted }]}>
                   {events} plans
                 </Text> : null}
               </Pressable>
             );
           })}
+          </View>)}
         </View>
       </View>
       <View style={styles.statRow}>
@@ -87,7 +89,7 @@ export function MonthOverview({ month, blocks, todayKey, selectedKey, palette, o
         </View>
       </View>
       <Text style={[styles.note, { color: palette.muted }]}>
-        Planned time may contain overlapping blocks. Sessions actually completed are tracked separately in Insights.
+        Planned time may contain overlapping blocks. Recorded focus time is tracked separately in Review.
       </Text>
     </ScrollView>
   );
@@ -102,8 +104,9 @@ const styles = StyleSheet.create({
   calendar: { borderWidth: 1, borderRadius: radius.xl, padding: 12 },
   weekLabels: { flexDirection: 'row', marginBottom: 8 },
   weekLabel: { flex: 1, textAlign: 'center', fontSize: 10, fontWeight: '800' },
-  grid: { flexDirection: 'row', flexWrap: 'wrap', rowGap: 4 },
-  dayCell: { width: '14.285714%', height: 70, paddingVertical: 7, borderWidth: 1,
+  grid: { gap: 4 },
+  weekRow: { flexDirection: 'row' },
+  dayCell: { flex: 1, minHeight: 70, paddingVertical: 7, borderWidth: 1,
     borderRadius: radius.md, alignItems: 'center', justifyContent: 'flex-start', gap: 7 },
   dateNumber: { fontSize: 14, fontWeight: '800', fontVariant: ['tabular-nums'] },
   activity: { height: 5, borderRadius: 3 },

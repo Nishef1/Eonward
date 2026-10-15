@@ -3,6 +3,7 @@ import { KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, StyleShee
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import { dateFromPeriodKey, HORIZONS, HORIZON_TITLES, parseDateInput, periodKey, periodLabel, shiftPeriod, type Horizon } from '../../domain/horizons';
 import type { Goal, GoalInput } from '../../domain/goals';
+import { REPEAT_LABELS, REPEAT_RULES, type RepeatRule } from '../../domain/planning';
 import { colors, radius, spacing } from '../../theme/tokens';
 
 type Palette = typeof colors.light | typeof colors.dark;
@@ -18,10 +19,11 @@ interface GoalEditorProps {
   saving: boolean;
   onDismiss: () => void;
   onSave: (input: GoalInput) => Promise<void>;
+  defaultInbox?: boolean;
 }
 
 export function GoalEditor({
-  visible, initial, parent, parentOptions, defaultHorizon, anchorDate, palette, saving, onDismiss, onSave,
+  visible, initial, parent, parentOptions, defaultHorizon, anchorDate, palette, saving, onDismiss, onSave, defaultInbox = false,
 }: GoalEditorProps) {
   const [title, setTitle] = useState('');
   const [notes, setNotes] = useState('');
@@ -31,6 +33,10 @@ export function GoalEditor({
   const [parentId, setParentId] = useState<string | null>(null);
   const [showParents, setShowParents] = useState(false);
   const [parentSearch, setParentSearch] = useState('');
+  const [expanded, setExpanded] = useState(false);
+  const [inbox, setInbox] = useState(false);
+  const [dueDate, setDueDate] = useState('');
+  const [repeatRule, setRepeatRule] = useState<RepeatRule>('none');
   const scrollRef = useRef<ScrollView>(null);
   const anchorTime = anchorDate.getTime();
 
@@ -48,13 +54,17 @@ export function GoalEditor({
     setParentId(initial?.parentId ?? parent?.id ?? null);
     setParentSearch('');
     setShowParents(false);
+    setInbox(initial?.inbox ?? defaultInbox);
+    setDueDate(initial?.dueDate ?? '');
+    setRepeatRule(initial?.repeatRule ?? 'none');
+    setExpanded(!!initial || !!parent);
     scrollRef.current?.scrollTo({ y: 0, animated: false });
-  }, [visible, initial?.id, defaultHorizon, parent?.id, anchorTime]);
+  }, [visible, initial?.id, defaultHorizon, parent?.id, anchorTime, defaultInbox]);
 
-  const validDate = horizon !== 'day' || parseDateInput(dateText) !== null;
+  const validDate = inbox || horizon !== 'day' || parseDateInput(dateText) !== null;
   const chosenDate = horizon === 'day' ? parseDateInput(dateText) ?? date : date;
   const selectedKey = periodKey(horizon, chosenDate);
-  const isValid = title.trim().length > 0 && title.trim().length <= 180 && validDate;
+  const isValid = title.trim().length > 0 && title.trim().length <= 180 && validDate && (!dueDate || !!parseDateInput(dueDate));
   const currentParent = parentOptions.find((choice) => choice.id === parentId) ?? (parent?.id === parentId ? parent : null);
   const filteredParents = useMemo(() => parentOptions.filter((goal) =>
     goal.title.toLowerCase().includes(parentSearch.trim().toLowerCase()),
@@ -77,7 +87,8 @@ export function GoalEditor({
 
   function submit() {
     if (!isValid || saving) return;
-    void onSave({ title, notes, horizon, periodKey: selectedKey, parentId });
+    void onSave({ title, notes, horizon, periodKey: inbox ? '' : selectedKey, parentId, inbox,
+      dueDate: dueDate || null, repeatRule: !inbox && horizon === 'day' ? repeatRule : 'none' });
   }
 
   return (
@@ -89,7 +100,6 @@ export function GoalEditor({
           <View style={[styles.grabber, { backgroundColor: palette.border }]} />
           <View style={styles.header}>
             <View style={styles.headerCopy}>
-              <Text style={[styles.eyebrow, { color: palette.accent }]}>PLAN WITH INTENTION</Text>
               <Text style={[styles.heading, { color: palette.foreground }]}>
                 {initial ? 'Edit your goal' : parent ? 'A smaller step' : 'Create a goal'}
               </Text>
@@ -111,6 +121,18 @@ export function GoalEditor({
               accessibilityLabel="Goal name"
               returnKeyType="next"
             />
+            <Text style={[styles.dateHelp, { color: palette.muted }]}>
+              {inbox ? 'Inbox · decide when later' : periodLabel(horizon, chosenDate)}
+              {currentParent ? ` · Part of ${currentParent.title}` : ''}
+            </Text>
+            <Pressable accessibilityRole="button" accessibilityState={{ expanded }} onPress={() => setExpanded(!expanded)} style={styles.parentChoice}>
+              <Text style={{ color: palette.accent, fontWeight: '700' }}>{expanded ? 'Fewer details −' : 'Add planning details, deadline or notes +'}</Text>
+            </Pressable>
+            {expanded ? <>
+            <Pressable accessibilityRole="checkbox" accessibilityState={{ checked: inbox }} onPress={() => { setInbox(!inbox); setRepeatRule('none'); }} style={styles.parentChoice}>
+              <Text style={{ color: palette.foreground }}>{inbox ? '☑' : '□'} Keep in Inbox without a planning period</Text>
+            </Pressable>
+            {!inbox ? <>
             <Text style={[styles.label, { color: palette.muted }]}>TIME HORIZON</Text>
             <ScrollView horizontal keyboardShouldPersistTaps="always" showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chips}>
               {HORIZONS.map((item) => {
@@ -166,6 +188,22 @@ export function GoalEditor({
                 {!validDate ? <Text style={styles.validation}>Enter an existing date, for example 2026-10-14.</Text> : null}
               </>
             ) : null}
+            </> : null}
+            <Text style={[styles.label, { color: palette.muted }]}>DEADLINE (OPTIONAL)</Text>
+            <TextInput value={dueDate} onChangeText={setDueDate} placeholder="YYYY-MM-DD · no deadline"
+              maxLength={10} accessibilityLabel="Deadline, optional" placeholderTextColor={palette.muted}
+              keyboardType="numbers-and-punctuation" style={[styles.dateInput, { color: palette.foreground, borderColor: palette.border, backgroundColor: palette.surface }]} />
+            {dueDate && !parseDateInput(dueDate) ? <Text style={styles.validation}>Enter a real deadline as YYYY-MM-DD.</Text> : null}
+            {!inbox && horizon === 'day' ? <>
+              <Text style={[styles.label, { color: palette.muted }]}>REPEAT THIS STEP</Text>
+              <ScrollView horizontal keyboardShouldPersistTaps="handled" showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chips}>
+                {REPEAT_RULES.map((rule) => <Pressable key={rule} accessibilityRole="button" accessibilityState={{ selected: repeatRule === rule }}
+                  onPress={() => setRepeatRule(rule)} style={[styles.chip, { borderColor: palette.border, backgroundColor: repeatRule === rule ? palette.foreground : palette.surface }]}>
+                  <Text style={{ color: repeatRule === rule ? palette.background : palette.foreground }}>{REPEAT_LABELS[rule]}</Text>
+                </Pressable>)}
+              </ScrollView>
+              {repeatRule !== 'none' ? <Text style={[styles.dateHelp, { color: palette.muted }]}>Completing this step creates the next occurrence. Its notes and board links carry over; deadlines, time blocks and child steps do not.</Text> : null}
+            </> : null}
             <View style={styles.labelRow}>
               <Text style={[styles.label, { color: palette.muted }]}>PART OF</Text>
               <Text style={[styles.optional, { color: palette.muted }]}>optional</Text>
@@ -210,12 +248,13 @@ export function GoalEditor({
               style={[styles.notesInput, { backgroundColor: palette.surface, borderColor: palette.border, color: palette.foreground }]}
               accessibilityLabel="Goal notes"
             />
+            </> : null}
           </ScrollView>
           <SafeAreaView edges={['bottom']} style={[styles.saveFooter, { backgroundColor: palette.background, borderTopColor: palette.border }]}>
             <Pressable accessibilityRole="button" accessibilityState={{ disabled: !isValid || saving }}
               disabled={!isValid || saving} onPress={submit}
               style={[styles.save, { backgroundColor: palette.accent, opacity: isValid && !saving ? 1 : 0.45 }]}>
-              <Text style={styles.saveText}>{saving ? 'Saving…' : initial ? 'Save changes' : 'Create goal'}</Text>
+              <Text style={[styles.saveText, { color: palette.onAccent }]}>{saving ? 'Saving…' : initial ? 'Save changes' : 'Create goal'}</Text>
             </Pressable>
           </SafeAreaView>
         </View>

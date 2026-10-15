@@ -56,3 +56,15 @@ Record significant decisions and reversals here. A future change should cite its
 - Widget package vs Kotlin/Swift integration: verify power management and refresh reliability.
 - Export format, encryption choice and attachment packaging.
 - Precise package identifier and app-store naming before external release.
+
+
+## 2026-10-15 — Personal planning and recovery
+
+- Accept the compact Plan / Overview / Inbox direction and keep four labeled existing dock destinations: Plan, Calendar, Boards, Review.
+- Use additive schema v7. `in_inbox` is authoritative for unscheduled goals, whose `period_key` is empty; the legacy horizon category is dormant until the user assigns a period. Never interpret an Inbox record as a dated daily goal.
+- Store optional `due_date` as a floating civil date, independently of horizon and UTC time reservations.
+- Record completion/reopen transitions transactionally. Do not infer historical completion from update timestamps or backfill unverifiable events.
+- Create a recurring occurrence only when its source is completed, with a unique source reference. Reopening/recompleting does not duplicate its next occurrence. Copy notes and board references; do not duplicate children, deadlines or time blocks.
+- Keep startup migrations on SQLiteProvider's original connection to avoid the reproduced Android second-connection lock.
+- Native JSON backups merge missing records atomically, preserve local conflicts, validate references/cycles before and after merge, and exclude transient running Focus sessions.
+- Add SDK-compatible MIT-licensed Expo FileSystem, Sharing and DocumentPicker for real file recovery; explicitly configure the SystemUI plugin so native builds follow the existing automatic theme setting. The Android 35 picker/share workflow needs no runtime storage permission or backend.

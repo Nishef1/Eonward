@@ -19,7 +19,7 @@ Status: **Early foundation**. Visual tokens in source are provisional, not a fin
 | Elevated | `#FFFFFF` | `#222A28` |
 | Primary text | `#202927` | `#F0F3F0` |
 | Secondary text | `#66736E` | `#A8B7AF` |
-| Accent | `#587A6D` | `#92B2A3` |
+| Accent | `#527265` | `#92B2A3` |
 | Divider | `#E6EAE4` | `#36413B` |
 
 Tokens must be reviewed with contrast tests before being used as semantic states.
@@ -110,8 +110,22 @@ The Focus goal card has an Android-safe organization action sheet (Move Up, Move
 
 ## Shared navigation and Focus Timer
 
-- Three labeled mobile dock destinations: Horizons, Calendar, Boards. Do not add extra primary tabs before their hierarchy is justified.
+- Four labeled mobile dock destinations: Plan, Calendar, Boards and Review. Additional destinations require a justified hierarchy.
 - Timer lives above the dock as a small, tappable strip only during an active session; goal name and remaining time use tabular numerals.
 - Expanded focus view uses one deliberate timer hero, compact Pause/Resume and End controls, and explicit separation from completing a goal.
 - An elapsed Timebox shows Time's up without alarm-like claims; expiry does not silently modify a goal.
 - Avoid decorative gradients, massive glows and fake analytics. Validate root-layout, modal/safe-area and disabled controls on Android.
+
+
+## Compact personal planning direction — 2026-10-15
+
+- Preserve the warm light and green-black dark identity. Semantic `onAccent` foregrounds replace white-on-pale-accent text in dark mode.
+- Four existing root destinations are labeled Plan, Calendar, Boards and Review. Focus names the timer; it no longer also names the planning view.
+- Plan starts with its selected period and actual intentions. Brand slogans and oversized empty cards are removed from the everyday workflow.
+- Title-only capture stays in the selected period; Inbox is explicitly unscheduled. Notes, deadline, repeat rule and parent are optional details.
+- Overview keeps all seven horizons, with short empty rows and useful goal previews. Do not score whether the user filled every horizon.
+- Review distinguishes recorded Focus time, goal completion and scheduling. Reopened goals do not count as completed steps. Earlier periods require an explicit decision rather than silent movement.
+- Calendar shows Month in its view selector; untimed daily goals never masquerade as midnight events. Keep the non-drag editor as the reliable scheduling path.
+- Backup restoration previews the content and preserves existing local IDs. Active timers are excluded explicitly.
+
+Light accent text on the warm background was adjusted from 4.39:1 to 4.91:1 contrast. `onAccent` also preserves readable dark-theme buttons. Empty focus charts are hidden rather than presenting a large field of zeroes.

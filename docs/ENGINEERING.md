@@ -26,7 +26,7 @@ npm run start
 
 Start Android with `npm run android` once an emulator or real device is configured. Use an Expo development build for native modules not included in Expo Go when needed.
 
-**Current verification:** GitHub Actions completed npm installation, Expo dependency alignment, TypeScript, domain tests and Android Metro export. The lockfile has been regenerated with matching React DOM and Worklets versions. An initial emulator screenshot verified startup; the latest interaction flows, APK and iOS builds remain unverified on-device. Strict npm ci passed in CI.
+**Current verification:** TypeScript, 20 domain/SQLite tests, Expo dependency alignment and Android Metro export pass locally. The debug APK has been built and installed on Android; sampled interaction evidence and remaining acceptance gates are recorded in ROADMAP.md. iOS and physical-device release behavior remain unverified.
 
 ## Dependency workflow
 
@@ -37,7 +37,7 @@ Start Android with `npm run android` once an emulator or real device is configur
 5. Verify license, maintenance, changelog and native build impact before adopting new packages.
 6. Do not bulk-upgrade Expo or React Native independently from the Expo version matrix.
 
-Already installed: Expo SQLite, Expo Crypto, Reanimated and Worklets. Not yet installed: Drizzle, calendar widgets, note editor, notifications, haptics, gesture-handler and native widgets.
+Already installed: Expo SQLite, Crypto, Notifications, FileSystem, DocumentPicker, Sharing, SystemUI, Reanimated and Worklets. Not installed: Drizzle, rich note editor, haptics, gesture-handler or native widgets.
 
 ## Verification steps for each implementation
 
@@ -61,7 +61,7 @@ If SDK packages are mismatched, check `npx expo install --check` before forcing 
 
 ## Automated test budget
 
-- Maximum **20** unique, focused test cases across all test files; current count: **12**.
+- Maximum **20** unique, focused test cases across all test files; current count: **20**.
 - CI and `npm run test:domain` run `scripts/check-test-budget.mjs`.
 - Prioritize date semantics, SQLite integrity and primary planning workflows.
 - Review and replace stale cases before adding tests. Never generate broad redundant regression suites.
@@ -69,4 +69,13 @@ If SDK packages are mismatched, check `npx expo install --check` before forcing 
 
 ## Current migration gate
 
-The v2 migration uses Expo SQLite exclusive transaction plus additive columns so an existing user's v1 goals remain intact. **Do not reset the emulator database to make a migration error disappear.** Preserve a v1 copy and test upgrading it. Verify archived subtrees and stored sort ranks across app restarts before marking this slice complete. Automated test count remains 12; the three existing migration cases were updated, not multiplied.
+Schema v7 uses additive upgrades on the provider's existing transaction connection so existing goals remain intact. **Do not reset the emulator database to make a migration error disappear.** A populated v5→v7 upgrade is covered by real SQLite, and the native v6→v7 upgrade was checked. Physical-device lifecycle acceptance remains open.
+
+
+## Current native and verification workflow — 2026-10-15
+
+- Native backup modules and SystemUI are now installed. `npm run android` / `npm run ios` use `expo run:*` to build the required native binary. iOS execution still needs Apple tooling.
+- Domain/SQLite checks remain **20/20** focused cases. The test loader maps only Expo Crypto's native UUID boundary to `node:crypto` and resolves TypeScript paths; persistence tests execute real SQLite, not SQL mocks.
+- Startup migrations use the provider's existing transaction connection. Do not reintroduce an exclusive second connection during initialization, and never reset user data to resolve a lock.
+- Use the currently verified Metro owner/port, not a remembered port. This session's Eonward Metro is 8091; 8082 belongs to another project. A Windows localhost-only listener may bind IPv6 only, which ADB reverse cannot reach through IPv4; the verified local workflow uses `expo start --port 8091 --lan --max-workers 2` and explicit device reverse forwarding.
+- Screenshots, local backup files and native QA databases stay outside Git. Do not publish personal planning data or private research.

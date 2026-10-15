@@ -187,7 +187,7 @@ export function TimeBlockEditor({ visible, date, goals, initial, suggestedGoalId
               <Pressable disabled={!valid} accessibilityRole="button" accessibilityState={{ disabled: !valid }}
                 onPress={() => { if (valid && goalId) void onSave({ goalId, date: dayText, start, end, endsNextDay, kind, intention }); }}
                 style={[styles.save, { backgroundColor: palette.accent, opacity: valid ? 1 : 0.45 }]}>
-                <Text style={styles.saveText}>{saving ? 'Saving…' : initial ? 'Save changes' : 'Schedule time'}</Text>
+                <Text style={[styles.saveText, { color: palette.onAccent }]}>{saving ? 'Saving…' : initial ? 'Save changes' : 'Schedule time'}</Text>
               </Pressable>
             </SafeAreaView>
           </View>

@@ -1,7 +1,7 @@
 import { Suspense } from 'react';
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
-import { ActivityIndicator, View } from 'react-native';
+import { ActivityIndicator, useColorScheme, View } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { SQLiteProvider } from 'expo-sqlite';
 import { migrateDatabase } from '../src/storage/database';
@@ -10,9 +10,10 @@ import { AppDock } from '../src/features/shell/AppDock';
 import { colors } from '../src/theme/tokens';
 
 function LoadingDatabase() {
+  const palette = useColorScheme() === 'dark' ? colors.dark : colors.light;
   return (
-    <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.light.background }}>
-      <ActivityIndicator color={colors.light.accent} size="large" />
+    <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: palette.background }}>
+      <ActivityIndicator color={palette.accent} size="large" />
     </View>
   );
 }

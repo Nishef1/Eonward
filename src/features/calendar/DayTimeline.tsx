@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { AppState, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Alert, AppState, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { blockClockRangeForDay, layoutBlocks, localClock, localDayKey, type TimeBlock } from '../../domain/timeblocks';
 import { colors, radius } from '../../theme/tokens';
 
@@ -74,12 +74,11 @@ export function DayTimeline({ date, blocks, palette, isDark, onEdit, onQuickAdd,
   return (
     <View style={styles.container}>
       <View style={styles.toolbar}>
-        <View style={styles.toolbarCopy}>
-          <Text style={[styles.heading, { color: palette.foreground }]}>Day timeline</Text>
-          <Text style={[styles.subheading, { color: palette.muted }]}>
-            Tap an empty hour to plan · hold a block to open its goal
-          </Text>
-        </View>
+        <Pressable accessibilityRole="button" accessibilityLabel="How to use the timeline"
+          onPress={() => Alert.alert('Your timeline', 'Tap an empty hour to reserve time. Tap a block to edit it, or hold it to open the goal. Use + and − to change the scale.')}
+          style={[styles.toolbarCopy, { minHeight: 48, justifyContent: 'center' }]}>
+          <Text style={[styles.heading, { color: palette.foreground }]}>Timeline ⓘ</Text>
+        </Pressable>
         <View style={[styles.zoom, { backgroundColor: palette.surface, borderColor: palette.border }]}>
           <Pressable accessibilityRole="button" accessibilityLabel="Zoom out of day timeline"
             accessibilityState={{ disabled: zoomIndex === 0 }}
@@ -213,7 +212,6 @@ const styles = StyleSheet.create({
   toolbar: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8, paddingVertical: 11 },
   toolbarCopy: { flex: 1, gap: 4 },
   heading: { fontSize: 17, fontWeight: '700', letterSpacing: -0.4 },
-  subheading: { fontSize: 11, lineHeight: 16 },
   zoom: { height: 39, flexDirection: 'row', alignItems: 'center', borderRadius: radius.full, borderWidth: 1 },
   zoomButton: { minWidth: 30, height: 39, alignItems: 'center', justifyContent: 'center' },
   zoomGlyph: { fontSize: 18, fontWeight: '700' },

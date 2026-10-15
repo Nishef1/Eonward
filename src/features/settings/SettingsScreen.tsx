@@ -1,0 +1,76 @@
+import { useRef, useState } from 'react';
+import { Alert, Linking, Pressable, ScrollView, StyleSheet, Text, useColorScheme, View } from 'react-native';
+import { useRouter } from 'expo-router';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { useSQLiteContext } from 'expo-sqlite';
+import { File, Paths } from 'expo-file-system';
+import * as Sharing from 'expo-sharing';
+import * as DocumentPicker from 'expo-document-picker';
+import { MAX_BACKUP_BYTES, parseBackup } from '../../domain/backup';
+import { exportBackup, restoreBackup } from '../../storage/backup';
+import { colors } from '../../theme/tokens';
+
+export function SettingsScreen() {
+  const db = useSQLiteContext(), router = useRouter();
+  const palette = useColorScheme() === 'dark' ? colors.dark : colors.light;
+  const [busy, setBusy] = useState(false), [notice, setNotice] = useState<string | null>(null);
+  const locked = useRef(false);
+  async function run(action: () => Promise<void>) {
+    if (locked.current) return;
+    locked.current = true; setBusy(true); setNotice(null);
+    try { await action(); }
+    catch (error) { Alert.alert('Could not finish', error instanceof Error ? error.message : 'Please try again.'); }
+    finally { locked.current = false; setBusy(false); }
+  }
+  async function exportData() {
+    const backup = await exportBackup(db);
+    const file = new File(Paths.document, `eonward-${new Date().toISOString().replace(/[:.]/g, '-')}.json`);
+    file.write(JSON.stringify(backup, null, 2));
+    setNotice('Backup created on this device. Use the share sheet to save a copy somewhere you can recover it.');
+    if (await Sharing.isAvailableAsync()) await Sharing.shareAsync(file.uri, { mimeType: 'application/json', UTI: 'public.json', dialogTitle: 'Save your Eonward backup' });
+    else setNotice('Sharing is unavailable on this device. The backup remains in app storage; it has not been saved outside the app.');
+  }
+  async function pickBackup() {
+    const picked = await DocumentPicker.getDocumentAsync({ type: ['application/json', 'text/plain', 'application/octet-stream'], copyToCacheDirectory: true });
+    if (picked.canceled) return;
+    const file = new File(picked.assets[0].uri);
+    try {
+      if ((file.size ?? 0) > MAX_BACKUP_BYTES) throw new Error('Choose an Eonward backup smaller than 10 MB.');
+      const text = await file.text();
+      const preview = parseBackup(text);
+      Alert.alert('Restore missing data?', `${preview.tables.goals.length} goals, ${preview.tables.boards.length} boards and ${preview.tables.time_blocks.length} time blocks.\n\nExisting items keep their current values. No items are deleted. Active timers are not imported.`, [
+        { text: 'Cancel', style: 'cancel' },
+        { text: 'Restore', onPress: () => { void run(async () => {
+          const count = await restoreBackup(db, text);
+          setNotice(`${count} missing record${count === 1 ? '' : 's'} restored. Your existing data was preserved.`);
+        }); } },
+      ]);
+    } finally { if (file.exists) file.delete(); }
+  }
+  return <SafeAreaView edges={['top', 'left', 'right']} style={{ flex: 1, backgroundColor: palette.background }}>
+    <ScrollView contentContainerStyle={styles.content}>
+      <View style={styles.header}><Pressable accessibilityRole="button" accessibilityLabel="Back to Plan" onPress={() => router.back()} style={styles.back}><Text style={{ color: palette.foreground, fontSize: 26 }}>‹</Text></Pressable><Text style={[styles.title, { color: palette.foreground }]}>Your data & settings</Text></View>
+      <Text style={[styles.copy, { color: palette.muted }]}>Your plans live on this device. Keep an exported copy so you can recover them on another device.</Text>
+      <View style={[styles.card, { backgroundColor: palette.surface, borderColor: palette.border }]}>
+        <Text style={[styles.heading, { color: palette.foreground }]}>Backup & restore</Text>
+        <Text style={[styles.copy, { color: palette.muted }]}>Includes goals, notes, deadlines, repeats, boards, schedules, archive and recorded progress. Active focus timers are not copied.</Text>
+        <Pressable accessibilityRole="button" disabled={busy} onPress={() => { void run(exportData); }} style={[styles.primary, { backgroundColor: palette.accent, opacity: busy ? .5 : 1 }]}><Text style={{ color: palette.onAccent, fontWeight: '700' }}>{busy ? 'Working…' : 'Export backup'}</Text></Pressable>
+        <Pressable accessibilityRole="button" disabled={busy} onPress={() => { void run(pickBackup); }} style={[styles.secondary, { borderColor: palette.border }]}><Text style={{ color: palette.foreground, fontWeight: '700' }}>Restore from a file</Text></Pressable>
+        <Text style={[styles.caption, { color: palette.muted }]}>Backup files contain your personal notes as readable JSON. Choose where to keep or share them.</Text>
+      </View>
+      {notice ? <Text accessibilityRole="alert" style={[styles.copy, { color: palette.accent }]}>{notice}</Text> : null}
+      <View style={[styles.card, { backgroundColor: palette.surface, borderColor: palette.border }]}>
+        <Text style={[styles.heading, { color: palette.foreground }]}>Focus alerts</Text>
+        <Text style={[styles.copy, { color: palette.muted }]}>Notification and alarm access are controlled by Android. Focus remains usable when alerts are off. System battery restrictions can delay delivery.</Text>
+        <Pressable accessibilityRole="button" onPress={() => { void Linking.openSettings().catch(() => Alert.alert('Open Android Settings', 'Choose Apps → Eonward → Notifications.')); }} style={[styles.secondary, { borderColor: palette.border }]}><Text style={{ color: palette.foreground }}>Open app settings</Text></Pressable>
+      </View>
+    </ScrollView>
+  </SafeAreaView>;
+}
+const styles = StyleSheet.create({
+  content: { padding: 18, paddingBottom: 32, gap: 18 }, header: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  back: { minHeight: 48, minWidth: 48, justifyContent: 'center', alignItems: 'center' }, title: { fontSize: 23, fontWeight: '700', flex: 1 },
+  heading: { fontSize: 18, fontWeight: '700' }, copy: { fontSize: 14, lineHeight: 22 }, caption: { fontSize: 12, lineHeight: 19 },
+  card: { padding: 18, borderRadius: 18, borderWidth: 1, gap: 14 }, primary: { minHeight: 50, borderRadius: 12, justifyContent: 'center', alignItems: 'center' },
+  secondary: { minHeight: 50, borderRadius: 12, borderWidth: 1, justifyContent: 'center', alignItems: 'center' },
+});

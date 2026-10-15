@@ -7,10 +7,10 @@ import { useFocusSession } from '../focus/FocusProvider';
 import { colors, radius } from '../../theme/tokens';
 
 const routes = [
-  { path: '/', label: 'Horizons', glyph: '◈' },
+  { path: '/', label: 'Plan', glyph: '◈' },
   { path: '/calendar', label: 'Calendar', glyph: '◷' },
   { path: '/boards', label: 'Boards', glyph: '▦' },
-  { path: '/insights', label: 'Insights', glyph: '▥' },
+  { path: '/insights', label: 'Review', glyph: '▥' },
 ] as const;
 
 export function AppDock() {
@@ -83,12 +83,12 @@ export function AppDock() {
         ) : null}
         <View style={styles.navigation}>
           {routes.map((route) => {
-            const selected = pathname === route.path;
+            const selected = pathname === route.path || (route.path === '/' && pathname === '/settings');
             return (
               <Pressable key={route.path} accessibilityRole="tab"
                 accessibilityState={{ selected }}
                 accessibilityLabel={route.label}
-                onPress={() => { if (!selected) router.navigate(route.path); }}
+                onPress={() => { if (pathname !== route.path) router.navigate(route.path); }}
                 style={styles.navItem}>
                 <View style={[styles.navIndicator, selected && { backgroundColor: palette.surface }]}>
                   <Text style={[styles.navGlyph, { color: selected ? palette.accent : palette.muted }]}>{route.glyph}</Text>
@@ -114,7 +114,7 @@ export function AppDock() {
                 {formatFocusTime(remaining)}
               </Text>
               <Text style={[styles.explainer, { color: palette.muted }]}>
-                {finished ? 'Your timebox has ended. Decide whether to mark the goal complete in Horizons.' :
+                {finished ? 'Your timebox has ended. Decide whether to mark the goal complete in Plan.' :
                   session?.status === 'paused' ? 'Time is paused. Resume when you are ready.' :
                     'A focused window for this goal. The countdown stays accurate when you switch pages or return to the app.'}
               </Text>
@@ -135,7 +135,7 @@ export function AppDock() {
                     accessibilityLabel={session?.status === 'paused' ? 'Resume focus timer' : 'Pause focus timer'}
                     onPress={() => run(session?.status === 'paused' ? resume : pause)}
                     style={[styles.primary, { backgroundColor: palette.accent }]}>
-                    <Text style={styles.primaryText}>{session?.status === 'paused' ? 'Resume' : 'Pause'}</Text>
+                    <Text style={[styles.primaryText, { color: palette.onAccent }]}>{session?.status === 'paused' ? 'Resume' : 'Pause'}</Text>
                   </Pressable>
                 ) : null}
                 <Pressable disabled={busy} accessibilityRole="button" onPress={finished ? () => run(finish) : onStop}

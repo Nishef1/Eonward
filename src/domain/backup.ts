@@ -1,0 +1,115 @@
+import { HORIZONS, parseDateInput } from './horizons';
+import { REPEAT_RULES, validatePlanning } from './planning';
+
+export const BACKUP_COLUMNS = {
+  goals: ['id', 'title', 'notes', 'horizon', 'period_key', 'parent_id', 'completed', 'created_at', 'updated_at',
+    'archived_at', 'sort_rank', 'in_inbox', 'due_date', 'repeat_rule', 'repeat_anchor', 'recurrence_from_id', 'reviewed_period'],
+  boards: ['id', 'title', 'description', 'created_at', 'updated_at'],
+  board_goals: ['board_id', 'goal_id', 'added_at'],
+  time_blocks: ['id', 'goal_id', 'start_at', 'end_at', 'kind', 'intention', 'created_at', 'updated_at'],
+  focus_history: ['id', 'goal_title', 'started_at_ms', 'ended_at_ms', 'planned_ms', 'focused_ms', 'outcome'],
+  goal_activity: ['id', 'goal_id', 'kind', 'occurred_at'],
+} as const;
+export type BackupTable = keyof typeof BACKUP_COLUMNS;
+export type BackupRow = Record<string, string | number | null>;
+export interface Backup {
+  format: 'eonward-backup'; version: 1; schemaVersion: 7; createdAt: string;
+  tables: Record<BackupTable, BackupRow[]>;
+}
+export const MAX_BACKUP_BYTES = 10 * 1024 * 1024;
+const fail = (message: string): never => { throw new Error(`Invalid backup: ${message}`); };
+const stamp = (value: unknown) => typeof value === 'string' && Number.isFinite(Date.parse(value))
+  && new Date(value).toISOString() === value;
+const identifier = (value: unknown) => typeof value === 'string' && value.length > 0 && value.length <= 200;
+
+/** Strict allowlist, bounded size, complete references and cycle checks before any write. */
+export function parseBackup(text: string): Backup {
+  if (text.length > MAX_BACKUP_BYTES) fail('file is larger than 10 MB.');
+  let bytes = 0;
+  for (const character of text) {
+    const point = character.codePointAt(0)!;
+    bytes += point <= 0x7f ? 1 : point <= 0x7ff ? 2 : point <= 0xffff ? 3 : 4;
+    if (bytes > MAX_BACKUP_BYTES) fail('file is larger than 10 MB.');
+  }
+  let data: Backup;
+  try { data = JSON.parse(text) as Backup; } catch { return fail('not valid JSON.'); }
+  if (!data || data.format !== 'eonward-backup' || data.version !== 1 || data.schemaVersion !== 7
+    || !stamp(data.createdAt) || !data.tables || Array.isArray(data.tables)) fail('unsupported format or version.');
+  for (const table of Object.keys(BACKUP_COLUMNS) as BackupTable[]) {
+    const rows = data.tables[table];
+    if (!Array.isArray(rows) || rows.length > 50000) fail(`invalid ${table} collection.`);
+    const ids = new Set();
+    for (const row of rows) {
+      if (!row || typeof row !== 'object' || Array.isArray(row)) fail(`invalid ${table} row.`);
+      const columns: readonly string[] = BACKUP_COLUMNS[table];
+      if (Object.keys(row).length !== columns.length || Object.keys(row).some((key) => !columns.includes(key))) fail(`unexpected ${table} fields.`);
+      for (const key of columns) {
+        if (!(key in row)) fail(`missing ${key}.`);
+        const value = row[key];
+        if (value !== null && typeof value !== 'string' && typeof value !== 'number') fail(`invalid ${key}.`);
+        if (typeof value === 'number' && !Number.isSafeInteger(value)) fail(`invalid number in ${key}.`);
+        if (typeof value === 'string' && value.length > 1000000) fail(`oversized ${key}.`);
+        if (['created_at', 'updated_at', 'added_at', 'occurred_at'].includes(key) && !stamp(value)) fail(`invalid ${key}.`);
+      }
+      const id = table === 'board_goals' ? JSON.stringify([row.board_id, row.goal_id]) : row.id;
+      if (!identifier(id) || ids.has(id)) fail(`duplicate or invalid ${table} ID.`);
+      ids.add(id);
+    }
+  }
+  const goals = new Map(data.tables.goals.map((row) => [row.id, row]));
+  const boards = new Set(data.tables.boards.map((row) => row.id));
+  const recurrenceSources = new Set();
+  for (const row of data.tables.goals) {
+    if (typeof row.title !== 'string' || !row.title.trim() || row.title.length > 180 || typeof row.notes !== 'string'
+      || !HORIZONS.includes(row.horizon as never) || ![0, 1].includes(row.completed as number)
+      || ![0, 1].includes(row.in_inbox as number) || typeof row.sort_rank !== 'number'
+      || !REPEAT_RULES.includes(row.repeat_rule as never) || typeof row.period_key !== 'string') fail('invalid goal.');
+    for (const key of ['parent_id', 'recurrence_from_id']) {
+      if (row[key] !== null && (!identifier(row[key]) || !goals.has(row[key]))) fail(`missing ${key} goal.`);
+    }
+    if (row.archived_at !== null && !stamp(row.archived_at)) fail('invalid archive date.');
+    if (row.due_date !== null && typeof row.due_date !== 'string') fail('invalid deadline.');
+    if (row.reviewed_period !== null && typeof row.reviewed_period !== 'string') fail('invalid review period.');
+    if (row.repeat_anchor !== null && (typeof row.repeat_anchor !== 'string' || !parseDateInput(row.repeat_anchor))) fail('invalid repeat anchor.');
+    if (row.in_inbox === 1 && row.period_key !== '') fail('Inbox must have no planning period.');
+    validatePlanning({ horizon: row.horizon as never, periodKey: row.period_key as string,
+      inbox: row.in_inbox === 1, dueDate: row.due_date as string | null, repeatRule: row.repeat_rule as never });
+    if (row.recurrence_from_id !== null) {
+      if (recurrenceSources.has(row.recurrence_from_id) || row.recurrence_from_id === row.id) fail('duplicate recurrence occurrence.');
+      recurrenceSources.add(row.recurrence_from_id);
+    }
+  }
+  // Visiting each node at most twice avoids quadratic validation of a long chain.
+  for (const relation of ['parent_id', 'recurrence_from_id']) {
+    const finished = new Set();
+    for (const row of goals.values()) {
+      const path = new Set(); let cursor: BackupRow | undefined = row;
+      while (cursor && !finished.has(cursor.id)) {
+        if (path.has(cursor.id)) fail(`cycle in ${relation}.`);
+        path.add(cursor.id); cursor = goals.get(cursor[relation]);
+      }
+      for (const id of path) finished.add(id);
+    }
+  }
+  for (const row of data.tables.boards) {
+    if (typeof row.title !== 'string' || !row.title.trim() || row.title.length > 100 || typeof row.description !== 'string') fail('invalid board.');
+  }
+  for (const row of data.tables.board_goals) {
+    if (!goals.has(row.goal_id) || !boards.has(row.board_id)) fail('missing board membership target.');
+  }
+  for (const row of data.tables.time_blocks) {
+    if (!goals.has(row.goal_id) || !stamp(row.start_at) || !stamp(row.end_at)
+      || String(row.end_at) <= String(row.start_at) || !['block', 'box'].includes(String(row.kind))
+      || typeof row.intention !== 'string') fail('invalid time block.');
+  }
+  for (const row of data.tables.goal_activity) {
+    if (!goals.has(row.goal_id) || !['completed', 'reopened'].includes(String(row.kind))) fail('invalid goal activity.');
+  }
+  for (const row of data.tables.focus_history) {
+    if (typeof row.goal_title !== 'string' || !['completed', 'stopped', 'replaced'].includes(String(row.outcome))
+      || ['started_at_ms', 'ended_at_ms', 'planned_ms', 'focused_ms'].some((key) => typeof row[key] !== 'number' || row[key] < 0)
+      || Number(row.planned_ms) <= 0 || Number(row.focused_ms) > Number(row.planned_ms)
+      || Number(row.ended_at_ms) < Number(row.started_at_ms)) fail('invalid focus history.');
+  }
+  return data;
+}
