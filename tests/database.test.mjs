@@ -79,6 +79,10 @@ test('real SQLite migrates populated v5 data to v8 without losing goals, boards 
     );
     // Emulate the exact structural difference from v5 (not a fresh v6 database).
     sqlite.exec(`
+      DROP TABLE replan_checkpoint;
+      DROP TABLE time_budgets;
+      DROP INDEX focus_history_by_goal_end;
+      ALTER TABLE time_blocks DROP COLUMN flexible;
       DROP TABLE goal_activity;
       DROP INDEX goals_recurrence_source;
       DROP INDEX goals_inbox;
