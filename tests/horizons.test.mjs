@@ -5,6 +5,7 @@ import { normalizeGoalTitle, availableGoalParents } from '../src/domain/goals.ts
 import { buildPerspectiveSections } from '../src/domain/perspective.ts';
 import { blockClockRangeForDay, layoutBlocks, localDayBounds, localDayKey, monthGridDays, timeRangeFromInput } from '../src/domain/timeblocks.ts';
 import { formatFocusTime, getFocusDurationMs, getFocusRemainingMs, getFocusElapsedMs } from '../src/domain/focus.ts';
+import { previewReplan } from '../src/domain/replan.ts';
 
 test('all seven horizon keys use independent periods', () => {
   const date = new Date(2026, 9, 14, 12);
@@ -134,6 +135,26 @@ test('overlapping time blocks split their timeline lanes, consecutive blocks reu
   assert.deepEqual(compressed.map((item) => item.lane), [0, 1, 2]);
   assert.deepEqual(compressed.map((item) => item.lanes), [3, 3, 3]);
   assert.ok(compressed.every((item) => item.height >= 30));
+
+  // A real recovery proposal must preserve fixed time and move only opted-in blocks.
+  const local = (h, m) => new Date(2026, 9, 14, h, m).toISOString();
+  const sample = [
+    { id: 'flex-a', goalId: 'ga', goalTitle: 'Write', goalCompleted: false, flexible: true,
+      startAt: local(13, 0), endAt: local(13, 30), kind: 'block', intention: '' },
+    { id: 'fixed', goalId: 'gf', goalTitle: 'Meeting', goalCompleted: false, flexible: false,
+      startAt: local(13, 30), endAt: local(14, 0), kind: 'block', intention: '' },
+    { id: 'flex-b', goalId: 'gb', goalTitle: 'Build', goalCompleted: false, flexible: true,
+      startAt: local(14, 0), endAt: local(14, 30), kind: 'block', intention: '' },
+  ];
+  const day = new Date(2026, 9, 14, 12);
+  const recovered = previewReplan(sample, { day, now: new Date(2026, 9, 14, 12, 50), mode: 'recover' });
+  assert.deepEqual(recovered.moves.map((move) => move.id), ['flex-a', 'flex-b']);
+  assert.equal(recovered.moves[0].toStart, local(14, 0));
+  assert.equal(recovered.moves[1].toStart, local(14, 30));
+  assert.equal(recovered.protectedCount, 1);
+  assert.equal(sample[0].startAt, local(13, 0)); // preview cannot modify its input
+  assert.throws(() => previewReplan(sample, { day, now: new Date(2026, 9, 14, 12, 50),
+    mode: 'extend', targetId: 'flex-a', extraMinutes: 30 }), /conflicts/);
 });
 
 test('focus time uses an absolute deadline and stays correct after delayed ticks or app suspension', () => {
