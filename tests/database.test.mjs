@@ -220,6 +220,14 @@ test('offline planning lifecycle preserves identity, recurrence, completion hist
       clockReads++ === 0 ? proposal.atMs : proposal.atMs + 120001), /expired while waiting/);
     assert.deepEqual((await listDayBlocks(source.db, selectedDay)).map((block) => block.startAt),
       beforeRecovery.map((block) => block.startAt));
+    // Updating and restoring identical visible values still invalidates a frozen Recovery preview.
+    const revisionTarget = beforeRecovery[0];
+    source.sqlite.prepare('UPDATE time_blocks SET updated_at = ? WHERE id = ?')
+      .run('2099-01-01T00:00:00.000Z', revisionTarget.id);
+    await assert.rejects(() => applyReplan(source.db, proposal, beforeRecovery,
+      new Date(2026, 9, 14, 12, 50).getTime()), /Calendar changed/);
+    source.sqlite.prepare('UPDATE time_blocks SET updated_at = ? WHERE id = ?')
+      .run(revisionTarget.updatedAt, revisionTarget.id);
     await applyReplan(source.db, proposal, beforeRecovery, new Date(2026, 9, 14, 12, 50).getTime());
     await assert.rejects(() => applyReplan(source.db, proposal, beforeRecovery, new Date(2026, 9, 14, 12, 50).getTime()), /Calendar changed/);
     assert.equal((await listDayBlocks(source.db, selectedDay)).find((b) =>

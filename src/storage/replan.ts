@@ -2,11 +2,11 @@ import type { SQLiteDatabase } from 'expo-sqlite';
 import type { ReplanMove, ReplanPreview } from '../domain/replan';
 import { localDayBounds, localDayKey } from '../domain/timeblocks';
 
-type Row = { id: string; start_at: string; end_at: string; flexible: number; kind: string; intention: string; goal_id: string; completed: number };
+type Row = { id: string; start_at: string; end_at: string; updated_at: string; flexible: number; kind: string; intention: string; goal_id: string; completed: number };
 async function snapshot(db: Pick<SQLiteDatabase, 'getAllAsync'>, day: string): Promise<Row[]> {
   const start = new Date(day + 'T12:00:00');
   const bounds = localDayBounds(start);
-  return db.getAllAsync<Row>(`SELECT tb.id, tb.start_at, tb.end_at, tb.flexible, tb.kind, tb.intention, tb.goal_id,
+  return db.getAllAsync<Row>(`SELECT tb.id, tb.start_at, tb.end_at, tb.updated_at, tb.flexible, tb.kind, tb.intention, tb.goal_id,
     g.completed FROM time_blocks tb JOIN goals g ON g.id = tb.goal_id
     WHERE g.archived_at IS NULL AND tb.start_at < ? AND tb.end_at > ? ORDER BY tb.id`, [bounds.to, bounds.from]);
 }
@@ -19,7 +19,7 @@ function same(a: Row[], b: Row[]) {
 const UNDO_WINDOW_MS = 5 * 60 * 1000;
 /** Only exact previewed states may be written; active Focus blocks are immutable. */
 export async function applyReplan(db: SQLiteDatabase, preview: ReplanPreview, expected: readonly {
-  id: string; startAt: string; endAt: string; flexible: boolean; kind: string; intention: string; goalId: string; goalCompleted: boolean;
+  id: string; startAt: string; endAt: string; updatedAt?: string; flexible: boolean; kind: string; intention: string; goalId: string; goalCompleted: boolean;
 }[], nowMs?: number | (() => number)): Promise<void> {
   const previewIsCurrent = () => {
     // Only automated fixtures inject a fixed timestamp. Production evaluates the
@@ -34,7 +34,7 @@ export async function applyReplan(db: SQLiteDatabase, preview: ReplanPreview, ex
   const ids = new Set(preview.moves.map((m) => m.id));
   if (ids.size !== preview.moves.length) throw new Error('Duplicate change.');
   const original: Row[] = [...expected].map((b) =>
-    ({ id: b.id, start_at: b.startAt, end_at: b.endAt, flexible: b.flexible ? 1 : 0,
+    ({ id: b.id, start_at: b.startAt, end_at: b.endAt, updated_at: b.updatedAt ?? '', flexible: b.flexible ? 1 : 0,
       kind: b.kind, intention: b.intention, goal_id: b.goalId, completed: b.goalCompleted ? 1 : 0 }))
     .sort((a, b) => a.id.localeCompare(b.id));
   await db.withExclusiveTransactionAsync(async (tx) => {
