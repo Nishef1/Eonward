@@ -476,6 +476,17 @@ test('offline planning lifecycle preserves identity, recurrence, completion hist
       .get(snapshot.tables.boards[0].id).description, 'Edited after preview');
     await restoreBackup(target.db, divergent);
     assert.equal((await getGoal(target.db, step)).title, localTitle);
+    // Ensure ID-only merge previews work across the 150-row SQLite parameter batch.
+    const bulk = structuredClone(snapshot);
+    for (const table of Object.keys(bulk.tables)) bulk.tables[table] = [];
+    bulk.tables.boards = Array.from({ length: 152 }, (_, index) => ({
+      ...snapshot.tables.boards[0], id: 'bulk-qa-board-' + index,
+    }));
+    const bulkText = JSON.stringify(bulk);
+    const bulkPreview = await previewBackupMerge(target.db, bulkText);
+    assert.equal(bulkPreview.missing, 152);
+    assert.equal(bulkPreview.different, 0);
+    assert.equal(await restoreBackup(target.db, bulkText, bulkPreview), 152);
     assert.equal(target.sqlite.prepare('PRAGMA foreign_key_check').all().length, 0);
   } finally { source.sqlite.close(); target.sqlite.close(); }
 });
