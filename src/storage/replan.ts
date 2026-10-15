@@ -11,7 +11,7 @@ async function snapshot(db: Pick<SQLiteDatabase, 'getAllAsync'>, day: string): P
     WHERE g.archived_at IS NULL AND tb.start_at < ? AND tb.end_at > ? ORDER BY tb.id`, [bounds.to, bounds.from]);
 }
 function same(a: Row[], b: Row[]) { return JSON.stringify(a) === JSON.stringify(b); }
-type ReplanCheckpoint = { moves: ReplanMove[] };
+const UNDO_WINDOW_MS = 5 * 60 * 1000;
 /** Only exact previewed states may be written; active Focus blocks are immutable. */
 export async function applyReplan(db: SQLiteDatabase, preview: ReplanPreview, expected: readonly {
   id: string; startAt: string; endAt: string; flexible: boolean; kind: string; goalId: string; goalCompleted: boolean;
@@ -50,13 +50,19 @@ export async function applyReplan(db: SQLiteDatabase, preview: ReplanPreview, ex
   });
 }
 export async function canUndoReplan(db: SQLiteDatabase): Promise<boolean> {
-  return !!(await db.getFirstAsync('SELECT id FROM replan_checkpoint WHERE id = 1'));
+  const record = await db.getFirstAsync<{ created_at: string }>(
+    'SELECT created_at FROM replan_checkpoint WHERE id = 1');
+  return !!record && Date.now() - Date.parse(record.created_at) <= UNDO_WINDOW_MS &&
+    Date.now() >= Date.parse(record.created_at);
 }
 export async function undoReplan(db: SQLiteDatabase): Promise<void> {
   await db.withExclusiveTransactionAsync(async (tx) => {
-    const record = await tx.getFirstAsync<{ before_json: string; after_json: string }>(
-      'SELECT before_json, after_json FROM replan_checkpoint WHERE id = 1');
+    const record = await tx.getFirstAsync<{ before_json: string; after_json: string; created_at: string }>(
+      'SELECT before_json, after_json, created_at FROM replan_checkpoint WHERE id = 1');
     if (!record) throw new Error('No replan to undo.');
+    const age = Date.now() - Date.parse(record.created_at);
+    if (!Number.isFinite(age) || age < 0 || age > UNDO_WINDOW_MS)
+      throw new Error('Undo is available for five minutes. Reopen the block editor for older changes.');
     const before = JSON.parse(record.before_json) as { id: string; start: string; end: string }[];
     const after = JSON.parse(record.after_json) as typeof before;
     const active = await tx.getFirstAsync<{ block_id: string }>('SELECT block_id FROM focus_session WHERE id = 1');

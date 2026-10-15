@@ -5,7 +5,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useSQLiteContext } from 'expo-sqlite';
 import type { Goal, GoalInput } from '../../domain/goals';
 import {
-  localDayBounds, localDayKey, monthGridDays, parseLocalDay, shiftLocalDay, type BlockInput, type TimeBlock,
+  analyzeDayLoad, localDayBounds, localDayKey, monthGridDays, parseLocalDay, shiftLocalDay, type BlockInput, type TimeBlock,
 } from '../../domain/timeblocks';
 import { createGoal, getGoal, listAllGoals } from '../../storage/goals';
 import { listDayBlocks, listRangeBlocks, removeBlock, saveBlock } from '../../storage/timeblocks';
@@ -142,9 +142,8 @@ export function CalendarScreen() {
   const ordered = useMemo(() => [...blocks].sort((a, b) => a.startAt.localeCompare(b.startAt)), [blocks]);
   const dayBounds = localDayBounds(day);
   const localDayHours = (Date.parse(dayBounds.to) - Date.parse(dayBounds.from)) / 3_600_000;
-  const totalMinutes = blocks.reduce((sum, block) =>
-    sum + Math.max(0, Math.min(Date.parse(block.endAt), Date.parse(dayBounds.to)) -
-      Math.max(Date.parse(block.startAt), Date.parse(dayBounds.from))) / 60000, 0);
+  const dayLoad = useMemo(() => analyzeDayLoad(blocks, day), [blocks, key]);
+  const totalMinutes = dayLoad.reservedMinutes;
   const weekFromMs = Date.parse(localDayBounds(week[0]).from);
   const weekToMs = Date.parse(localDayBounds(week[6]).to);
   const weekTotalMinutes = weekBlocks.reduce((sum, block) => sum + Math.max(0,
@@ -329,7 +328,9 @@ export function CalendarScreen() {
             <Text style={[styles.summarySecond, { color: palette.muted }]}>
               {mode === 'month' ? monthBlockCount : mode === 'week' ? weekBlockCount : blocks.length} {
                 (mode === 'month' ? monthBlockCount : mode === 'week' ? weekBlockCount : blocks.length) === 1 ? 'block' : 'blocks'
-              } · {mode === 'month' ? 'this month' : mode === 'week' ? 'this week' : completedGoals + ' linked goals done'}
+              } · {mode === 'month' ? 'this month' : mode === 'week' ? 'this week' :
+                dayLoad.overlapMinutes ? durationLabel(dayLoad.overlapMinutes) + ' overlapping' :
+                  completedGoals + ' linked goals done'}
             </Text>
           </View>
           <View style={[styles.viewToggle, { backgroundColor: palette.inset }]}>

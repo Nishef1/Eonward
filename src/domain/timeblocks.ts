@@ -169,3 +169,26 @@ export function layoutBlocks(blocks: readonly TimeBlock[], hourHeight = 64, day?
   if (group.length) flush();
   return result;
 }
+
+/** Distinguish summed reservations from actual occupied wall time when events overlap. */
+export function analyzeDayLoad(blocks: readonly Pick<TimeBlock, 'startAt' | 'endAt'>[], day: Date) {
+  const bounds = localDayBounds(day);
+  const from = Date.parse(bounds.from), to = Date.parse(bounds.to);
+  const slots = blocks.map((block) => ({
+    start: Math.max(from, Date.parse(block.startAt)),
+    end: Math.min(to, Date.parse(block.endAt)),
+  })).filter(({ start, end }) => Number.isFinite(start) && Number.isFinite(end) && end > start)
+    .sort((a, b) => a.start - b.start || a.end - b.end);
+  let reservedMs = 0, occupiedMs = 0, coveredUntil = from;
+  for (const slot of slots) {
+    reservedMs += slot.end - slot.start;
+    occupiedMs += Math.max(0, slot.end - Math.max(slot.start, coveredUntil));
+    coveredUntil = Math.max(coveredUntil, slot.end);
+  }
+  return {
+    reservedMinutes: Math.round(reservedMs / 60000),
+    occupiedMinutes: Math.round(occupiedMs / 60000),
+    overlapMinutes: Math.max(0, Math.round((reservedMs - occupiedMs) / 60000)),
+    dayMinutes: Math.round((to - from) / 60000),
+  };
+}

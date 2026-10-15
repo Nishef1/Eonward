@@ -3,7 +3,7 @@ import test from 'node:test';
 import { isoWeekKey, periodKey, shiftPeriod, startOfWeek, periodLabel, dateFromPeriodKey, parseDateInput } from '../src/domain/horizons.ts';
 import { normalizeGoalTitle, availableGoalParents } from '../src/domain/goals.ts';
 import { buildPerspectiveSections } from '../src/domain/perspective.ts';
-import { blockClockRangeForDay, layoutBlocks, localDayBounds, localDayKey, monthGridDays, timeRangeFromInput } from '../src/domain/timeblocks.ts';
+import { analyzeDayLoad, blockClockRangeForDay, layoutBlocks, localDayBounds, localDayKey, monthGridDays, timeRangeFromInput } from '../src/domain/timeblocks.ts';
 import { formatFocusTime, getFocusDurationMs, getFocusRemainingMs, getFocusElapsedMs } from '../src/domain/focus.ts';
 import { previewReplan } from '../src/domain/replan.ts';
 
@@ -135,6 +135,12 @@ test('overlapping time blocks split their timeline lanes, consecutive blocks reu
   assert.deepEqual(compressed.map((item) => item.lane), [0, 1, 2]);
   assert.deepEqual(compressed.map((item) => item.lanes), [3, 3, 3]);
   assert.ok(compressed.every((item) => item.height >= 30));
+  const load = analyzeDayLoad([
+    { startAt: instant(9, 0), endAt: instant(10, 0) },
+    { startAt: instant(9, 30), endAt: instant(10, 30) },
+  ], new Date(2026, 9, 14, 12));
+  assert.deepEqual([load.reservedMinutes, load.occupiedMinutes, load.overlapMinutes, load.dayMinutes],
+    [120, 90, 30, 1440]);
 
   // A real recovery proposal must preserve fixed time and move only opted-in blocks.
   const local = (h, m) => new Date(2026, 9, 14, h, m).toISOString();

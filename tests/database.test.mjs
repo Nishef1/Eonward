@@ -9,7 +9,7 @@ import { createBoard, addGoalToBoard, listBoardGoals } from '../src/storage/boar
 import { beginQuickFocus, getFocusSession, pauseFocusSession, resumeFocusSession, stopFocusSession, listFocusHistory } from '../src/storage/focus.ts';
 import { safeNativePath } from '../src/domain/links.ts';
 import { previewReplan } from '../src/domain/replan.ts';
-import { applyReplan, undoReplan } from '../src/storage/replan.ts';
+import { applyReplan, undoReplan, canUndoReplan } from '../src/storage/replan.ts';
 import { saveBlock, listDayBlocks } from '../src/storage/timeblocks.ts';
 import { setWeeklyCapacity, listWeeklyCapacity } from '../src/storage/capacity.ts';
 import { parseBackup } from '../src/domain/backup.ts';
@@ -166,7 +166,9 @@ test('offline planning lifecycle preserves identity, recurrence, completion hist
     await assert.rejects(() => applyReplan(source.db, proposal, beforeRecovery, new Date(2026, 9, 14, 12, 50).getTime()), /Calendar changed/);
     assert.equal((await listDayBlocks(source.db, selectedDay)).find((b) =>
       b.id === proposal.moves[0].id).startAt, proposal.moves[0].toStart);
+    assert.equal(await canUndoReplan(source.db), true);
     await undoReplan(source.db);
+    assert.equal(await canUndoReplan(source.db), false);
     assert.deepEqual((await listDayBlocks(source.db, selectedDay)).map((b) => [b.id, b.startAt, b.endAt]).sort(),
       beforeRecovery.map((b) => [b.id, b.startAt, b.endAt]).sort());
     await setWeeklyCapacity(source.db, parent, 240);
