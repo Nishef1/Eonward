@@ -467,7 +467,7 @@ const styles = StyleSheet.create({
   progressTrack: { backgroundColor: 'rgba(255,255,255,0.25)', height: 4, borderRadius: 4, marginTop: 7, overflow: 'hidden' },
   progressFill: { height: 4, borderRadius: 4, backgroundColor: '#FFFFFF' },
   presentLine: { position: 'absolute', left: 0, right: 0, height: 22, flexDirection: 'row', alignItems: 'center', zIndex: 12, transform: [{ translateY: -11 }] },
-  nowPill: { marginLeft: 5, width: 49, borderRadius: 7, height: 23, backgroundColor: '#BA7748', justifyContent: 'center', alignItems: 'center' },
+  nowPill: { marginLeft: 5, width: 49, borderRadius: 7, height: 23, backgroundColor: '#9B5F30', justifyContent: 'center', alignItems: 'center' },
   nowPillText: { fontSize: 10, fontWeight: '700', color: '#FFFFFF', fontVariant: ['tabular-nums'] },
   nowLine: { flex: 1, height: 2, marginRight: 8, backgroundColor: '#C18457' },
 });
