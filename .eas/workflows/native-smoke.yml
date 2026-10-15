@@ -1,0 +1,30 @@
+# Manual by default: requires linking this repository to the owner's EAS project.
+# EAS Maestro workflows are alpha. Do not interpret passing JS exports as a pass here.
+name: Eonward Android and iOS Native Smoke
+jobs:
+  build_android:
+    name: Build isolated QA Android APK
+    type: build
+    params:
+      platform: android
+      profile: e2e-test
+  build_ios:
+    name: Build isolated QA iOS Simulator app
+    type: build
+    params:
+      platform: ios
+      profile: e2e-test
+  android_navigation:
+    name: Exercise QA Android
+    needs: [build_android]
+    type: maestro
+    params:
+      build_id: ${{ needs.build_android.outputs.build_id }}
+      flow_path: ['.maestro/navigation.yml', '.maestro/quick-capture.yml']
+  ios_navigation:
+    name: Exercise QA iOS
+    needs: [build_ios]
+    type: maestro
+    params:
+      build_id: ${{ needs.build_ios.outputs.build_id }}
+      flow_path: ['.maestro/navigation.yml', '.maestro/quick-capture.yml']
