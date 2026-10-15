@@ -61,12 +61,17 @@ export function reconcileFocusNotification(db: SQLiteDatabase): Promise<string |
     // older reminder was already queued. Validate before trusting a match.
     const permissions = needsReminder ? await Notifications.getPermissionsAsync() : null;
     const allowed = !!permissions && permitted(permissions);
-    for (const item of pending) {
-      await Notifications.cancelScheduledNotificationAsync(item.identifier);
+    if (!needsReminder || !allowed) {
+      for (const item of pending) {
+        await Notifications.cancelScheduledNotificationAsync(item.identifier);
+      }
+      if (!needsReminder) return null;
+      return 'Background Focus alerts are off. Enable notifications in system settings.';
     }
-    if (!needsReminder) return null;
-    if (!allowed) return 'Background Focus alerts are off. Enable notifications in system settings.';
-    await Notifications.scheduleNotificationAsync({
+    // Keep the last scheduled alarm until its replacement is safely created.
+    // Android may refuse exact alarms; cancelling first could silently lose an
+    // otherwise valid reminder if the new native schedule call fails.
+    const newIdentifier = await Notifications.scheduleNotificationAsync({
       content: {
         title: 'Focus time is up',
         body: 'Your timebox has ended. Return to Eonward to review your session.',
@@ -83,6 +88,10 @@ export function reconcileFocusNotification(db: SQLiteDatabase): Promise<string |
         : { type: Notifications.SchedulableTriggerInputTypes.DATE,
             date: new Date(session.deadlineMs) },
     });
+    for (const item of pending) {
+      if (item.identifier !== newIdentifier)
+        await Notifications.cancelScheduledNotificationAsync(item.identifier);
+    }
     return null;
   });
   queue = work.then(() => undefined, () => undefined);

@@ -1,5 +1,5 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
-import { AppState } from 'react-native';
+import { AppState, Platform } from 'react-native';
 import { useEonwardDatabase } from '../../storage/use-database';
 import { getFocusSession, beginFocusSession, beginQuickFocus, pauseFocusSession, resumeFocusSession, stopFocusSession } from '../../storage/focus';
 import type { FocusSession } from '../../domain/focus';
@@ -43,9 +43,14 @@ export function FocusProvider({ children }: { children: ReactNode }) {
         // including deleted/paused/expired sessions.
         void reconcileFocusNotification(db).then((notice) => {
           if (mounted.current && sequence === refreshSequence.current) setNotificationNotice(notice);
-        }).catch(() => {
+        }).catch((reason: unknown) => {
           if (mounted.current && sequence === refreshSequence.current) {
-            setNotificationNotice('Focus still runs, but its background alert could not be scheduled. Check system notification settings.');
+            const message = reason instanceof Error ? reason.message : String(reason);
+            const specialPermission = Platform.OS === 'android' &&
+              /exact.alarm|schedule.exact|securityexception|alarmmanager/i.test(message);
+            setNotificationNotice(specialPermission
+              ? 'Timer saved. To receive punctual alerts on Android, check Special app access → Alarms & reminders.'
+              : 'Timer saved, but its background alert could not be scheduled. Check notification settings.');
           }
         });
       }

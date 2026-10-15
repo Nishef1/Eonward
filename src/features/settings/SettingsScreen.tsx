@@ -112,7 +112,7 @@ export function SettingsScreen() {
       </View>
       <View style={[styles.card, { backgroundColor: palette.surface, borderColor: palette.border }]}>
         <Text style={[styles.heading, { color: palette.foreground }]}>Focus alerts</Text>
-        <Text style={[styles.copy, { color: palette.muted }]}>Notification access is controlled by {Platform.OS === 'ios' ? 'iOS' : 'Android'}. Focus remains usable when alerts are off.{Platform.OS === 'android' ? ' Battery restrictions can delay alerts. Force stop in system settings silences alerts until you reopen Eonward.' : ''}</Text>
+        <Text style={[styles.copy, { color: palette.muted }]}>Notification access is controlled by {Platform.OS === 'ios' ? 'iOS' : 'Android'}. Focus remains usable when alerts are off.{Platform.OS === 'android' ? ' On Android 14+, also check Settings → Special app access → Alarms & reminders. Notification access and exact alarm permission are separate; battery restrictions can delay alerts. Force stop silences alerts until reopening.' : ''}</Text>
         <Pressable accessibilityRole="button" onPress={() => { void Linking.openSettings().catch(() => Alert.alert('Open system settings', 'Choose Eonward → Notifications in your device settings.')); }} style={[styles.secondary, { borderColor: palette.border }]}><Text style={{ color: palette.foreground }}>Open app settings</Text></Pressable>
       </View>
       <View style={[styles.card, { backgroundColor: palette.surface, borderColor: palette.border }]}>
