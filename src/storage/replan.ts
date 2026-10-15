@@ -59,10 +59,35 @@ export async function applyReplan(db: SQLiteDatabase, preview: ReplanPreview, ex
   });
 }
 export async function canUndoReplan(db: SQLiteDatabase): Promise<boolean> {
-  const record = await db.getFirstAsync<{ created_at: string }>(
-    'SELECT created_at FROM replan_checkpoint WHERE id = 1');
-  return !!record && Date.now() - Date.parse(record.created_at) <= UNDO_WINDOW_MS &&
-    Date.now() >= Date.parse(record.created_at);
+  const record = await db.getFirstAsync<{ created_at: string; after_json: string }>(
+    'SELECT created_at, after_json FROM replan_checkpoint WHERE id = 1');
+  if (!record) return false;
+  const age = Date.now() - Date.parse(record.created_at);
+  if (!Number.isFinite(age) || age < 0 || age > UNDO_WINDOW_MS) return false;
+  type Pending = { id: string; start: string; end: string; appliedAt: string;
+    goalId: string; kind: string; intention: string };
+  let after: Pending[];
+  try { after = JSON.parse(record.after_json) as Pending[]; }
+  catch { return false; }
+  if (!Array.isArray(after) || !after.length || after.length > 900 ||
+    new Set(after.map((item) => item?.id)).size !== after.length ||
+    after.some((item) => !item || !item.id || !item.appliedAt || !item.goalId ||
+      !item.kind || typeof item.intention !== 'string')) return false;
+  const rows = await db.getAllAsync<{
+    id: string; start_at: string; end_at: string; updated_at: string;
+    goal_id: string; kind: string; intention: string; flexible: number;
+  }>(`SELECT tb.id, tb.start_at, tb.end_at, tb.updated_at, tb.goal_id, tb.kind,
+    tb.intention, tb.flexible FROM time_blocks tb
+    JOIN goals g ON g.id = tb.goal_id AND g.completed = 0 AND g.archived_at IS NULL
+    WHERE tb.id IN (${after.map(() => '?').join(', ')})`, after.map((item) => item.id));
+  if (rows.length !== after.length) return false;
+  const current = new Map(rows.map((row) => [row.id, row]));
+  return after.every((item) => {
+    const row = current.get(item.id);
+    return !!row && row.flexible === 1 && row.start_at === item.start && row.end_at === item.end &&
+      row.updated_at === item.appliedAt && row.goal_id === item.goalId &&
+      row.kind === item.kind && row.intention === item.intention;
+  });
 }
 export async function undoReplan(db: SQLiteDatabase): Promise<void> {
   await db.withExclusiveTransactionAsync(async (tx) => {
