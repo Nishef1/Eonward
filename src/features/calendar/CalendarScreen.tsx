@@ -5,10 +5,10 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useEonwardDatabase } from '../../storage/use-database';
 import type { Goal, GoalInput } from '../../domain/goals';
 import {
-  analyzeDayLoad, analyzeRangeLoad, localDayBounds, localDayKey, monthGridDays, parseLocalDay, shiftLocalDay, type BlockInput, type TimeBlock,
+  analyzeDayLoad, analyzeRangeLoad, blockOverlapsRange, localDayBounds, localDayKey, monthGridDays, parseLocalDay, shiftLocalDay, type BlockInput, type TimeBlock,
 } from '../../domain/timeblocks';
 import { createGoal, getGoal, listAllGoals } from '../../storage/goals';
-import { listDayBlocks, listRangeBlocks, removeBlock, saveBlock } from '../../storage/timeblocks';
+import { listRangeBlocks, removeBlock, saveBlock } from '../../storage/timeblocks';
 import { colors, depth, radius, spacing } from '../../theme/tokens';
 import ChevronLeft from 'lucide-react-native/icons/chevron-left';
 import ChevronRight from 'lucide-react-native/icons/chevron-right';
@@ -56,12 +56,10 @@ export function CalendarScreen() {
   const { goalId } = useLocalSearchParams<{ goalId?: string }>();
   const palette: Palette = useColorScheme() === 'dark' ? colors.dark : colors.light;
   const [day, setDay] = useState(() => new Date());
-  const [blocks, setBlocks] = useState<TimeBlock[]>([]);
+  const [calendarBlocks, setCalendarBlocks] = useState<TimeBlock[]>([]);
   const [actualByBlock, setActualByBlock] = useState<Record<string, number>>({});
   const [recoveryOpen, setRecoveryOpen] = useState(false);
   const [hasUndo, setHasUndo] = useState(false);
-  const [weekBlocks, setWeekBlocks] = useState<TimeBlock[]>([]);
-  const [monthBlocks, setMonthBlocks] = useState<TimeBlock[]>([]);
   const [goals, setGoals] = useState<Goal[]>([]);
   const [loading, setLoading] = useState(true);
   const [failure, setFailure] = useState<string | null>(null);
@@ -77,6 +75,17 @@ export function CalendarScreen() {
   const usedGoalParam = useRef<string | null>(null);
   const key = localDayKey(day);
   const week = useMemo(() => weekOf(day), [key]);
+  const dayBounds = localDayBounds(day);
+  const weekFromMs = Date.parse(localDayBounds(week[0]).from);
+  const weekToMs = Date.parse(localDayBounds(week[6]).to);
+  const monthFromMs = new Date(day.getFullYear(), day.getMonth(), 1).getTime();
+  const monthToMs = new Date(day.getFullYear(), day.getMonth() + 1, 1).getTime();
+  const blocks = useMemo(() => calendarBlocks.filter((block) =>
+    blockOverlapsRange(block, Date.parse(dayBounds.from), Date.parse(dayBounds.to))), [calendarBlocks, key]);
+  const weekBlocks = useMemo(() => calendarBlocks.filter((block) =>
+    blockOverlapsRange(block, weekFromMs, weekToMs)), [calendarBlocks, key]);
+  // The single fetched calendar range covers all days in this month's visible grid.
+  const monthBlocks = calendarBlocks;
   const [todayKey, setTodayKey] = useState(() => localDayKey(new Date()));
   const refresh = useCallback(() => setRevision((n) => n + 1), []);
   useEffect(() => {
@@ -101,26 +110,21 @@ export function CalendarScreen() {
   useEffect(() => {
     let active = true;
     setLoading(true);
-    const weekFrom = localDayBounds(week[0]).from;
-    const weekTo = localDayBounds(week[6]).to;
     const grid = monthGridDays(day);
     const monthFrom = localDayBounds(grid[0]).from;
     const monthTo = localDayBounds(grid[grid.length - 1]).to;
-    void Promise.all([listDayBlocks(db, day), listRangeBlocks(db, weekFrom, weekTo),
-      listRangeBlocks(db, monthFrom, monthTo), listAllGoals(db),
-      listFocusHistoryBetween(db, Date.parse(localDayBounds(day).from), Date.parse(localDayBounds(day).to)),
+    void Promise.all([listRangeBlocks(db, monthFrom, monthTo), listAllGoals(db),
+      listFocusHistoryBetween(db, Date.parse(dayBounds.from), Date.parse(dayBounds.to)),
       canUndoReplan(db)])
-      .then(([saved, weekSaved, monthSaved, all, sessions, undo]) => {
+      .then(([saved, all, sessions, undo]) => {
       if (!active) return;
-      setBlocks(saved);
+      setCalendarBlocks(saved);
       const totals: Record<string, number> = {};
       for (const session of sessions) if (session.blockId) {
         totals[session.blockId] = (totals[session.blockId] ?? 0) + session.focusedMs;
       }
       setActualByBlock(totals);
       setHasUndo(undo);
-      setWeekBlocks(weekSaved);
-      setMonthBlocks(monthSaved);
       setGoals(all);
       setFailure(null);
     }).catch((error: unknown) => {
@@ -151,21 +155,14 @@ export function CalendarScreen() {
   }, [db, goalId, router]);
 
   const ordered = useMemo(() => [...blocks].sort((a, b) => a.startAt.localeCompare(b.startAt)), [blocks]);
-  const dayBounds = localDayBounds(day);
   const localDayHours = (Date.parse(dayBounds.to) - Date.parse(dayBounds.from)) / 3_600_000;
   const dayLoad = useMemo(() => analyzeDayLoad(blocks, day), [blocks, key]);
-  const weekFromMs = Date.parse(localDayBounds(week[0]).from);
-  const weekToMs = Date.parse(localDayBounds(week[6]).to);
-  const monthFromMs = new Date(day.getFullYear(), day.getMonth(), 1).getTime();
-  const monthToMs = new Date(day.getFullYear(), day.getMonth() + 1, 1).getTime();
   // All calendar headers use the same occupied-wall-time accounting as their cards.
   const weekLoad = analyzeRangeLoad(weekBlocks, weekFromMs, weekToMs);
   const monthLoad = analyzeRangeLoad(monthBlocks, monthFromMs, monthToMs);
   const activeLoad = mode === 'month' ? monthLoad : mode === 'week' ? weekLoad : dayLoad;
-  const monthBlockCount = monthBlocks.filter((block) =>
-    Date.parse(block.startAt) < monthToMs && Date.parse(block.endAt) > monthFromMs).length;
-  const weekBlockCount = weekBlocks.filter((block) =>
-    Date.parse(block.startAt) < weekToMs && Date.parse(block.endAt) > weekFromMs).length;
+  const monthBlockCount = monthBlocks.filter((block) => blockOverlapsRange(block, monthFromMs, monthToMs)).length;
+  const weekBlockCount = weekBlocks.length;
   const untimed = goals.filter((goal) => !goal.inbox && !goal.completed && goal.horizon === 'day' && goal.periodKey === key && !blocks.some((block) => block.goalId === goal.id));
   const completedGoals = new Set(blocks.filter((block) => block.goalCompleted)
     .map((block) => block.goalId)).size;

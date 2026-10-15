@@ -1,5 +1,5 @@
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { analyzeDayLoad, localDayBounds, localDayKey, monthGridDays, type TimeBlock } from '../../domain/timeblocks';
+import { analyzeDayLoad, blockOverlapsRange, localDayBounds, localDayKey, monthGridDays, type TimeBlock } from '../../domain/timeblocks';
 import { colors, radius, spacing } from '../../theme/tokens';
 
 type Palette = typeof colors.light | typeof colors.dark;
@@ -14,8 +14,10 @@ interface Props {
 const LETTERS = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
 function minutesInsideDay(block: TimeBlock, day: Date): number {
   const { from, to } = localDayBounds(day);
-  return Math.max(0, Math.min(Date.parse(to), Date.parse(block.endAt)) -
-    Math.max(Date.parse(from), Date.parse(block.startAt))) / 60000;
+  const lower = Date.parse(from), upper = Date.parse(to);
+  return blockOverlapsRange(block, lower, upper)
+    ? Math.max(0, Math.min(upper, Date.parse(block.endAt)) - Math.max(lower, Date.parse(block.startAt))) / 60000
+    : 0;
 }
 export function MonthOverview({ month, blocks, todayKey, selectedKey, palette, onSelectDay }: Props) {
   const days = monthGridDays(month);

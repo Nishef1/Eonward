@@ -61,3 +61,5 @@ export const semantic = {
   light: { warning: '#865A29', danger: '#A33C3C' },
   dark: { warning: '#E6B579', danger: '#FF9B99' },
 } as const;
+
+export type Palette = (typeof colors)[keyof typeof colors];

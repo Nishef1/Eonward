@@ -112,6 +112,11 @@ export function monthGridDays(anchor: Date): Date[] {
   return Array.from({ length: cells }, (_, index) => shiftLocalDay(gridStart, index));
 }
 
+/** Shared interval inclusion predicate for query-derived calendar views. */
+export function blockOverlapsRange(block: Pick<TimeBlock, 'startAt' | 'endAt'>, from: number, to: number): boolean {
+  return Date.parse(block.startAt) < to && Date.parse(block.endAt) > from;
+}
+
 export interface PlacedBlock {
   block: TimeBlock;
   top: number;

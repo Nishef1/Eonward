@@ -1,5 +1,5 @@
 import { ScrollView, Pressable, StyleSheet, Text, View } from 'react-native';
-import { analyzeDayLoad, localDayBounds, localDayKey, type TimeBlock } from '../../domain/timeblocks';
+import { analyzeDayLoad, blockOverlapsRange, localDayBounds, localDayKey, type TimeBlock } from '../../domain/timeblocks';
 import { colors, radius, spacing, semantic } from '../../theme/tokens';
 
 type Palette = typeof colors.light | typeof colors.dark;
@@ -21,7 +21,7 @@ export function WeekOverview({ days, blocks, selectedDay, palette, onSelectDay }
     const fromMs = Date.parse(from);
     const toMs = Date.parse(to);
     const entries = blocks.filter((block) =>
-      Date.parse(block.startAt) < toMs && Date.parse(block.endAt) > fromMs,
+      blockOverlapsRange(block, fromMs, toMs),
     ).sort((a, b) => a.startAt.localeCompare(b.startAt));
     const load = analyzeDayLoad(entries, day);
     const planned = load.occupiedMinutes * 60000;
