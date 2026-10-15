@@ -23,6 +23,9 @@ import Settings2 from 'lucide-react-native/icons/settings-2';
 import X from 'lucide-react-native/icons/x';
 import { GoalDetails } from './GoalDetails';
 import { GoalEditor } from './GoalEditor';
+import { GuidedPlansSheet } from './GuidedPlansSheet';
+import { createGuidedPlan } from '../../storage/guided-plans';
+import BookOpenCheck from 'lucide-react-native/icons/book-open-check';
 import { PerspectiveView } from './PerspectiveView';
 import { ArchiveView } from './ArchiveView';
 import { useFocusSession } from '../focus/FocusProvider';
@@ -119,6 +122,7 @@ export function HorizonsScreen() {
   const [quickTitle, setQuickTitle] = useState('');
   const [searching, setSearching] = useState(false);
   const [toolsVisible, setToolsVisible] = useState(false);
+  const [guidedVisible, setGuidedVisible] = useState(false);
   const [horizonsVisible, setHorizonsVisible] = useState(false);
   const [search, setSearch] = useState('');
   const quickInput = useRef<TextInput>(null);
@@ -630,6 +634,11 @@ export function HorizonsScreen() {
               <Settings2 size={20} color={palette.accent} strokeWidth={1.8} />
               <Text style={[styles.organizeActionText, { color: palette.foreground }]}>Your data & settings</Text>
             </Pressable>
+            <Pressable accessibilityRole="button" onPress={() => { setToolsVisible(false); setGuidedVisible(true); }}
+              style={[styles.organizeAction, { backgroundColor: palette.surface, borderColor: palette.border }]}>
+              <BookOpenCheck size={20} color={palette.accent} strokeWidth={1.8} />
+              <Text style={[styles.organizeActionText, { color: palette.foreground }]}>Guided plans · start a path</Text>
+            </Pressable>
             <Pressable accessibilityRole="button" onPress={() => { setToolsVisible(false); setSearching(false); setView('archive'); }} style={[styles.organizeAction, { backgroundColor: palette.surface, borderColor: palette.border }]}>
               <Archive size={20} color={palette.muted} strokeWidth={1.8} />
               <Text style={[styles.organizeActionText, { color: palette.foreground }]}>Archived goals</Text>
@@ -714,6 +723,21 @@ export function HorizonsScreen() {
         onFocus={focusSelected}
         focusing={focus.busy}
       />
+      <GuidedPlansSheet visible={guidedVisible} palette={palette} busy={working}
+        onClose={() => { if (!working) setGuidedVisible(false); }}
+        onCreate={(templateId, title) => {
+          void perform(async () => {
+            const rootId = await createGuidedPlan(db, templateId, title);
+            const root = await getGoal(db, rootId);
+            if (!root) throw new Error('Could not open the created guided plan.');
+            setGuidedVisible(false);
+            setSearching(false);
+            setView('focus');
+            setHorizon(root.horizon);
+            setAnchor(new Date());
+            await openDetails(root);
+          });
+        }} />
       <GoalEditor
         visible={editorVisible}
         initial={editing}
