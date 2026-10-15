@@ -1,0 +1,17 @@
+{
+  "cli": { "appVersionSource": "local", "promptToConfigurePushNotifications": false },
+  "build": {
+    "preview": {
+      "distribution": "internal",
+      "env": { "EONWARD_BUILD_VARIANT": "qa" },
+      "android": { "buildType": "apk" }
+    },
+    "simulator": {
+      "extends": "preview",
+      "ios": { "simulator": true }
+    },
+    "production": {
+      "android": { "buildType": "app-bundle" }
+    }
+  }
+}

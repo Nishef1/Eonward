@@ -1,10 +1,15 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Alert, KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import { dateFromPeriodKey, HORIZONS, HORIZON_TITLES, parseDateInput, periodKey, periodLabel, shiftPeriod, type Horizon } from '../../domain/horizons';
 import type { Goal, GoalInput } from '../../domain/goals';
 import { REPEAT_LABELS, REPEAT_RULES, type RepeatRule } from '../../domain/planning';
 import { colors, radius, spacing } from '../../theme/tokens';
+import { DateTimeField } from '../shared/DateTimeField';
+import { useReducedMotion } from '../../theme/useReducedMotion';
+import ChevronLeft from 'lucide-react-native/icons/chevron-left';
+import ChevronRight from 'lucide-react-native/icons/chevron-right';
+import X from 'lucide-react-native/icons/x';
 
 type Palette = typeof colors.light | typeof colors.dark;
 
@@ -25,6 +30,7 @@ interface GoalEditorProps {
 export function GoalEditor({
   visible, initial, parent, parentOptions, defaultHorizon, anchorDate, palette, saving, onDismiss, onSave, defaultInbox = false,
 }: GoalEditorProps) {
+  const reducedMotion = useReducedMotion();
   const [title, setTitle] = useState('');
   const [notes, setNotes] = useState('');
   const [horizon, setHorizon] = useState<Horizon>(defaultHorizon);
@@ -39,6 +45,7 @@ export function GoalEditor({
   const [repeatRule, setRepeatRule] = useState<RepeatRule>('none');
   const scrollRef = useRef<ScrollView>(null);
   const anchorTime = anchorDate.getTime();
+  const originalDraft = useRef('');
 
   useEffect(() => {
     if (!visible) return;
@@ -58,6 +65,9 @@ export function GoalEditor({
     setDueDate(initial?.dueDate ?? '');
     setRepeatRule(initial?.repeatRule ?? 'none');
     setExpanded(!!initial || !!parent);
+    originalDraft.current = JSON.stringify([initial?.title ?? '', initial?.notes ?? '', initialHorizon,
+      (initial?.inbox ?? defaultInbox) ? '' : periodKey(initialHorizon, initialDate),
+      initial?.parentId ?? parent?.id ?? null, initial?.inbox ?? defaultInbox, initial?.dueDate ?? '', initial?.repeatRule ?? 'none']);
     scrollRef.current?.scrollTo({ y: 0, animated: false });
   }, [visible, initial?.id, defaultHorizon, parent?.id, anchorTime, defaultInbox]);
 
@@ -91,11 +101,20 @@ export function GoalEditor({
       dueDate: dueDate || null, repeatRule: !inbox && horizon === 'day' ? repeatRule : 'none' });
   }
 
+  function requestDismiss() {
+    if (saving) return;
+    const draft = JSON.stringify([title, notes, horizon, inbox ? '' : selectedKey, parentId, inbox, dueDate, repeatRule]);
+    if (draft === originalDraft.current) onDismiss();
+    else Alert.alert('Discard this draft?', 'Your saved goals stay as they are.', [
+      { text: 'Keep editing', style: 'cancel' }, { text: 'Discard draft', style: 'destructive', onPress: onDismiss },
+    ]);
+  }
+
   return (
-    <Modal visible={visible} animationType="slide" transparent statusBarTranslucent navigationBarTranslucent onRequestClose={onDismiss}>
+    <Modal visible={visible} animationType={reducedMotion ? 'none' : 'slide'} transparent statusBarTranslucent navigationBarTranslucent onRequestClose={requestDismiss}>
       <SafeAreaProvider>
-      <KeyboardAvoidingView style={styles.overlay} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-        <Pressable style={StyleSheet.absoluteFill} onPress={onDismiss} accessibilityLabel="Dismiss editor" />
+      <KeyboardAvoidingView style={styles.overlay} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
+        <Pressable style={StyleSheet.absoluteFill} onPress={requestDismiss} accessibilityLabel="Dismiss editor" />
         <View style={[styles.sheet, { backgroundColor: palette.background }]}>
           <View style={[styles.grabber, { backgroundColor: palette.border }]} />
           <View style={styles.header}>
@@ -104,8 +123,8 @@ export function GoalEditor({
                 {initial ? 'Edit your goal' : parent ? 'A smaller step' : 'Create a goal'}
               </Text>
             </View>
-            <Pressable onPress={onDismiss} accessibilityRole="button" accessibilityLabel="Close" style={styles.closeButton}>
-              <Text style={[styles.close, { color: palette.muted }]}>×</Text>
+            <Pressable onPress={requestDismiss} accessibilityRole="button" accessibilityLabel="Close" style={styles.closeButton}>
+              <X size={21} color={palette.muted} strokeWidth={1.8} />
             </Pressable>
           </View>
           <ScrollView ref={scrollRef} style={styles.formScroll} keyboardDismissMode="on-drag" keyboardShouldPersistTaps="handled" contentContainerStyle={styles.form} showsVerticalScrollIndicator={false}>
@@ -154,7 +173,7 @@ export function GoalEditor({
             <View style={[styles.periodRow, { backgroundColor: palette.surface, borderColor: palette.border }]}>
               <Pressable disabled={horizon === 'life'} accessibilityRole="button" accessibilityLabel="Previous planning period"
                 style={styles.periodAction} onPress={() => movePeriod(-1)}>
-                <Text style={[styles.arrow, { color: palette.foreground }]}>‹</Text>
+                <ChevronLeft size={21} color={palette.foreground} />
               </Pressable>
               <View style={styles.periodMiddle}>
                 <Text style={[styles.periodTitle, { color: palette.foreground }]} numberOfLines={2}>{periodLabel(horizon, chosenDate)}</Text>
@@ -165,34 +184,22 @@ export function GoalEditor({
               </View>
               <Pressable disabled={horizon === 'life'} accessibilityRole="button" accessibilityLabel="Next planning period"
                 style={styles.periodAction} onPress={() => movePeriod(1)}>
-                <Text style={[styles.arrow, { color: palette.foreground }]}>›</Text>
+                <ChevronRight size={21} color={palette.foreground} />
               </Pressable>
             </View>
             {horizon === 'day' ? (
               <>
-                <Text style={[styles.dateHelp, { color: palette.muted }]}>Or enter an exact date (YYYY-MM-DD)</Text>
-                <TextInput
-                  value={dateText}
-                  onChangeText={(value) => {
+                <DateTimeField value={dateText} label="Planning date" onChange={(value) => {
                     setDateText(value);
                     const parsed = parseDateInput(value);
                     if (parsed) setDate(parsed);
-                  }}
-                  placeholder="YYYY-MM-DD"
-                  placeholderTextColor={palette.muted}
-                  keyboardType="numbers-and-punctuation"
-                  maxLength={10}
-                  accessibilityLabel="Exact date"
-                  style={[styles.dateInput, { color: palette.foreground, backgroundColor: palette.surface, borderColor: validDate ? palette.border : '#B34F4F' }]}
-                />
+                  }} />
                 {!validDate ? <Text style={styles.validation}>Enter an existing date, for example 2026-10-14.</Text> : null}
               </>
             ) : null}
             </> : null}
             <Text style={[styles.label, { color: palette.muted }]}>DEADLINE (OPTIONAL)</Text>
-            <TextInput value={dueDate} onChangeText={setDueDate} placeholder="YYYY-MM-DD · no deadline"
-              maxLength={10} accessibilityLabel="Deadline, optional" placeholderTextColor={palette.muted}
-              keyboardType="numbers-and-punctuation" style={[styles.dateInput, { color: palette.foreground, borderColor: palette.border, backgroundColor: palette.surface }]} />
+            <DateTimeField value={dueDate} onChange={setDueDate} onClear={() => setDueDate('')} label="Deadline" placeholder="No deadline" />
             {dueDate && !parseDateInput(dueDate) ? <Text style={styles.validation}>Enter a real deadline as YYYY-MM-DD.</Text> : null}
             {!inbox && horizon === 'day' ? <>
               <Text style={[styles.label, { color: palette.muted }]}>REPEAT THIS STEP</Text>
@@ -273,23 +280,20 @@ const styles = StyleSheet.create({
   eyebrow: { fontSize: 10, fontWeight: '700', letterSpacing: 1.5 },
   heading: { fontSize: 24, fontWeight: '700', letterSpacing: -0.7 },
   closeButton: { minHeight: 48, minWidth: 48, justifyContent: 'center', alignItems: 'center' },
-  close: { fontSize: 28 },
   formScroll: { flexShrink: 1 },
   form: { paddingHorizontal: spacing.lg, paddingBottom: 22, paddingTop: spacing.lg, gap: spacing.md },
   label: { fontSize: 11, letterSpacing: 1.15, fontWeight: '700', marginTop: spacing.sm },
   titleInput: { borderWidth: 1, borderRadius: radius.lg, fontSize: 16, padding: spacing.md, minHeight: 56 },
   notesInput: { borderWidth: 1, borderRadius: radius.lg, fontSize: 15, padding: spacing.md, minHeight: 110 },
   chips: { gap: spacing.sm, paddingVertical: 1 },
-  chip: { borderWidth: 1, paddingVertical: 12, paddingHorizontal: 15, borderRadius: radius.full, minHeight: 46, justifyContent: 'center' },
+  chip: { borderWidth: 1, paddingVertical: 12, paddingHorizontal: 15, borderRadius: radius.md, minHeight: 48, justifyContent: 'center' },
   chipText: { fontSize: 13, fontWeight: '600' },
   periodRow: { minHeight: 83, borderWidth: 1, borderRadius: radius.lg, flexDirection: 'row', alignItems: 'center' },
   periodAction: { width: 48, minHeight: 70, alignItems: 'center', justifyContent: 'center' },
-  arrow: { fontSize: 29 },
   periodMiddle: { flex: 1, gap: 6, alignItems: 'center' },
   periodTitle: { fontSize: 16, fontWeight: '700', textAlign: 'center' },
   now: { fontSize: 12, fontWeight: '600' },
   dateHelp: { fontSize: 12, marginTop: -7 },
-  dateInput: { minHeight: 48, borderWidth: 1, borderRadius: radius.md, paddingHorizontal: 14, fontSize: 15 },
   validation: { color: '#B34F4F', fontSize: 12 },
   labelRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   optional: { fontSize: 11, fontWeight: '400', letterSpacing: 0 },

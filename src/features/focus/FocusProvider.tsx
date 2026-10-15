@@ -1,7 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { AppState } from 'react-native';
 import { useSQLiteContext } from 'expo-sqlite';
-import { getFocusSession, beginFocusSession, pauseFocusSession, resumeFocusSession, stopFocusSession } from '../../storage/focus';
+import { getFocusSession, beginFocusSession, beginQuickFocus, pauseFocusSession, resumeFocusSession, stopFocusSession } from '../../storage/focus';
 import type { FocusSession } from '../../domain/focus';
 import { askForFocusNotificationPermission, reconcileFocusNotification } from './notifications';
 
@@ -13,6 +13,7 @@ interface FocusContextValue {
   notificationNotice: string | null;
   refresh: () => Promise<void>;
   begin: (blockId: string, replace?: boolean) => Promise<void>;
+  beginQuick: (goalId: string, minutes: number, replace?: boolean) => Promise<void>;
   pause: () => Promise<void>;
   resume: () => Promise<void>;
   finish: () => Promise<void>;
@@ -44,7 +45,7 @@ export function FocusProvider({ children }: { children: ReactNode }) {
           if (mounted.current && sequence === refreshSequence.current) setNotificationNotice(notice);
         }).catch(() => {
           if (mounted.current && sequence === refreshSequence.current) {
-            setNotificationNotice('Focus still runs, but its background alert could not be scheduled. Check notification and alarm permissions.');
+            setNotificationNotice('Focus still runs, but its background alert could not be scheduled. Check system notification settings.');
           }
         });
       }
@@ -87,12 +88,17 @@ export function FocusProvider({ children }: { children: ReactNode }) {
       return beginFocusSession(db, blockId, replace);
     }), [db, perform]);
   const pause = useCallback(() => perform(() => pauseFocusSession(db)), [db, perform]);
+  const beginQuick = useCallback((goalId: string, minutes: number, replace = false) => perform(async () => {
+    try { await askForFocusNotificationPermission(); }
+    catch { setNotificationNotice('Focus will run without a background alert.'); }
+    return beginQuickFocus(db, goalId, minutes, replace);
+  }), [db, perform]);
   const resume = useCallback(() => perform(() => resumeFocusSession(db)), [db, perform]);
   const finish = useCallback(() => perform(() => stopFocusSession(db)), [db, perform]);
 
   const value = useMemo<FocusContextValue>(() => ({
-    session, loading, busy, error, notificationNotice, refresh, begin, pause, resume, finish,
-  }), [session, loading, busy, error, notificationNotice, refresh, begin, pause, resume, finish]);
+    session, loading, busy, error, notificationNotice, refresh, begin, beginQuick, pause, resume, finish,
+  }), [session, loading, busy, error, notificationNotice, refresh, begin, beginQuick, pause, resume, finish]);
 
   return <FocusContext.Provider value={value}>{children}</FocusContext.Provider>;
 }

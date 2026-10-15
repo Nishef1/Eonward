@@ -1,25 +1,40 @@
 import { useEffect, useState } from 'react';
 import { usePathname, useRouter } from 'expo-router';
-import { AppState, Alert, Linking, Modal, Pressable, StyleSheet, Text, useColorScheme, View } from 'react-native';
+import { AppState, Alert, Keyboard, Linking, Modal, Pressable, StyleSheet, Text, useColorScheme, View } from 'react-native';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import { getFocusRemainingMs, formatFocusTime } from '../../domain/focus';
 import { useFocusSession } from '../focus/FocusProvider';
 import { colors, radius } from '../../theme/tokens';
+import { useReducedMotion } from '../../theme/useReducedMotion';
+import CalendarDays from 'lucide-react-native/icons/calendar-days';
+import ChartNoAxesCombined from 'lucide-react-native/icons/chart-no-axes-combined';
+import LayoutGrid from 'lucide-react-native/icons/layout-grid';
+import ListTodo from 'lucide-react-native/icons/list-todo';
+import Timer from 'lucide-react-native/icons/timer';
+import Pause from 'lucide-react-native/icons/pause';
+import Play from 'lucide-react-native/icons/play';
 
 const routes = [
-  { path: '/', label: 'Plan', glyph: '◈' },
-  { path: '/calendar', label: 'Calendar', glyph: '◷' },
-  { path: '/boards', label: 'Boards', glyph: '▦' },
-  { path: '/insights', label: 'Review', glyph: '▥' },
+  { path: '/', label: 'Plan', icon: ListTodo },
+  { path: '/calendar', label: 'Calendar', icon: CalendarDays },
+  { path: '/boards', label: 'Boards', icon: LayoutGrid },
+  { path: '/insights', label: 'Review', icon: ChartNoAxesCombined },
 ] as const;
 
 export function AppDock() {
+  const reducedMotion = useReducedMotion();
   const router = useRouter();
   const pathname = usePathname();
   const palette = useColorScheme() === 'dark' ? colors.dark : colors.light;
   const { session, busy, error, notificationNotice, pause, resume, finish, refresh } = useFocusSession();
   const [clock, setClock] = useState(() => Date.now());
   const [expanded, setExpanded] = useState(false);
+  const [typing, setTyping] = useState(() => Keyboard.isVisible());
+  useEffect(() => {
+    const show = Keyboard.addListener('keyboardDidShow', () => setTyping(true));
+    const hide = Keyboard.addListener('keyboardDidHide', () => setTyping(false));
+    return () => { show.remove(); hide.remove(); };
+  }, []);
   useEffect(() => {
     setClock(Date.now());
     if (!session || session.status !== 'running') return;
@@ -53,7 +68,7 @@ export function AppDock() {
 
   return (
     <>
-      <SafeAreaView edges={['bottom']} style={[styles.dock, { backgroundColor: palette.background, borderTopColor: palette.border }]}>
+      <SafeAreaView edges={['bottom']} style={[styles.dock, { backgroundColor: palette.surface, borderTopColor: palette.border }, typing && { display: 'none' }]}>
         {error ? (
           <Pressable accessibilityRole="button" accessibilityLabel="Retry loading focus timer"
             onPress={() => { void refresh().catch(() => {}); }}
@@ -67,6 +82,7 @@ export function AppDock() {
           <Pressable accessibilityRole="button" accessibilityLabel={`Open focus timer for ${session.goalTitle}`}
             onPress={() => setExpanded(true)}
             style={[styles.miniTimer, { backgroundColor: palette.surface, borderColor: palette.border }]}>
+            <View style={[styles.timerIcon, { backgroundColor: palette.accentSoft }]}><Timer size={20} color={palette.accent} strokeWidth={1.8} /></View>
             <View style={styles.sessionCopy}>
               <Text numberOfLines={1} style={[styles.miniTitle, { color: palette.foreground }]}>
                 {finished ? "Time's up · " : session.status === 'paused' ? 'Paused · ' : 'Focusing · '}{session.goalTitle}
@@ -90,8 +106,8 @@ export function AppDock() {
                 accessibilityLabel={route.label}
                 onPress={() => { if (pathname !== route.path) router.navigate(route.path); }}
                 style={styles.navItem}>
-                <View style={[styles.navIndicator, selected && { backgroundColor: palette.surface }]}>
-                  <Text style={[styles.navGlyph, { color: selected ? palette.accent : palette.muted }]}>{route.glyph}</Text>
+                <View style={[styles.navIndicator, { backgroundColor: selected ? palette.accentSoft : 'transparent' }]}>
+                  <route.icon size={22} strokeWidth={selected ? 2 : 1.7} color={selected ? palette.accent : palette.muted} />
                 </View>
                 <Text style={[styles.navLabel, { color: selected ? palette.foreground : palette.muted, fontWeight: selected ? '700' : '500' }]}>
                   {route.label}
@@ -101,7 +117,7 @@ export function AppDock() {
           })}
         </View>
       </SafeAreaView>
-      <Modal visible={expanded && !!session} transparent animationType="fade"
+      <Modal visible={expanded && !!session} transparent animationType={reducedMotion ? 'none' : 'fade'}
         statusBarTranslucent navigationBarTranslucent onRequestClose={() => setExpanded(false)}>
         <SafeAreaProvider>
           <View style={styles.overlay}>
@@ -116,14 +132,14 @@ export function AppDock() {
               <Text style={[styles.explainer, { color: palette.muted }]}>
                 {finished ? 'Your timebox has ended. Decide whether to mark the goal complete in Plan.' :
                   session?.status === 'paused' ? 'Time is paused. Resume when you are ready.' :
-                    'A focused window for this goal. The countdown stays accurate when you switch pages or return to the app.'}
+                    'A focused window for this goal. The countdown stays accurate when you return. Your device may delay background alerts.'}
               </Text>
               {notificationNotice && !finished && session?.status === 'running' ? (
                 <View style={styles.noticeSection}>
                   <Text style={[styles.warning, { color: '#BC8653' }]}>{notificationNotice}</Text>
                   <Pressable accessibilityRole="button" accessibilityLabel="Open system app settings"
                     onPress={() => { void Linking.openSettings().catch(() =>
-                      Alert.alert('Settings unavailable', 'Open Android Settings → Apps → Eonward manually.')); }}
+                      Alert.alert('Settings unavailable', 'Open your device settings and choose Eonward → Notifications.')); }}
                     style={[styles.settingsButton, { borderColor: palette.border }]}>
                     <Text style={[styles.settingsText, { color: palette.accent }]}>Open app settings</Text>
                   </Pressable>
@@ -135,6 +151,7 @@ export function AppDock() {
                     accessibilityLabel={session?.status === 'paused' ? 'Resume focus timer' : 'Pause focus timer'}
                     onPress={() => run(session?.status === 'paused' ? resume : pause)}
                     style={[styles.primary, { backgroundColor: palette.accent }]}>
+                    {session?.status === 'paused' ? <Play size={18} color={palette.onAccent} /> : <Pause size={18} color={palette.onAccent} />}
                     <Text style={[styles.primaryText, { color: palette.onAccent }]}>{session?.status === 'paused' ? 'Resume' : 'Pause'}</Text>
                   </Pressable>
                 ) : null}
@@ -156,7 +173,8 @@ export function AppDock() {
   );
 }
 const styles = StyleSheet.create({
-  dock: { borderTopWidth: StyleSheet.hairlineWidth, paddingTop: 6 },
+  dock: { borderTopWidth: StyleSheet.hairlineWidth, paddingTop: 8 },
+  timerIcon: { width: 36, height: 36, borderRadius: 11, alignItems: 'center', justifyContent: 'center' },
   loadError: { marginHorizontal: 13, marginBottom: 6, borderRadius: radius.md, minHeight: 44,
     paddingHorizontal: 13, borderWidth: 1, justifyContent: 'center' },
   loadErrorText: { fontSize: 12, fontWeight: '600' },
@@ -167,9 +185,8 @@ const styles = StyleSheet.create({
   miniClock: { fontSize: 20, fontWeight: '800', fontVariant: ['tabular-nums'] },
   navigation: { minHeight: 63, flexDirection: 'row', alignItems: 'center' },
   navItem: { flex: 1, minHeight: 58, alignItems: 'center', justifyContent: 'center', gap: 3 },
-  navIndicator: { width: 64, height: 29, borderRadius: radius.full, alignItems: 'center', justifyContent: 'center' },
-  navGlyph: { fontSize: 24, fontWeight: '600', lineHeight: 27 },
-  navLabel: { fontSize: 10 },
+  navIndicator: { width: 60, height: 31, borderRadius: 11, overflow: 'hidden', alignItems: 'center', justifyContent: 'center' },
+  navLabel: { fontSize: 11, marginTop: 2 },
   overlay: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(6,15,12,0.55)' },
   panel: { borderTopLeftRadius: 28, borderTopRightRadius: 28, paddingHorizontal: 25, paddingTop: 15, paddingBottom: 12 },
   grabber: { width: 38, height: 4, alignSelf: 'center', borderRadius: 3, marginBottom: 24 },
@@ -183,7 +200,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14, justifyContent: 'center', alignItems: 'center' },
   settingsText: { fontSize: 12, fontWeight: '700' },
   controls: { flexDirection: 'row', gap: 10 },
-  primary: { flex: 1, minHeight: 55, borderRadius: radius.lg, alignItems: 'center', justifyContent: 'center' },
+  primary: { flex: 1, minHeight: 55, borderRadius: radius.lg, alignItems: 'center', justifyContent: 'center', flexDirection: 'row', gap: 8 },
   primaryText: { color: '#FFFFFF', fontSize: 15, fontWeight: '700' },
   secondary: { flex: 1, minHeight: 55, borderRadius: radius.lg, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
   secondaryText: { fontSize: 15, fontWeight: '700' },

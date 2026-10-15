@@ -1,131 +1,69 @@
-# Design system direction
+# Eonward design system
 
-Status: **Early foundation**. Visual tokens in source are provisional, not a finalized design specification.
+Direction: **Studio** — a personal planning workspace with neutral surfaces, restrained depth and clear time horizons. This replaces the provisional warm/green styling. It is an implemented direction awaiting user aesthetic review, not a release or accessibility sign-off.
 
-## Principles
+## Visual grammar
 
-- Quiet, focused, premium rather than ornamental.
-- Present the current action clearly; long-term context is one gesture away.
-- One primary action per screen and consistent navigation gestures.
-- Mobile-native layouts, not a shrunken desktop board.
-- Accessible alternatives for drag-and-drop and long press.
-- Avoid copying proprietary artwork, icons, text, or exact visual compositions.
+- A cool neutral canvas supports white cards in light mode and graphite surfaces in dark mode.
+- Use green to identify a selected destination, a connected parent, or a deliberate primary action. Avoid flooding every surface with accent color.
+- Small layered shadows distinguish cards and selected controls. Dark mode relies primarily on border and surface separation. Shadows must never carry essential state alone.
+- Keep controls precise: 12dp corners, 16dp cards, 28dp sheets. Nested radii should follow the actual inset rather than matching outer radii indiscriminately.
+- Typography uses the native system family. Screen titles are 28–32sp, goal titles 15–16sp, ordinary copy 13–15sp. Supporting text may be smaller, while respecting dynamic font scaling. Decorative brand labels are secondary.
+- Icons use Lucide vectors with consistent 1.5–2 stroke weights. Keep root navigation labels visible; a clever symbol must not replace the destination name.
+- Use a 4/8dp spacing rhythm, 20dp screen gutters and generous separation between groups. Dense content still needs readable task titles and 48dp touch targets.
 
-## Foundation tokens (provisional)
+## Semantic tokens
 
-| Token | Light | Dark |
+`src/theme/tokens.ts` is the implementation source for palette, spacing, radius and depth.
+
+| Role | Light | Dark |
 | --- | --- | --- |
-| Surface | `#F7F6F2` | `#151A19` |
-| Elevated | `#FFFFFF` | `#222A28` |
-| Primary text | `#202927` | `#F0F3F0` |
-| Secondary text | `#66736E` | `#A8B7AF` |
-| Accent | `#527265` | `#92B2A3` |
-| Divider | `#E6EAE4` | `#36413B` |
+| Canvas | `#F6F6F8` | `#141517` |
+| Surface | `#FFFFFF` | `#202226` |
+| Inset/control group | `#EDEEF1` | `#292C31` |
+| Primary text | `#24262B` | `#F2F3F5` |
+| Secondary text | `#696D77` | `#ADB1BB` |
+| Accent | `#35634D` | `#A3CEB5` |
+| On accent | `#FFFFFF` | `#15251C` |
+| Accent surface | `#EAF1EC` | `#26392F` |
+| Border | `#E2E4E9` | `#34373E` |
 
-Tokens must be reviewed with contrast tests before being used as semantic states.
+Use `onAccent` for filled primary controls, not hard-coded white. Completion must also have a check and semantic accessibility state. Timeboxes retain a separate warm scheduling accent; calendar color never replaces exact times or labels.
 
-## Layout and typography
+## Navigation and daily planning
 
-- Use an 8-point spacing rhythm, allowing 4-point increments when warranted.
-- Respect device safe areas, dynamic font scaling and keyboard insets.
-- Minimum touch targets: approximately 48 dp on Android, 44 pt on iOS.
-- Use platform text rendering initially; decide custom font only after licensing and RTL testing.
-- Support both LTR and RTL without reversing the direction of time or altering data meaning.
+- Four labeled root destinations: Plan, Calendar, Boards, Review. Settings and Archive are workspace utilities.
+- Plan groups Your plan / Horizons / Inbox in one segmented selector. Only one mode is visible at a time.
+- The selected planning horizon opens a bottom sheet containing all seven canonical horizons. Previous/next and Now remain adjacent, with the selected period under the page title. Life has no meaningless previous/next controls.
+- Inline capture saves a title in the current context; Inbox is explicitly unscheduled. The adjacent planning-details action opens the existing editor.
+- Goal cards lead with the title and optionally show a compact connected-parent badge. Completion and organization have separate touch targets.
+- Horizons displays the seven time scales along a quiet rail. The rail connects time scales, not arbitrary goal entities. Actual parent relationships are shown only from stored relationships.
+- Empty states guide one useful action without fake progress, sample goals inserted into user data, or a second competing primary button.
 
-## Motion
+## Goal detail and editing
 
-- Feedback should be immediate and consistent.
-- Motion should explain state change (reordering, expansion, view transition), never distract.
-- Prefer subtle 150–250 ms transitions for ordinary controls; tune by device.
-- Honor reduced-motion accessibility settings.
-- Keep scrolling and dragging responsive during large lists.
+- Title and planning period precede supporting context. Ancestor links remain directly navigable.
+- Quick Focus offers 15/25/50 minutes on an existing open goal. Starting Focus creates a real Timebox and session. Completion remains an explicit, independent decision.
+- Notes, deadlines, repeats and parent selection use progressive disclosure in the editor. Native date/time pickers preserve civil-date semantics.
+- Save stays above the bottom safe area. Dirty drafts require an explicit discard choice on close/back/backdrop.
+- Archive is reversible. Destructive or replacement decisions must explain the affected state before confirmation.
 
-## Screen-state inventory
+## Calendar, boards and review
 
-Each feature design must specify: loading/initializing, empty, ready, editing, success feedback, error, offline behavior (where relevant), destructive confirmation and large text.
+- Calendar uses the same segmented-control grammar for Day/Week/Month/List. Exact timestamps, overlap lanes and an accessible list remain available.
+- Untimed daily goals are distinct from midnight events. Horizon, deadline and time reservation are separate concepts.
+- Boards reference existing goal identities. Board cards use a small folder emblem, readable title, description and real counts.
+- Review uses recorded Focus time and actual completion history. No create/edit-count productivity score or compulsory streak. Empty progress is an invitation, not a wall of zeroes.
+- An active Focus session remains above the dock. Its expanded sheet separates Pause/Resume/End from completing the goal.
 
-## M1 deliverables
+## Platform and accessibility contract
 
-- Navigation map and screen hierarchy.
-- Light/dark examples for Horizons, item details, board and calendar.
-- Component catalog: cards, typography, input, dialogs, filters, banners.
-- Gesture matrix with accessible fallbacks and Android back behavior.
-- Real-device screenshots and an interaction review checklist.
+- Respect safe areas, keyboard insets, dynamic fonts and platform back behavior. Touch targets aim for at least 48dp on both platforms.
+- Honor system reduced motion for route and sheet transitions. Do not introduce decorative animation dependencies.
+- Light/dark, populated/empty, editing/error and large-text states require rendered native review. Build/type/test success is not visual evidence.
+- English is currently implemented. Persian localization, native RTL and Jalali presentation require separate implementation and acceptance; Persian planning content alone does not prove that support.
+- Keep reference images, private research and temporary prototype renders outside the public repository. Use principles from references without copying third-party branding, artwork or exact compositions.
 
-## Android UI review — 2026-10-14
+## Evidence boundary
 
-- Reduced the vertical distance between brand and headline to restore visual rhythm on short screens.
-- Removed redundant top-right date chip, avoiding collision with developer/emulator overlays and keeping the status area calm.
-- Primary horizon chips and period navigation controls use at least 48dp hit areas.
-- Progress track hides when a horizon has no goals, to avoid showing a misleading empty progress bar.
-- A single visible New goal action is retained in Focus; the duplicate first-use button was removed after the screenshot exposed clipping.
-- Goal editing has a structured hierarchy: title, horizon, period, parent, notes and primary save action.
-- Child goals are navigable instead of only being completion toggles; completion has its own touch target.
-- These changes are source-level work until re-captured and checked on the Android emulator.
-
-## Perspective overview — code pass 2026-10-14
-
-- Focus and Perspective are mutually exclusive views inside Horizons.
-- Perspective stacks seven period cards with counts, two recent goal previews, and direct Add/Focus actions.
-- Uses existing goal identities and local database; no proprietary UI assets or new libraries.
-- Requires emulator review for scaling, contrast, keyboard and touch feedback.
-
-## Archive and ordering UI — v2
-
-The Focus goal card has an Android-safe organization action sheet (Move Up, Move Down, Archive, Cancel) rather than permanent buttons crowding a narrow screen. Goal Details uses Archive instead of destructive Delete. Archive now has a distinct utility shortcut next to the two primary Focus/Perspective modes, with contextual Restore actions. Android emulator QA still required before calling spacing, labels and modal behavior polished.
-
-## Screenshot review — safe areas and action hierarchy
-
-- The existing empty-state CTA fell behind the fixed bottom bar on a Pixel-like emulator. Keep only the persistent New goal button in Focus, with brief instructional copy in the empty state.
-- Move Create/Edit Goal's Save control out of the scrolling form and into a bottom SafeAreaView footer. The form remains scrollable above the action when the keyboard appears.
-- React Native modals require separate system-bar attention; use translucency flags and modal-local SafeAreaProvider/SafeAreaView. Do not claim keyboard success until checked on a device.
-- Perspective has per-horizon Add goal actions; a global sticky New goal bar there is redundant and costs vertical screen space.
-- Archive is secondary to Focus/Perspective; style its shortcut accordingly rather than treating three destinations as equal primary navigation.
-- No UI dependency added. Screenshots of empty states cannot verify persistence, submit actions or migration.
-
-## Boards workspace (source pass)
-
-- Dedicated Board route linked from Horizons header; this is a substantive second workspace, not another Horizons tab.
-- Board cards show goal counts and progress; board details preserve source-goal identity.
-- Board creation, edit and selection use the same surface/typography/radius tokens; no new UI component package.
-- Device review must verify short-screen keyboard safe area, modal dismissal, long board names and linked-goal navigation.
-
-## Timebox and Daily Timeline — 2026-10-14
-
-- Calendar has a readable day-switcher, compact plan summary and explicit Plan time primary action.
-- Each block is positioned by local start/end hour and uses its actual duration for height; simultaneous blocks share space.
-- Fixed-limit Timebox uses a restrained warm accent distinct from flexible Time Block, with optional goal outcome visible in larger blocks.
-- Agenda provides a compact alternative to the vertically long 24h timeline and deep-links into original goals.
-- Saved future schedule hints appear on Horizons/Boards cards without introducing extra goal copies.
-- Device QA needed for small widths, overlapping blocks, keyboard, long titles, daylight-saving days and focus-return freshness.
-
-## Calendar Canvas v2 — mobile screenshot design review
-
-- Keep the week strip, selected day and quick Plan action pinned above the independently scrolling 24-hour canvas.
-- A live Now line/clock follows device local time; the Now pill scrolls back to it.
-- Events use muted premium tones derived from stable goal identity; Timeboxes are amber. Heights represent actual duration and horizontal lanes communicate overlap.
-- Exact timestamps and goal title appear within adequate-height blocks. Short blocks have condensed text with the separate accessible List view as a clear fallback.
-- Tap any empty hour to open Time Block Editor with start/end prefilled; tap an event to edit; hold to open the canonical goal.
-- Avoid stacking long explanatory copy above the schedule and avoid adding gesture libraries until basic Android QA succeeds.
-
-## Shared navigation and Focus Timer
-
-- Four labeled mobile dock destinations: Plan, Calendar, Boards and Review. Additional destinations require a justified hierarchy.
-- Timer lives above the dock as a small, tappable strip only during an active session; goal name and remaining time use tabular numerals.
-- Expanded focus view uses one deliberate timer hero, compact Pause/Resume and End controls, and explicit separation from completing a goal.
-- An elapsed Timebox shows Time's up without alarm-like claims; expiry does not silently modify a goal.
-- Avoid decorative gradients, massive glows and fake analytics. Validate root-layout, modal/safe-area and disabled controls on Android.
-
-
-## Compact personal planning direction — 2026-10-15
-
-- Preserve the warm light and green-black dark identity. Semantic `onAccent` foregrounds replace white-on-pale-accent text in dark mode.
-- Four existing root destinations are labeled Plan, Calendar, Boards and Review. Focus names the timer; it no longer also names the planning view.
-- Plan starts with its selected period and actual intentions. Brand slogans and oversized empty cards are removed from the everyday workflow.
-- Title-only capture stays in the selected period; Inbox is explicitly unscheduled. Notes, deadline, repeat rule and parent are optional details.
-- Overview keeps all seven horizons, with short empty rows and useful goal previews. Do not score whether the user filled every horizon.
-- Review distinguishes recorded Focus time, goal completion and scheduling. Reopened goals do not count as completed steps. Earlier periods require an explicit decision rather than silent movement.
-- Calendar shows Month in its view selector; untimed daily goals never masquerade as midnight events. Keep the non-drag editor as the reliable scheduling path.
-- Backup restoration previews the content and preserves existing local IDs. Active timers are excluded explicitly.
-
-Light accent text on the warm background was adjusted from 4.39:1 to 4.91:1 contrast. `onAccent` also preserves readable dark-theme buttons. Empty focus charts are hidden rather than presenting a large field of zeroes.
+The October 15 direction was grounded in a user-supplied reference collection and a three-screen scratch composition before production edits. Android release screenshots and sampled interactions are recorded in `ROADMAP.md` and `ANDROID_QA.md`. Aesthetic acceptance by the user, physical-device accessibility, and native iOS review must be stated separately.

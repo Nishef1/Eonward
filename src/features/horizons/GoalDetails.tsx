@@ -1,8 +1,19 @@
+import { useState } from 'react';
 import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import { HORIZON_TITLES } from '../../domain/horizons';
 import type { Goal } from '../../domain/goals';
 import { colors, radius, spacing } from '../../theme/tokens';
+import { useReducedMotion } from '../../theme/useReducedMotion';
+import CalendarDays from 'lucide-react-native/icons/calendar-days';
+import Check from 'lucide-react-native/icons/check';
+import ChevronLeft from 'lucide-react-native/icons/chevron-left';
+import ChevronRight from 'lucide-react-native/icons/chevron-right';
+import Circle from 'lucide-react-native/icons/circle';
+import Layers3 from 'lucide-react-native/icons/layers';
+import Play from 'lucide-react-native/icons/play';
+import Plus from 'lucide-react-native/icons/plus';
+import X from 'lucide-react-native/icons/x';
 
 type Palette = typeof colors.light | typeof colors.dark;
 
@@ -21,13 +32,17 @@ interface GoalDetailsProps {
   onToggle: (goal: Goal) => void;
   onArchive: () => void;
   onSchedule: () => void;
+  onFocus: (minutes: number) => void;
+  focusing: boolean;
 }
 
 export function GoalDetails({
-  goal, children, ancestors, canGoBack, palette, onClose, onBack, onEdit, onAddStep, onOpenChild, onOpenAncestor, onToggle, onArchive, onSchedule,
+  goal, children, ancestors, canGoBack, palette, onClose, onBack, onEdit, onAddStep, onOpenChild, onOpenAncestor, onToggle, onArchive, onSchedule, onFocus, focusing,
 }: GoalDetailsProps) {
+  const reducedMotion = useReducedMotion();
+  const [minutes, setMinutes] = useState(25);
   return (
-    <Modal visible={goal !== null} animationType="slide" transparent statusBarTranslucent navigationBarTranslucent onRequestClose={canGoBack ? onBack : onClose}>
+    <Modal visible={goal !== null} animationType={reducedMotion ? 'none' : 'slide'} transparent statusBarTranslucent navigationBarTranslucent onRequestClose={canGoBack ? onBack : onClose}>
       <SafeAreaProvider>
       <View style={styles.overlay}>
         <Pressable style={StyleSheet.absoluteFill} onPress={onClose} accessibilityLabel="Close details" />
@@ -36,21 +51,24 @@ export function GoalDetails({
           <View style={styles.header}>
             {canGoBack ? (
               <Pressable accessibilityRole="button" accessibilityLabel="Back to parent goal" onPress={onBack} style={styles.headerAction}>
-                <Text style={[styles.back, { color: palette.foreground }]}>‹</Text>
+                <ChevronLeft size={23} color={palette.foreground} strokeWidth={1.8} />
               </Pressable>
             ) : null}
             <Text style={[styles.eyebrow, { color: palette.muted }]}>
               {goal?.inbox ? 'INBOX' : goal ? HORIZON_TITLES[goal.horizon].toUpperCase() + ' HORIZON' : ''}
             </Text>
             <Pressable accessibilityRole="button" accessibilityLabel="Close details" style={styles.headerAction} onPress={onClose}>
-              <Text style={[styles.close, { color: palette.muted }]}>×</Text>
+              <X size={21} color={palette.muted} strokeWidth={1.8} />
             </Pressable>
           </View>
           {goal ? (
             <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+              <Text style={[styles.title, { color: palette.foreground }]}>{goal.title}</Text>
+              <Text style={[styles.period, { color: palette.muted }]}>{goal.inbox ? 'Not yet planned' : goal.periodKey === 'life' ? 'Life horizon' : goal.periodKey}</Text>
               {ancestors.length > 0 ? (
-                <View style={[styles.pathPanel, { backgroundColor: palette.surface, borderColor: palette.border }]}>
-                  <Text style={[styles.pathLabel, { color: palette.muted }]}>PART OF YOUR BIGGER PICTURE</Text>
+                <View style={[styles.pathPanel, { backgroundColor: palette.accentSoft }]}>
+                  <View style={{ flexDirection: 'row', gap: 6, alignItems: 'center' }}><Layers3 size={13} color={palette.accent} />
+                    <Text style={[styles.pathLabel, { color: palette.accent }]}>CONNECTED TO</Text></View>
                   <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.pathTrail}>
                     {ancestors.map((ancestor, index) => (
                       <View key={ancestor.id} style={styles.pathItem}>
@@ -59,7 +77,7 @@ export function GoalDetails({
                           onPress={() => onOpenAncestor(ancestor)}
                           accessibilityRole="button"
                           accessibilityLabel={`Open parent goal ${ancestor.title}`}
-                          style={[styles.pathChip, { backgroundColor: palette.background, borderColor: palette.border }]}
+                          style={styles.pathChip}
                         >
                           <Text style={[styles.pathHorizon, { color: palette.muted }]}>
                             {ancestor.inbox ? 'Inbox' : HORIZON_TITLES[ancestor.horizon]}
@@ -73,18 +91,31 @@ export function GoalDetails({
                   </ScrollView>
                 </View>
               ) : null}
-              <Text style={[styles.title, { color: palette.foreground }]}>{goal.title}</Text>
-              <Text style={[styles.period, { color: palette.muted }]}>{goal.inbox ? 'Not yet planned' : goal.periodKey === 'life' ? 'Life horizon' : goal.periodKey}</Text>
               {goal.dueDate ? <Text style={[styles.period, { color: palette.foreground }]}>Deadline · {goal.dueDate}</Text> : null}
               {goal.repeatRule !== 'none' ? <Text style={[styles.period, { color: palette.accent }]}>Repeats {goal.repeatRule} after completion</Text> : null}
               {goal.notes ? (
                 <Text style={[styles.description, { color: palette.muted }]}>{goal.notes}</Text>
               ) : null}
+              {!goal.completed ? <View style={[styles.focusPanel, { borderColor: palette.border, backgroundColor: palette.inset }]}>
+                <Text style={[styles.focusHeading, { color: palette.foreground }]}>Make room for this step</Text>
+                <View style={styles.focusDurations}>
+                  {[15, 25, 50].map((value) => <Pressable key={value} accessibilityRole="button" accessibilityState={{ selected: minutes === value }}
+                    accessibilityLabel={`${value} minutes of focus`} disabled={focusing} onPress={() => setMinutes(value)}
+                    style={[styles.focusDuration, { backgroundColor: minutes === value ? palette.accentSoft : palette.surface, borderColor: minutes === value ? palette.accent : palette.border }]}>
+                    <Text style={{ color: minutes === value ? palette.accent : palette.foreground, fontSize: 13, fontWeight: minutes === value ? '600' : '400' }}>{value} min</Text>
+                  </Pressable>)}
+                </View>
+                <Pressable accessibilityRole="button" disabled={focusing} onPress={() => onFocus(minutes)}
+                  style={[styles.focusStart, { backgroundColor: palette.accent, opacity: focusing ? .5 : 1 }]}>
+                  <Play size={17} color={palette.onAccent} strokeWidth={1.8} />
+                  <Text style={{ color: palette.onAccent, fontWeight: '700' }}>{focusing ? 'Starting…' : `Start ${minutes} min focus`}</Text>
+                </Pressable>
+              </View> : null}
               <Pressable accessibilityRole="checkbox" accessibilityState={{ checked: goal.completed }}
                 onPress={() => onToggle(goal)}
                 style={[styles.complete, { backgroundColor: palette.surface, borderColor: palette.border }]}>
                 <View style={[styles.check, { borderColor: goal.completed ? palette.accent : palette.muted, backgroundColor: goal.completed ? palette.accent : 'transparent' }]}>
-                  {goal.completed ? <Text style={[styles.tick, { color: palette.onAccent }]}>✓</Text> : null}
+                  {goal.completed ? <Check size={15} color={palette.onAccent} /> : null}
                 </View>
                 <Text style={[styles.completeText, { color: palette.foreground }]}>
                   {goal.completed ? 'Completed · tap to reopen' : 'Mark this goal complete'}
@@ -101,7 +132,7 @@ export function GoalDetails({
                   <Pressable accessibilityRole="checkbox" accessibilityState={{ checked: child.completed }}
                     accessibilityLabel={child.completed ? `Reopen ${child.title}` : `Complete ${child.title}`}
                     onPress={() => onToggle(child)} style={styles.childCheckTouch}>
-                    <Text style={[styles.childCheck, { color: palette.accent }]}>{child.completed ? '✓' : '○'}</Text>
+                    {child.completed ? <Check size={20} color={palette.accent} /> : <Circle size={19} color={palette.muted} strokeWidth={1.4} />}
                   </Pressable>
                   <Pressable accessibilityRole="button" accessibilityLabel={`Open ${child.title}`}
                     onPress={() => onOpenChild(child)} style={styles.childContent}>
@@ -110,16 +141,16 @@ export function GoalDetails({
                   </Pressable>
                   <Pressable style={styles.childNavigate} onPress={() => onOpenChild(child)}
                     accessibilityRole="button" accessibilityLabel={`View details for ${child.title}`}>
-                    <Text style={[styles.navigateIcon, { color: palette.muted }]}>›</Text>
+                    <ChevronRight size={20} color={palette.muted} />
                   </Pressable>
                 </View>
               ))}
               <Pressable accessibilityRole="button" onPress={onAddStep} style={[styles.addStep, { borderColor: palette.border }]}>
-                <Text style={[styles.addStepText, { color: palette.accent }]}>＋  Add next step</Text>
+                <Plus size={18} color={palette.accent} /><Text style={[styles.addStepText, { color: palette.accent }]}>Add next step</Text>
               </Pressable>
               <Pressable accessibilityRole="button" onPress={onSchedule}
                 style={[styles.planTime, { backgroundColor: palette.surface, borderColor: palette.border }]}>
-                <Text style={[styles.planTimeText, { color: palette.accent }]}>◷  Plan time in Calendar →</Text>
+                <CalendarDays size={18} color={palette.accent} strokeWidth={1.8} /><Text style={[styles.planTimeText, { color: palette.accent }]}>Plan time in Calendar</Text><ChevronRight size={17} color={palette.accent} />
               </Pressable>
               <View style={styles.actions}>
                 <Pressable accessibilityRole="button" onPress={onEdit} style={[styles.actionButton, { backgroundColor: palette.accent }]}>
@@ -139,29 +170,30 @@ export function GoalDetails({
 }
 
 const styles = StyleSheet.create({
+  focusPanel: { borderWidth: 1, borderRadius: radius.lg, padding: 14, gap: 10 },
+  focusHeading: { fontSize: 14, fontWeight: '600' }, focusDurations: { flexDirection: 'row', gap: 6 },
+  focusDuration: { flex: 1, minHeight: 48, justifyContent: 'center', alignItems: 'center', borderRadius: radius.md, borderWidth: 1 },
+  focusStart: { minHeight: 50, justifyContent: 'center', alignItems: 'center', borderRadius: radius.md, flexDirection: 'row', gap: 8 },
   overlay: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(9, 22, 18, 0.42)' },
   sheet: { maxHeight: '88%', borderTopLeftRadius: 28, borderTopRightRadius: 28, paddingTop: 11 },
   grabber: { height: 4, width: 38, borderRadius: 10, alignSelf: 'center', marginBottom: 12 },
   header: { paddingHorizontal: spacing.md, justifyContent: 'space-between', flexDirection: 'row', alignItems: 'center' },
   eyebrow: { flex: 1, textAlign: 'left', fontSize: 10, fontWeight: '700', letterSpacing: 1.4, marginLeft: 8 },
   headerAction: { minHeight: 48, minWidth: 48, justifyContent: 'center', alignItems: 'center' },
-  close: { fontSize: 29 },
-  back: { fontSize: 33 },
   content: { paddingHorizontal: spacing.lg, paddingBottom: 38, paddingTop: spacing.sm, gap: spacing.md },
-  pathPanel: { borderRadius: radius.lg, borderWidth: 1, padding: 12, gap: 10, marginBottom: 4 },
+  pathPanel: { borderRadius: radius.md, padding: 12, gap: 4, marginBottom: 4 },
   pathLabel: { fontSize: 10, letterSpacing: 1.2, fontWeight: '700' },
   pathTrail: { alignItems: 'center', gap: 8, paddingRight: 3 },
   pathItem: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   pathArrow: { fontSize: 19 },
-  pathChip: { minHeight: 51, maxWidth: 184, minWidth: 102, paddingHorizontal: 12, paddingVertical: 8, borderWidth: 1, borderRadius: radius.md, gap: 4, justifyContent: 'center' },
+  pathChip: { minHeight: 48, maxWidth: 184, minWidth: 102, paddingRight: 8, paddingVertical: 6, gap: 4, justifyContent: 'center' },
   pathHorizon: { fontSize: 10, fontWeight: '700' },
   pathTitle: { fontSize: 12, fontWeight: '600' },
   title: { fontSize: 27, letterSpacing: -0.7, lineHeight: 34, fontWeight: '700' },
   period: { fontSize: 12, fontWeight: '600', marginTop: -8 },
   description: { fontSize: 15, lineHeight: 24 },
   complete: { minHeight: 56, borderWidth: 1, borderRadius: radius.lg, flexDirection: 'row', alignItems: 'center', paddingHorizontal: spacing.md, gap: spacing.md, marginTop: spacing.sm },
-  check: { width: 23, height: 23, borderWidth: 1.5, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
-  tick: { fontWeight: '700' },
+  check: { width: 22, height: 22, borderWidth: 1.3, borderRadius: 7, alignItems: 'center', justifyContent: 'center' },
   completeText: { fontSize: 14, fontWeight: '600', flex: 1 },
   sectionHeading: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, marginTop: spacing.lg },
   sectionTitle: { fontSize: 18, fontWeight: '700' },
@@ -169,15 +201,13 @@ const styles = StyleSheet.create({
   empty: { fontSize: 14, lineHeight: 22 },
   child: { minHeight: 70, borderWidth: 1, padding: spacing.sm, borderRadius: radius.md, flexDirection: 'row', gap: spacing.sm, alignItems: 'center' },
   childCheckTouch: { minHeight: 48, minWidth: 40, alignItems: 'center', justifyContent: 'center' },
-  childCheck: { fontSize: 24 },
   childContent: { flex: 1, gap: 5, paddingVertical: 10 },
   childTitle: { fontSize: 14, fontWeight: '600' },
   childHorizon: { fontSize: 11 },
   childNavigate: { width: 36, minHeight: 48, justifyContent: 'center', alignItems: 'center' },
-  navigateIcon: { fontSize: 27 },
-  addStep: { minHeight: 50, borderRadius: radius.lg, borderWidth: 1, alignItems: 'center', justifyContent: 'center', borderStyle: 'dashed' },
+  addStep: { minHeight: 50, borderRadius: radius.md, borderWidth: 1, flexDirection: 'row', gap: 8, alignItems: 'center', justifyContent: 'center' },
   addStepText: { fontSize: 14, fontWeight: '700' },
-  planTime: { minHeight: 52, borderRadius: radius.lg, borderWidth: 1, alignItems: 'center', justifyContent: 'center', marginTop: 12 },
+  planTime: { minHeight: 52, borderRadius: radius.md, borderWidth: 1, flexDirection: 'row', gap: 8, alignItems: 'center', justifyContent: 'center', marginTop: 12 },
   planTimeText: { fontWeight: '700', fontSize: 14 },
   actions: { flexDirection: 'row', gap: spacing.sm, marginTop: spacing.lg },
   actionButton: { flex: 1, minHeight: 52, borderRadius: radius.lg, alignItems: 'center', justifyContent: 'center' },

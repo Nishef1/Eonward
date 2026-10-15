@@ -1,8 +1,8 @@
 # Eonward development roadmap
 
 Last reviewed: 2026-10-15
-Status: **M0 complete (emulator launch verified); M1 + M2 in progress (CRUD behavior not yet device-verified)**  
-Platform priority: Android first; iOS compatible; desktop is a later decision.
+Status: **M0 complete; M1–M6 partially implemented and verified at the levels below. Store release is not approved.**
+Release targets: **Android and iOS**. Native Android can be built locally; native iOS acceptance needs Apple tooling. Desktop is deferred.
 
 This file is the single source of truth for **planned vs completed** work. It is public: record implementation milestones here, not private product research.
 
@@ -20,12 +20,35 @@ This file is the single source of truth for **planned vs completed** work. It is
 | Milestone | Scope | State | Exit gate |
 | --- | --- | --- | --- |
 | M0 — Foundation | Documentation, repository hygiene, Expo shell | Complete — emulator screenshot + CI | Clean install, typecheck, successful device startup |
-| M1 — Product UX | Information architecture, design tokens, prototypes | In progress | Approved screen map and verified interactions |
-| M2 — Goals & horizons | Persistent data, hierarchy, seven horizons | In progress | End-to-end offline goal management |
-| M3 — Planning views | Boards, calendar, time blocks, fast capture | In progress — Boards + Calendar/Time Block source | Consistent updates across every view |
-| M4 — Personal systems | Notes, repeating items, habits, templates, reviews | Planned | All workflows persist and survive restart |
-| M5 — Mobile integration | Notifications, widgets, localization, backup | Planned | Real-device acceptance and restore test |
-| M6 — Quality & release | Performance, accessibility, testing, release build | Planned | Release checklist signed off |
+| M1 — Product UX | Information architecture, design tokens, prototypes | Studio direction implemented; Android renders sampled; user aesthetic acceptance open | Approved screen map and verified interactions |
+| M2 — Goals & horizons | Persistent data, hierarchy, seven horizons | SQLite v7; real SQLite integration and sampled native flows pass | Complete device acceptance matrix |
+| M3 — Planning views | Boards, calendar, time blocks, fast capture | Implemented; native keyboard, time editing and cross-view Focus sampled | Full cross-view and device matrix |
+| M4 — Personal systems | Notes, repeating items, habits, templates, reviews | Plain notes, recurrence and weekly Review implemented; habits/templates deferred | Accepted offline workflow scope |
+| M5 — Mobile integration | Notifications, widgets, localization, backup | Native picker/backup/reminders implemented; widgets/localization remain open | Physical-device and Apple acceptance |
+| M6 — Quality & release | Performance, accessibility, testing, release build | Isolated Android release QA APK built; iOS JS export passes | Store signing, native iOS, physical-device and accessibility gates |
+
+## Current verification — Studio and native planning (2026-10-15)
+
+This section is the current acceptance summary. Earlier dated slices below preserve implementation history; their pending statements are not new evidence against later checked work.
+
+- [x] Ground a coherent mobile direction before code changes; implement neutral surfaces, restrained layered depth, vector icons, consistent segmented controls and labeled navigation. Keep private references and synthetic screenshots outside Git.
+- [x] Sample actual Android release renders for Plan, Horizons, goal details, Focus, Calendar, Boards and Review, including populated goals, parent context and a board. This is builder review, not independent or user aesthetic approval.
+- [x] Sample Plan in automatic light/dark and at 130% system font scale; open all seven horizon options and navigate to Year without clipping those sampled states.
+- [x] Reproduce quick capture hidden behind full Gboard, fix root and modal keyboard avoidance, and hide the dock while typing. With full Gboard visible, create two separate daily goals; goal editor Save remains above the IME and dirty-close shows the discard choice.
+- [x] Add 15/25/50-minute quick Focus as an atomic reservation plus session; archive of the active goal/subtree closes its session with history. Extend the existing real SQLite test rather than exceed 20 cases.
+- [x] Replace civil-date/time text entry with native pickers. On Android edit a Timebox end from 13:40 to 13:16; unsaved changes disable Start until Save, then the saved one-minute duration is used.
+- [x] Fix the first notification prompt on Android: SDK 57 can return denied before the first system request. Verify the actual Allow prompt, the no-alert timer path, pause/end and recorded history.
+- [x] Receive a real generic Focus-expiry notification after a one-minute session while the QA app is backgrounded. Exact-alarm access was explicitly allowed for this emulator sample and restored afterward. A denied exact-alarm path scheduled the SDK's inexact fallback; delivery timing in that path is not certified.
+- [x] Restore a synthetic graph through the native file picker into the separate QA app: five goals, one board and eight total records, preserving canonical relations. Existing primary-app data remains untouched.
+- [x] Build/install a standalone Android QA release with embedded Hermes and launch without Metro or network access. Check ZIP 16KB alignment and all 50 native ELF libraries' LOAD alignment for arm64-v8a/x86_64. The APK uses a debug certificate and a separate QA identifier; it is not store signed.
+- [x] Pass TypeScript, SDK dependency alignment, 20/20 domain/real-SQLite cases and the current iOS Hermes export. CI also validates Android/iOS generated config; none of these is a native iOS runtime pass.
+- [x] Add data-preserving startup Retry, malformed/oversized native-link guards, an unknown-route recovery page, reduced-motion support, initial app assets and isolated preview/production build profiles.
+- [ ] Fault-inject and verify startup Retry on native builds; perform full Focus lifecycle/re-arm, permission denial, locked idle and OEM battery tests on physical devices.
+- [ ] Verify TalkBack/VoiceOver, maximum text sizes, small-phone landscape/keyboard variants, reduced-motion behavior and native iOS render/interactions.
+- [ ] Resolve remaining dependency advisories and store permission/privacy requirements. Current audit: 22 affected dependency entries from three root advisories; see ENGINEERING.md for reachability and mitigation boundaries.
+- [ ] Configure store signing and public release metadata when the core app is ready. Publisher/contact details remain deferred at the user's request. No store upload or publication has occurred.
+
+Next three actions: (1) user review of the Studio direction plus remaining native interaction/accessibility checks; (2) native iOS build and simulator/device acceptance with Apple tooling; (3) close physical-device, dependency, signing and store gates before declaring release readiness. Widgets, native localization/Jalali, share-to-capture, templates and calendar drag remain unimplemented roadmap work.
 
 ## M0 — Foundation
 
@@ -88,10 +111,10 @@ This inventory records committed implementation, **not completion of the M1/M2 e
 - [x] Implement SQLite with transactional versioned migrations (v1 → v2); Android upgrade verification pending.
 - [x] Stable IDs, parent relationships and persistent manual ordering implemented for the current single-placement model; multi-placement remains pending.
 - [x] Create/edit/complete, reversible Archive/Restore, and safe subtree handling implemented in source; permanent deletion intentionally deferred.
-- [ ] Support Day, Week, Month, Quarter, Year, Decade and Life horizons.
+- [x] Support Day, Week, Month, Quarter, Year, Decade and Life horizons.
 - [ ] Implement zoom/navigation and moving items between horizons.
-- [ ] Prevent hierarchy cycles and accidental duplicate records.
-- [x] Separate Horizon and scheduled time blocks in SQLite v4; explicit due dates remain unimplemented.
+- [x] Prevent hierarchy cycles and accidental duplicate records with transactional validation and SQLite coverage.
+- [x] Separate Horizon, UTC scheduled time blocks and optional civil-date deadlines in SQLite v7.
 - [ ] Test date boundaries, leap years, DST, changing time zones and week starts.
 - [ ] Restore saved data after force-close and restart.
 
@@ -118,9 +141,9 @@ See [CAPABILITIES.md](CAPABILITIES.md) for the full implementation inventory, in
 
 - [x] Build the first real Boards workflow: local boards with many-to-many references to existing goals. Device QA pending.
 - [ ] Implement drag/reorder with accessible non-drag alternatives.
-- [ ] Build daily, weekly and monthly calendar views.
-- [ ] Implement time blocks separate from deadlines.
-- [ ] Add rescheduling, conflict display and fast item capture.
+- [x] Build daily, weekly and monthly calendar views, plus List.
+- [x] Implement time blocks separate from deadlines.
+- [x] Add editor rescheduling, conflict display and inline capture; drag remains deferred.
 - [ ] Ensure editing from any view updates all others consistently.
 
 **Exit gate:** cross-view operations retain ordering and data after restart, verified with device interactions and persistence tests.
@@ -128,21 +151,21 @@ See [CAPABILITIES.md](CAPABILITIES.md) for the full implementation inventory, in
 ## M4 — Notes, recurrence & reflection
 
 - [ ] Add notes and formatting only after editor selection is proven on-device.
-- [ ] Add recurrence rules, generated occurrences and exceptions.
+- [x] Add completion-triggered daily/weekly/monthly/yearly recurrence; advanced exception calendars remain deferred.
 - [ ] Implement habits and flexible progress measurement.
 - [ ] Build reusable templates and guided multi-step plans.
-- [ ] Add personal progress metrics and periodic reviews.
+- [x] Add actual completion/Focus history and weekly Review with explicit earlier-period decisions.
 - [ ] Handle recurring-item edits, DST and skipped occurrences safely.
 
 **Exit gate:** recurring and rich-content workflows work fully offline, including app restarts and history preservation.
 
 ## M5 — Mobile completeness
 
-- [ ] Implement local reminders and Android permission flows.
+- [x] Implement local reminders and user-initiated Android permission flows; physical-device delivery acceptance remains open.
 - [ ] Implement homescreen widgets and quick-add entry points.
 - [ ] Add Persian/English locale behavior and RTL UI.
 - [ ] Add Jalali/Gregorian display modes without changing stored instants.
-- [ ] Add export/import with schema version and a tested restore process.
+- [x] Add versioned JSON export/import and atomic merge; real SQLite and sampled native file restoration pass.
 - [ ] Audit privacy, permissions and accessibility across both themes.
 - [ ] Check iOS compatibility when Apple tooling is available.
 
@@ -168,7 +191,7 @@ See [CAPABILITIES.md](CAPABILITIES.md) for the full implementation inventory, in
 
 ## Automated test policy
 
-- Hard limit: **20 focused named automated tests total** across the repository (**12** currently).
+- Hard limit: **20 focused named automated tests total** across the repository (**20** currently).
 - `scripts/check-test-budget.mjs` blocks CI for over-budget cases or duplicate names.
 - Replace outdated tests and merge redundant coverage instead of accumulating regression cases.
 - Avoid disposable snapshot tests, generated test batches, or tests without a meaningful failure mode.

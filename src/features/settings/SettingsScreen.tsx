@@ -1,14 +1,16 @@
 import { useRef, useState } from 'react';
-import { Alert, Linking, Pressable, ScrollView, StyleSheet, Text, useColorScheme, View } from 'react-native';
+import { Alert, Linking, Platform, Pressable, ScrollView, StyleSheet, Text, useColorScheme, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useSQLiteContext } from 'expo-sqlite';
 import { File, Paths } from 'expo-file-system';
 import * as Sharing from 'expo-sharing';
 import * as DocumentPicker from 'expo-document-picker';
+import Constants from 'expo-constants';
 import { MAX_BACKUP_BYTES, parseBackup } from '../../domain/backup';
 import { exportBackup, restoreBackup } from '../../storage/backup';
 import { colors } from '../../theme/tokens';
+import ChevronLeft from 'lucide-react-native/icons/chevron-left';
 
 export function SettingsScreen() {
   const db = useSQLiteContext(), router = useRouter();
@@ -49,7 +51,7 @@ export function SettingsScreen() {
   }
   return <SafeAreaView edges={['top', 'left', 'right']} style={{ flex: 1, backgroundColor: palette.background }}>
     <ScrollView contentContainerStyle={styles.content}>
-      <View style={styles.header}><Pressable accessibilityRole="button" accessibilityLabel="Back to Plan" onPress={() => router.back()} style={styles.back}><Text style={{ color: palette.foreground, fontSize: 26 }}>‹</Text></Pressable><Text style={[styles.title, { color: palette.foreground }]}>Your data & settings</Text></View>
+      <View style={styles.header}><Pressable accessibilityRole="button" accessibilityLabel="Back to Plan" onPress={() => router.back()} style={styles.back}><ChevronLeft size={23} color={palette.foreground} strokeWidth={1.8} /></Pressable><Text style={[styles.title, { color: palette.foreground }]}>Your data & settings</Text></View>
       <Text style={[styles.copy, { color: palette.muted }]}>Your plans live on this device. Keep an exported copy so you can recover them on another device.</Text>
       <View style={[styles.card, { backgroundColor: palette.surface, borderColor: palette.border }]}>
         <Text style={[styles.heading, { color: palette.foreground }]}>Backup & restore</Text>
@@ -61,8 +63,14 @@ export function SettingsScreen() {
       {notice ? <Text accessibilityRole="alert" style={[styles.copy, { color: palette.accent }]}>{notice}</Text> : null}
       <View style={[styles.card, { backgroundColor: palette.surface, borderColor: palette.border }]}>
         <Text style={[styles.heading, { color: palette.foreground }]}>Focus alerts</Text>
-        <Text style={[styles.copy, { color: palette.muted }]}>Notification and alarm access are controlled by Android. Focus remains usable when alerts are off. System battery restrictions can delay delivery.</Text>
-        <Pressable accessibilityRole="button" onPress={() => { void Linking.openSettings().catch(() => Alert.alert('Open Android Settings', 'Choose Apps → Eonward → Notifications.')); }} style={[styles.secondary, { borderColor: palette.border }]}><Text style={{ color: palette.foreground }}>Open app settings</Text></Pressable>
+        <Text style={[styles.copy, { color: palette.muted }]}>Notification access is controlled by {Platform.OS === 'ios' ? 'iOS' : 'Android'}. Focus remains usable when alerts are off.{Platform.OS === 'android' ? ' Battery restrictions can delay alerts. Force stop in system settings silences alerts until you reopen Eonward.' : ''}</Text>
+        <Pressable accessibilityRole="button" onPress={() => { void Linking.openSettings().catch(() => Alert.alert('Open system settings', 'Choose Eonward → Notifications in your device settings.')); }} style={[styles.secondary, { borderColor: palette.border }]}><Text style={{ color: palette.foreground }}>Open app settings</Text></Pressable>
+      </View>
+      <View style={[styles.card, { backgroundColor: palette.surface, borderColor: palette.border }]}>
+        <Text style={[styles.heading, { color: palette.foreground }]}>Private by design</Text>
+        <Text style={[styles.copy, { color: palette.muted }]}>Eonward works without an account. Your goals and focus history are stored locally. This app has no advertising, analytics or cloud sync. Nothing is uploaded by Eonward.</Text>
+        <Text style={[styles.copy, { color: palette.muted }]}>Your operating system may include app data in device backups, depending on its settings. Exported files are readable JSON; keep them somewhere you trust. Removing the app or clearing its storage removes local plans, so export first if you want to keep them.</Text>
+        <Text style={[styles.caption, { color: palette.muted }]}>Eonward · {Constants.expoConfig?.version ?? '0.1.0'} · Personal planning, on your terms.</Text>
       </View>
     </ScrollView>
   </SafeAreaView>;

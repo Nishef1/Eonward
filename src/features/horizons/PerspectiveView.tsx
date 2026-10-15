@@ -2,7 +2,11 @@ import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-nati
 import { HORIZON_TITLES, type Horizon } from '../../domain/horizons';
 import type { Goal } from '../../domain/goals';
 import type { PerspectiveSection } from '../../domain/perspective';
-import { colors, radius } from '../../theme/tokens';
+import { colors, depth, radius } from '../../theme/tokens';
+import Check from 'lucide-react-native/icons/check';
+import ChevronRight from 'lucide-react-native/icons/chevron-right';
+import Circle from 'lucide-react-native/icons/circle';
+import Plus from 'lucide-react-native/icons/plus';
 
 type Palette = typeof colors.light | typeof colors.dark;
 
@@ -25,8 +29,9 @@ export function PerspectiveView({ sections, palette, loading, error, onRetry, on
     <Pressable accessibilityRole="button" onPress={onRetry} style={styles.action}><Text style={{ color: palette.accent }}>Try again</Text></Pressable>
   </View>;
   return <View style={styles.container}>
-    <Text style={[styles.intro, { color: palette.muted }]}>Your daily steps and longer-term direction, together.</Text>
-    {sections.map((section) => <View key={section.horizon} style={[styles.card, { borderColor: palette.border, backgroundColor: palette.surface }]}>
+    <View style={[styles.rail, { backgroundColor: palette.border }]} />
+    {sections.map((section) => <View key={section.horizon} style={[styles.card, { borderColor: palette.border, backgroundColor: palette.surface, boxShadow: palette === colors.dark ? depth.dark.card : depth.light.card }]}>
+      <View style={[styles.railDot, { backgroundColor: section.total ? palette.accent : palette.border, borderColor: palette.background }]} />
       <View style={styles.header}>
         <Pressable accessibilityRole="button" accessibilityLabel={`Open ${HORIZON_TITLES[section.horizon]}, ${section.total} goals`}
           onPress={() => onOpenHorizon(section.horizon)} style={styles.headerCopy}>
@@ -38,27 +43,29 @@ export function PerspectiveView({ sections, palette, loading, error, onRetry, on
         </Pressable>
         <Pressable accessibilityRole="button" accessibilityLabel={`Add goal to ${HORIZON_TITLES[section.horizon]}`}
           onPress={() => onAddGoal(section.horizon)} style={styles.action}>
-          <Text style={{ color: palette.accent, fontSize: 23 }}>＋</Text>
+          <Plus size={19} color={palette.accent} strokeWidth={1.8} />
         </Pressable>
       </View>
       {section.preview.map((goal) => <Pressable key={goal.id} accessibilityRole="button" onPress={() => onOpenGoal(goal)}
         accessibilityLabel={`Open ${goal.title}`} style={[styles.preview, { borderTopColor: palette.border }]}>
-        <Text style={{ color: palette.accent, fontSize: 16 }}>{goal.completed ? '✓' : '○'}</Text>
+        {goal.completed ? <Check size={15} color={palette.accent} /> : <Circle size={13} color={palette.muted} strokeWidth={1.4} />}
         <View style={{ flex: 1, gap: 4 }}>
           <Text numberOfLines={2} style={{ color: palette.foreground, fontSize: 14, textDecorationLine: goal.completed ? 'line-through' : 'none' }}>{goal.title}</Text>
           {goal.parentTitle ? <Text numberOfLines={1} style={[styles.caption, { color: palette.muted }]}>↳ {goal.parentTitle}</Text> : null}
         </View>
-        <Text style={{ color: palette.muted }}>›</Text>
+        <ChevronRight size={15} color={palette.muted} />
       </Pressable>)}
     </View>)}
   </View>;
 }
 const styles = StyleSheet.create({
-  container: { paddingTop: 4, paddingBottom: 16, gap: 8 }, intro: { fontSize: 12, lineHeight: 19, marginBottom: 7 },
-  card: { borderWidth: 1, borderRadius: radius.md, overflow: 'hidden' }, header: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 12 },
-  headerCopy: { flex: 1, minHeight: 66, justifyContent: 'center', gap: 4, paddingVertical: 8 },
-  titleRow: { flexDirection: 'row', alignItems: 'center', gap: 12 }, title: { fontSize: 15, fontWeight: '700' },
-  count: { fontSize: 11 }, caption: { fontSize: 11, lineHeight: 16 }, action: { minWidth: 48, minHeight: 48, alignItems: 'center', justifyContent: 'center' },
-  preview: { minHeight: 52, paddingVertical: 10, paddingHorizontal: 14, flexDirection: 'row', gap: 10, alignItems: 'center', borderTopWidth: 1 },
+  container: { paddingTop: 4, paddingBottom: 16, paddingLeft: 18, gap: 12 },
+  rail: { position: 'absolute', width: 1, left: 4, top: 35, bottom: 50 },
+  railDot: { position: 'absolute', width: 12, height: 12, borderRadius: 6, borderWidth: 3, left: -20, top: 26 },
+  card: { borderWidth: 1, borderRadius: radius.lg }, header: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 14 },
+  headerCopy: { flex: 1, minHeight: 72, justifyContent: 'center', gap: 4, paddingVertical: 12 },
+  titleRow: { flexDirection: 'row', alignItems: 'center', gap: 12, flexWrap: 'wrap' }, title: { fontSize: 16, fontWeight: '600', letterSpacing: -.2 },
+  count: { fontSize: 11 }, caption: { fontSize: 12, lineHeight: 18 }, action: { minWidth: 48, minHeight: 48, alignItems: 'center', justifyContent: 'center' },
+  preview: { minHeight: 54, marginHorizontal: 14, paddingVertical: 12, flexDirection: 'row', gap: 10, alignItems: 'center', borderTopWidth: StyleSheet.hairlineWidth },
   error: { paddingVertical: 20, gap: 10 },
 });

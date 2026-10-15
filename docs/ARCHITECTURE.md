@@ -8,6 +8,12 @@ A recurring occurrence is a new goal identity representing a genuinely new step,
 
 Backup format v1 contains strict schema-v7 allowlisted rows for goals, boards, memberships, time blocks, focus history and goal activity. Restore validates complete graphs and cycles, then merges missing IDs in a single transaction with deferred FK validation. Existing rows are never overwritten; active timers are not restored. The native file picker copies input into cache; only that copied file is removed after reading.
 
+Quick Focus creates the real UTC Timebox and running session in one exclusive transaction, after validating an open active goal. Explicit replacement records the previous session first. Archiving an active subtree closes a contained Focus session atomically with its history before applying archive state.
+
+SQLiteProvider initialization uses the non-Suspense path so a rejected startup promise is not retained by the SDK's global Suspense cache. Initialization closes its failed connection; the root error boundary offers a non-destructive remount/retry. Native failure injection remains an acceptance item.
+
+The app shell owns keyboard avoidance and hides the dock while typing. Native modal forms own their separate keyboard/safe-area boundary. Date/time inputs use system pickers without changing civil-date or UTC-instant semantics. Shared palette/depth tokens and individually imported Lucide vectors define the Studio presentation without introducing parallel planner state.
+
 # Original architecture proposal and historical slices
 
 The proposal below includes the historical v2 baseline. Current implementation and verification are described above and in CAPABILITIES.md; draft entities are not a claim that separate tables exist.

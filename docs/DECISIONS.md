@@ -68,3 +68,12 @@ Record significant decisions and reversals here. A future change should cite its
 - Keep startup migrations on SQLiteProvider's original connection to avoid the reproduced Android second-connection lock.
 - Native JSON backups merge missing records atomically, preserve local conflicts, validate references/cycles before and after merge, and exclude transient running Focus sessions.
 - Add SDK-compatible MIT-licensed Expo FileSystem, Sharing and DocumentPicker for real file recovery; explicitly configure the SystemUI plugin so native builds follow the existing automatic theme setting. The Android 35 picker/share workflow needs no runtime storage permission or backend.
+
+## 2026-10-15 — Studio direction and two-platform preparation
+
+- The user explicitly targets Android **and iOS** and prioritizes building the app over publisher/contact metadata. Only emulator hardware is currently available. Keep native Apple and physical-device gates visible; JavaScript export does not satisfy them.
+- Replace the rejected provisional appearance with one coherent Studio grammar derived from the supplied visual references: neutral canvas, restrained depth, precise grouped controls, consistent line icons and purposeful green states. Keep private references outside Git. User aesthetic acceptance remains open.
+- Adapt desktop reference principles to phone interactions: labeled four-destination dock, grouped Plan modes, a compact seven-horizon picker, linked time-scale overview and title-first goal details. Preserve canonical goals and time semantics.
+- Prefer maintained native DateTimePicker and SVG/Lucide components over text-parsing-only date entry or font glyph icons. Use SDK-compatible versions and import only required icons.
+- Use one root keyboard boundary plus separate modal boundaries. Hide root navigation during typing after full Gboard exposed an obscured quick-capture action.
+- Keep QA release identifiers separate from the primary app, preserving user data. Local standalone QA builds use a debug certificate; store signing and publication remain separate gates and actions.

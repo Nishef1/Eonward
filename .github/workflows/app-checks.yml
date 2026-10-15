@@ -23,9 +23,13 @@ jobs:
         run: npm run deps:check
       - name: Verify TypeScript
         run: npm run typecheck
-      - name: Verify Android native config plugins
+      - name: Verify Android and iOS native config plugins
         run: |
-          EXPO_NO_GIT_STATUS=1 npx expo prebuild --platform android --no-install --clean
+          EXPO_NO_GIT_STATUS=1 npx expo prebuild --platform all --no-install --clean
           grep -q 'android.permission.SCHEDULE_EXACT_ALARM' android/app/src/main/AndroidManifest.xml
+          test -f ios/Eonward.xcodeproj/project.pbxproj
+          test -f ios/Eonward/Info.plist
       - name: Verify Android JavaScript bundle
         run: npx expo export --platform android --output-dir /tmp/eonward-android-export
+      - name: Verify iOS JavaScript bundle
+        run: npx expo export --platform ios --output-dir /tmp/eonward-ios-export

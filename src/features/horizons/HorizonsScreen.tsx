@@ -1,17 +1,32 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
-import { ActivityIndicator, Alert, AppState, FlatList, KeyboardAvoidingView, Modal, Platform, Pressable, StyleSheet, Text, TextInput, useColorScheme, View } from 'react-native';
+import { ActivityIndicator, Alert, AppState, FlatList, Modal, Pressable, StyleSheet, Text, TextInput, useColorScheme, View } from 'react-native';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import { useSQLiteContext } from 'expo-sqlite';
 import { dateFromPeriodKey, HORIZONS, HORIZON_TITLES, periodKey, periodLabel, shiftPeriod, type Horizon } from '../../domain/horizons';
 import { availableGoalParents, type Goal, type GoalInput } from '../../domain/goals';
 import { buildPerspectiveSections } from '../../domain/perspective';
 import { archiveGoal, createGoal, editGoal, getGoal, listAllGoals, listArchivedGoals, listChildGoals, listGoalAncestors, listGoals, listInboxGoals, listPerspectiveGoals, moveGoal, restoreGoal, setGoalCompleted } from '../../storage/goals';
-import { colors, radius, spacing } from '../../theme/tokens';
+import { colors, depth, radius, spacing } from '../../theme/tokens';
+import Archive from 'lucide-react-native/icons/archive';
+import Check from 'lucide-react-native/icons/check';
+import ChevronDown from 'lucide-react-native/icons/chevron-down';
+import ChevronLeft from 'lucide-react-native/icons/chevron-left';
+import ChevronRight from 'lucide-react-native/icons/chevron-right';
+import Clock3 from 'lucide-react-native/icons/clock-3';
+import Inbox from 'lucide-react-native/icons/inbox';
+import Layers3 from 'lucide-react-native/icons/layers';
+import MoreHorizontal from 'lucide-react-native/icons/ellipsis';
+import Plus from 'lucide-react-native/icons/plus';
+import Search from 'lucide-react-native/icons/search';
+import Settings2 from 'lucide-react-native/icons/settings-2';
+import X from 'lucide-react-native/icons/x';
 import { GoalDetails } from './GoalDetails';
 import { GoalEditor } from './GoalEditor';
 import { PerspectiveView } from './PerspectiveView';
 import { ArchiveView } from './ArchiveView';
+import { useFocusSession } from '../focus/FocusProvider';
+import { useReducedMotion } from '../../theme/useReducedMotion';
 
 type Palette = typeof colors.light | typeof colors.dark;
 
@@ -26,7 +41,7 @@ function GoalCard({
   disabled: boolean;
 }) {
   return (
-    <View style={[styles.goalCard, { backgroundColor: palette.surface, borderColor: palette.border }]}>
+    <View style={[styles.goalCard, { backgroundColor: palette.surface, borderColor: palette.border, boxShadow: palette === colors.dark ? depth.dark.card : depth.light.card }]}>
       <Pressable
         accessibilityRole="checkbox"
         accessibilityState={{ checked: goal.completed, disabled }}
@@ -37,21 +52,23 @@ function GoalCard({
         hitSlop={4}
       >
         <View style={[styles.checkbox, { borderColor: goal.completed ? palette.accent : palette.muted, backgroundColor: goal.completed ? palette.accent : 'transparent' }]}>
-          {goal.completed ? <Text style={[styles.checkboxTick, { color: palette.onAccent }]}>✓</Text> : null}
+          {goal.completed ? <Check size={14} color={palette.onAccent} strokeWidth={2.5} /> : null}
         </View>
       </Pressable>
       <Pressable style={styles.cardContent} onPress={onOpen} accessibilityRole="button" accessibilityLabel={`Open ${goal.title}`}>
+        {goal.parentTitle ? <View style={[styles.parentBadge, { backgroundColor: palette.accentSoft }]}>
+          <Layers3 size={11} color={palette.accent} strokeWidth={1.8} />
+          <Text numberOfLines={1} style={[styles.parentLabel, { color: palette.accent }]}>{goal.parentTitle}</Text>
+        </View> : null}
         <Text
           numberOfLines={2}
-          style={[styles.goalTitle, { color: palette.foreground, textDecorationLine: goal.completed ? 'line-through' : 'none', opacity: 1 }]}
+          style={[styles.goalTitle, { color: goal.completed ? palette.muted : palette.foreground, textDecorationLine: goal.completed ? 'line-through' : 'none' }]}
         >
           {goal.title}
         </Text>
-        {goal.parentTitle || goal.notes || goal.childrenCount > 0 ? (
+        {goal.childrenCount > 0 || (!goal.parentTitle && goal.notes) ? (
           <Text numberOfLines={1} style={[styles.goalSubtitle, { color: palette.muted }]}>
-            {goal.parentTitle
-              ? `↳ ${goal.parentTitle}`
-              : goal.childrenCount > 0
+            {goal.childrenCount > 0
                 ? `${goal.childrenCount} next step${goal.childrenCount === 1 ? '' : 's'}`
                 : goal.notes}
           </Text>
@@ -60,22 +77,25 @@ function GoalCard({
         {goal.inbox ? <Text style={[styles.goalSchedule, { color: palette.muted }]}>Inbox · not yet planned</Text> : null}
         {goal.repeatRule !== 'none' ? <Text style={[styles.goalSchedule, { color: palette.accent }]}>↻ {goal.repeatRule}</Text> : null}
         {goal.nextBlockAt ? (
-          <Text style={[styles.goalSchedule, { color: palette.accent }]} numberOfLines={1}>
-            ◷ {new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }).format(new Date(goal.nextBlockAt))}
-          </Text>
+          <View style={styles.scheduleRow}><Clock3 size={12} color={palette.accent} />
+            <Text style={[styles.goalSchedule, { color: palette.accent }]} numberOfLines={1}>
+              {new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }).format(new Date(goal.nextBlockAt))}
+            </Text></View>
         ) : null}
       </Pressable>
       <Pressable onPress={onOrganize} disabled={disabled} accessibilityRole="button"
         accessibilityLabel={`Organize ${goal.title}`} style={styles.chevronTouch}>
-        <Text style={[styles.chevron, { color: palette.muted }]}>⋯</Text>
+        <MoreHorizontal size={20} color={palette.muted} strokeWidth={1.8} />
       </Pressable>
     </View>
   );
 }
 
 export function HorizonsScreen() {
+  const reducedMotion = useReducedMotion();
   const db = useSQLiteContext();
   const router = useRouter();
+  const focus = useFocusSession();
   const { goalId } = useLocalSearchParams<{ goalId?: string }>();
   const openedFromBoard = useRef<string | null>(null);
   const palette = useColorScheme() === 'dark' ? colors.dark : colors.light;
@@ -98,6 +118,8 @@ export function HorizonsScreen() {
   const writeLock = useRef(false);
   const [quickTitle, setQuickTitle] = useState('');
   const [searching, setSearching] = useState(false);
+  const [toolsVisible, setToolsVisible] = useState(false);
+  const [horizonsVisible, setHorizonsVisible] = useState(false);
   const [search, setSearch] = useState('');
   const quickInput = useRef<TextInput>(null);
   const [clockDay, setClockDay] = useState(() => periodKey('day', new Date()));
@@ -285,6 +307,20 @@ export function HorizonsScreen() {
     setChildren([]);
   }
 
+  function focusSelected(minutes: number) {
+    if (!details || focus.busy) return;
+    const goal = details;
+    const start = (replace = false) => {
+      void focus.beginQuick(goal.id, minutes, replace).then(() => {
+        closeDetails(); setRevision((n) => n + 1);
+      }).catch((error: unknown) => Alert.alert('Could not start focus', error instanceof Error ? error.message : 'Please try again.'));
+    };
+    if (focus.session) Alert.alert('Switch your focus?', 'The current session will be recorded before this one starts.', [
+      { text: 'Keep focusing', style: 'cancel' }, { text: 'Switch', onPress: () => start(true) },
+    ]);
+    else start();
+  }
+
   function backToParent() {
     const request = ++detailRequest.current;
     const parentGoal = detailStack[detailStack.length - 2];
@@ -356,6 +392,7 @@ export function HorizonsScreen() {
           text: 'Archive',
           onPress: () => void perform(async () => {
             await archiveGoal(db, goal.id);
+            void focus.refresh().catch(() => {});
             closeDetails();
           }),
         },
@@ -379,7 +416,7 @@ export function HorizonsScreen() {
     const goal = organizing;
     setOrganizing(null);
     if (!goal) return;
-    void perform(async () => { await archiveGoal(db, goal.id); });
+    void perform(async () => { await archiveGoal(db, goal.id); void focus.refresh().catch(() => {}); });
   }
 
   function restoreSelected(goal: Goal) {
@@ -397,63 +434,61 @@ export function HorizonsScreen() {
   }
 
   function tools() {
-    Alert.alert('Plan tools', undefined, [
-      { text: 'Archive', onPress: () => { setSearching(false); setView('archive'); } },
-      { text: 'Your data & settings', onPress: () => router.push('/settings') },
-      { text: 'Cancel', style: 'cancel' },
-    ]);
+    setToolsVisible(true);
   }
   const showingList = searching || view === 'focus' || view === 'inbox';
   const header = (
     <View>
       <View style={styles.topBar}>
         <View style={{ flex: 1 }}>
+          <Text style={[styles.brandLabel, { color: palette.muted }]}>EONWARD</Text>
           <Text style={[styles.pageTitle, { color: palette.foreground }]}>
             {searching ? 'Search your plans' : view === 'inbox' ? 'Inbox' : view === 'perspective' ? 'Your horizons' : view === 'archive' ? 'Archive' : horizon === 'day' && key === clockDay ? 'Today' : HORIZON_TITLES[horizon]}
           </Text>
-          {!searching && view === 'inbox' ? <Text style={[styles.caption, { color: palette.muted }]}>Capture now. Decide when later.</Text> : null}
+          {!searching ? <Text style={[styles.caption, { color: palette.muted }]}>
+            {view === 'inbox' ? 'Capture now. Decide when later.' : view === 'perspective' ? 'Daily steps. Longer-term direction.' : view === 'archive' ? 'Saved for another season.' : caption}
+          </Text> : null}
         </View>
         <Pressable accessibilityRole="button" accessibilityLabel={searching ? 'Close search' : 'Search all goals and notes'}
           onPress={() => { setSearching(!searching); setSearch(''); }} style={styles.utility}>
-          <Text style={{ color: palette.accent, fontSize: 25 }}>{searching ? '×' : '⌕'}</Text>
+          {searching ? <X size={21} color={palette.foreground} strokeWidth={1.8} /> : <Search size={21} color={palette.foreground} strokeWidth={1.8} />}
         </Pressable>
         <Pressable accessibilityRole="button" accessibilityLabel="Plan tools, archive and data settings" onPress={tools} style={styles.utility}>
-          <Text style={{ color: palette.foreground, fontSize: 24 }}>⋯</Text>
+          <MoreHorizontal size={23} color={palette.foreground} strokeWidth={1.8} />
         </Pressable>
       </View>
       {searching ? <TextInput autoFocus value={search} onChangeText={setSearch} placeholder="Search goals, notes or parent goals"
         accessibilityLabel="Search goals and notes" placeholderTextColor={palette.muted}
         style={[styles.searchInput, { color: palette.foreground, backgroundColor: palette.surface, borderColor: palette.border }]} /> : <>
-        <View style={[styles.modes, { borderBottomColor: palette.border }]}>
+        <View style={[styles.modes, { backgroundColor: palette.inset }]}>
           {(['focus', 'perspective', 'inbox'] as const).map((mode) => <Pressable key={mode} accessibilityRole="tab"
             accessibilityState={{ selected: view === mode }} onPress={() => setView(mode)}
-            style={[styles.modeTab, { borderBottomColor: view === mode ? palette.accent : 'transparent' }]}>
-            <Text style={{ color: view === mode ? palette.foreground : palette.muted, fontWeight: view === mode ? '700' : '500' }}>
-              {mode === 'focus' ? 'Your plan' : mode === 'perspective' ? 'Overview' : 'Inbox'}
+            style={[styles.modeTab, view === mode && { backgroundColor: palette.surface, boxShadow: palette === colors.dark ? depth.dark.control : depth.light.control }]}>
+            <Text style={{ color: view === mode ? palette.foreground : palette.muted, fontSize: 13, fontWeight: view === mode ? '600' : '500' }}>
+              {mode === 'focus' ? 'Your plan' : mode === 'perspective' ? 'Horizons' : 'Inbox'}
             </Text>
           </Pressable>)}
         </View>
         {view === 'focus' ? <>
-          <FlatList data={HORIZONS} horizontal nestedScrollEnabled showsHorizontalScrollIndicator={false}
-            keyExtractor={(item) => item} style={styles.horizonList} contentContainerStyle={styles.horizonItems}
-            renderItem={({ item }) => <Pressable onPress={() => setHorizon(item)} accessibilityRole="button"
-              accessibilityState={{ selected: item === horizon }}
-              style={[styles.horizonChip, { backgroundColor: item === horizon ? palette.foreground : palette.surface, borderColor: palette.border }]}>
-              <Text style={[styles.horizonChipText, { color: item === horizon ? palette.background : palette.foreground }]}>{HORIZON_TITLES[item]}</Text>
-            </Pressable>} />
           <View style={styles.periodRow}>
-            <Pressable accessibilityRole="button" accessibilityLabel="Previous period" disabled={horizon === 'life'}
-              onPress={() => setAnchor((date) => shiftPeriod(horizon, date, -1))} style={styles.utility}>
-              <Text style={{ color: palette.foreground, fontSize: 26 }}>‹</Text>
+            <Pressable accessibilityRole="button" accessibilityLabel={`Planning horizon: ${HORIZON_TITLES[horizon]}. Change horizon`}
+              onPress={() => setHorizonsVisible(true)} style={[styles.horizonSelect, { backgroundColor: palette.surface, borderColor: palette.border }]}>
+              <Layers3 size={15} color={palette.accent} strokeWidth={1.8} />
+              <Text style={[styles.horizonChipText, { color: palette.foreground }]}>{HORIZON_TITLES[horizon]}</Text>
+              <ChevronDown size={14} color={palette.muted} />
             </Pressable>
-            <Text style={[styles.periodCaption, { color: palette.foreground }]}>{caption}</Text>
-            <Pressable accessibilityRole="button" accessibilityLabel="Next period" disabled={horizon === 'life'}
+            <View style={{ flex: 1 }} />
+            {horizon !== 'life' ? <><Pressable accessibilityRole="button" accessibilityLabel="Previous period"
+              onPress={() => setAnchor((date) => shiftPeriod(horizon, date, -1))} style={styles.utility}>
+              <ChevronLeft size={21} color={palette.foreground} strokeWidth={1.8} />
+            </Pressable>
+            <Pressable accessibilityRole="button" accessibilityLabel="Next period"
               onPress={() => setAnchor((date) => shiftPeriod(horizon, date, 1))} style={styles.utility}>
-              <Text style={{ color: palette.foreground, fontSize: 26 }}>›</Text>
+              <ChevronRight size={21} color={palette.foreground} strokeWidth={1.8} />
             </Pressable>
             <Pressable accessibilityRole="button" accessibilityLabel="Return to current period" onPress={() => setAnchor(new Date())} style={styles.utility}>
               <Text style={{ color: palette.accent, fontSize: 12, fontWeight: '700' }}>Now</Text>
-            </Pressable>
+            </Pressable></> : null}
           </View>
         </> : null}
       </>}
@@ -492,6 +527,9 @@ export function HorizonsScreen() {
             <ActivityIndicator color={palette.accent} size="large" style={styles.wait} />
           ) : failure ? (
             <View style={styles.empty}>
+              {!searching ? <View style={[styles.emptyEmblem, { backgroundColor: palette.accentSoft }]}>
+                {view === 'inbox' ? <Inbox size={27} color={palette.accent} strokeWidth={1.4} /> : <Layers3 size={27} color={palette.accent} strokeWidth={1.4} />}
+              </View> : null}
               <Text style={[styles.emptyTitle, { color: palette.foreground }]}>Couldn't load this horizon</Text>
               <Text style={[styles.emptyBody, { color: palette.muted }]}>{failure}</Text>
               <Pressable onPress={() => setRevision((value) => value + 1)} accessibilityRole="button">
@@ -506,22 +544,58 @@ export function HorizonsScreen() {
           )
         )}
       />
-      {showingList && !searching ? <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-        <View style={[styles.quickBar, { borderTopColor: palette.border, backgroundColor: palette.background }]}>
+      {showingList && !searching ? <View>
+        <View style={[styles.quickBar, { borderColor: palette.border, backgroundColor: palette.surface, boxShadow: palette === colors.dark ? depth.dark.control : depth.light.control }]}>
           <TextInput ref={quickInput} value={quickTitle} onChangeText={setQuickTitle} maxLength={180}
             placeholder={view === 'inbox' ? 'Capture an idea…' : 'Add a goal…'}
             placeholderTextColor={palette.muted} accessibilityLabel="Quick goal title" returnKeyType="done" blurOnSubmit={false}
             onSubmitEditing={() => { void quickCreate(); }} style={[styles.quickField, { color: palette.foreground }]} />
           <Pressable accessibilityRole="button" accessibilityLabel="Save quick goal" disabled={working || !quickTitle.trim()}
-            onPress={() => { void quickCreate(); }} style={styles.utility}>
-            <Text style={{ color: quickTitle.trim() && !working ? palette.accent : palette.muted, fontSize: 27 }}>＋</Text>
+            onPress={() => { void quickCreate(); }} style={styles.quickSave}>
+            <View style={[styles.quickSaveIcon, { backgroundColor: quickTitle.trim() && !working ? palette.accent : palette.inset }]}>
+              <Plus size={21} color={quickTitle.trim() && !working ? palette.onAccent : palette.muted} strokeWidth={1.8} />
+            </View>
           </Pressable>
           <Pressable accessibilityRole="button" accessibilityLabel="Create goal with details" onPress={openCreate} style={styles.utility}>
-            <Text style={{ color: palette.accent, fontSize: 13, fontWeight: '700' }}>Details</Text>
+            <Text style={{ color: palette.accent, fontSize: 12, fontWeight: '600' }}>Details</Text>
           </Pressable>
         </View>
-      </KeyboardAvoidingView> : null}
-      <Modal visible={organizing !== null} transparent statusBarTranslucent navigationBarTranslucent animationType="fade"
+      </View> : null}
+      <Modal visible={horizonsVisible} transparent statusBarTranslucent navigationBarTranslucent animationType={reducedMotion ? 'none' : 'fade'} onRequestClose={() => setHorizonsVisible(false)}>
+        <SafeAreaProvider><View style={styles.organizeOverlay}>
+          <Pressable style={StyleSheet.absoluteFill} accessibilityLabel="Close horizon selection" onPress={() => setHorizonsVisible(false)} />
+          <SafeAreaView edges={['bottom']} style={[styles.organizePanel, { backgroundColor: palette.background }]}>
+            <View style={[styles.grabber, { backgroundColor: palette.border }]} />
+            <Text style={[styles.organizeTitle, { color: palette.foreground }]}>Choose your horizon</Text>
+            {HORIZONS.map((item) => <Pressable key={item} accessibilityRole="button" accessibilityState={{ selected: horizon === item }}
+              onPress={() => { setHorizon(item); setHorizonsVisible(false); }}
+              style={[styles.horizonOption, { backgroundColor: horizon === item ? palette.accentSoft : palette.surface, borderColor: horizon === item ? palette.accent : palette.border }]}>
+              <Text style={{ color: palette.foreground, fontSize: 15, fontWeight: '600', minWidth: 70 }}>{HORIZON_TITLES[item]}</Text>
+              <Text style={{ color: palette.muted, fontSize: 12, flex: 1 }}>{periodLabel(item, anchor)}</Text>
+              {horizon === item ? <Check size={18} color={palette.accent} /> : <ChevronRight size={17} color={palette.muted} />}
+            </Pressable>)}
+          </SafeAreaView>
+        </View></SafeAreaProvider>
+      </Modal>
+      <Modal visible={toolsVisible} transparent statusBarTranslucent navigationBarTranslucent animationType={reducedMotion ? 'none' : 'fade'} onRequestClose={() => setToolsVisible(false)}>
+        <SafeAreaProvider><View style={styles.organizeOverlay}>
+          <Pressable style={StyleSheet.absoluteFill} accessibilityLabel="Close Plan tools" onPress={() => setToolsVisible(false)} />
+          <SafeAreaView edges={['bottom']} style={[styles.organizePanel, { backgroundColor: palette.background }]}>
+            <View style={[styles.grabber, { backgroundColor: palette.border }]} />
+            <Text style={[styles.organizeTitle, { color: palette.foreground }]}>Your workspace</Text>
+            <Pressable accessibilityRole="button" onPress={() => { setToolsVisible(false); router.push('/settings'); }} style={[styles.organizeAction, { backgroundColor: palette.surface, borderColor: palette.border }]}>
+              <Settings2 size={20} color={palette.accent} strokeWidth={1.8} />
+              <Text style={[styles.organizeActionText, { color: palette.foreground }]}>Your data & settings</Text>
+            </Pressable>
+            <Pressable accessibilityRole="button" onPress={() => { setToolsVisible(false); setSearching(false); setView('archive'); }} style={[styles.organizeAction, { backgroundColor: palette.surface, borderColor: palette.border }]}>
+              <Archive size={20} color={palette.muted} strokeWidth={1.8} />
+              <Text style={[styles.organizeActionText, { color: palette.foreground }]}>Archived goals</Text>
+            </Pressable>
+            <Pressable accessibilityRole="button" onPress={() => setToolsVisible(false)} style={styles.organizeCancel}><Text style={[styles.organizeCancelText, { color: palette.muted }]}>Close</Text></Pressable>
+          </SafeAreaView>
+        </View></SafeAreaProvider>
+      </Modal>
+      <Modal visible={organizing !== null} transparent statusBarTranslucent navigationBarTranslucent animationType={reducedMotion ? 'none' : 'fade'}
         onRequestClose={() => setOrganizing(null)}>
         <SafeAreaProvider>
         <View style={styles.organizeOverlay}>
@@ -576,6 +650,8 @@ export function HorizonsScreen() {
           closeDetails();
           router.push({ pathname: '/calendar', params: { goalId } });
         }}
+        onFocus={focusSelected}
+        focusing={focus.busy}
       />
       <GoalEditor
         visible={editorVisible}
@@ -596,44 +672,48 @@ export function HorizonsScreen() {
 
 const styles = StyleSheet.create({
   organizeOverlay: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(9, 22, 18, 0.43)' },
-  organizePanel: { padding: spacing.lg, paddingBottom: 35, borderTopLeftRadius: 27, borderTopRightRadius: 27, gap: 10 },
+  organizePanel: { padding: spacing.lg, paddingBottom: 35, borderTopLeftRadius: 28, borderTopRightRadius: 28, gap: 10 },
+  grabber: { width: 36, height: 4, borderRadius: 4, alignSelf: 'center', marginBottom: 10 },
+  horizonOption: { minHeight: 54, borderWidth: 1, borderRadius: radius.md, flexDirection: 'row', gap: 10, alignItems: 'center', paddingHorizontal: 14, paddingVertical: 8 },
   organizeTitle: { fontSize: 21, fontWeight: '700', letterSpacing: -0.4 },
   organizeSubtitle: { fontSize: 13, lineHeight: 20, marginBottom: 12 },
-  organizeAction: { minHeight: 55, justifyContent: 'center', paddingHorizontal: 18, borderRadius: radius.lg, borderWidth: 1 },
+  organizeAction: { minHeight: 56, flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 18, borderRadius: radius.lg, borderWidth: 1 },
   organizeActionText: { fontSize: 15, fontWeight: '600' },
   organizeCancel: { minHeight: 48, alignItems: 'center', justifyContent: 'center', marginTop: 5 },
   organizeCancelText: { fontSize: 14, fontWeight: '600' },
   screen: { flex: 1 },
-  listContent: { paddingHorizontal: spacing.lg, paddingBottom: 28, flexGrow: 1 },
-  topBar: { flexDirection: 'row', alignItems: 'center', gap: 4, minHeight: 64 },
-  pageTitle: { fontSize: 27, fontWeight: '700', letterSpacing: -.7 },
-  caption: { fontSize: 12, marginTop: 5 },
+  listContent: { paddingHorizontal: 20, paddingBottom: 28, flexGrow: 1 },
+  topBar: { flexDirection: 'row', alignItems: 'center', gap: 0, paddingTop: 20, paddingBottom: 22 },
+  brandLabel: { fontSize: 10, fontWeight: '600', letterSpacing: 2.3, marginBottom: 12 },
+  pageTitle: { fontSize: 32, fontWeight: '700', letterSpacing: -1.2 },
+  caption: { fontSize: 13, lineHeight: 20, marginTop: 6 },
   utility: { minHeight: 48, minWidth: 48, alignItems: 'center', justifyContent: 'center' },
-  modes: { flexDirection: 'row', gap: 22, borderBottomWidth: 1, marginBottom: 12 },
-  modeTab: { minHeight: 48, justifyContent: 'center', borderBottomWidth: 2 },
-  horizonList: { marginHorizontal: -spacing.lg, marginBottom: 4 },
-  horizonItems: { paddingHorizontal: spacing.lg, gap: 6 },
-  horizonChip: { minHeight: 48, minWidth: 58, paddingHorizontal: 13, borderRadius: radius.md, alignItems: 'center', justifyContent: 'center', borderWidth: 1 },
+  modes: { flexDirection: 'row', gap: 4, padding: 4, borderRadius: 14, marginBottom: 16 },
+  modeTab: { flex: 1, minHeight: 48, justifyContent: 'center', alignItems: 'center', borderRadius: 10, paddingHorizontal: 8, paddingVertical: 8 },
+  horizonSelect: { minHeight: 48, paddingHorizontal: 12, borderRadius: radius.md, alignItems: 'center', flexDirection: 'row', gap: 8, borderWidth: 1 },
   horizonChipText: { fontSize: 13, fontWeight: '600' },
-  periodRow: { flexDirection: 'row', alignItems: 'center', gap: 2, paddingVertical: 2 },
-  periodCaption: { flex: 1, fontSize: 14, fontWeight: '600' },
-  sectionHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8, marginTop: 12, marginBottom: 10 },
+  periodRow: { flexDirection: 'row', alignItems: 'center', gap: 0, paddingVertical: 2, marginBottom: 8 },
+  sectionHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 8, marginTop: 14, marginBottom: 14 },
   sectionTitle: { fontSize: 14, fontWeight: '700' },
-  sectionCount: { fontSize: 11 },
+  sectionCount: { fontSize: 12 },
   searchInput: { borderWidth: 1, borderRadius: radius.md, minHeight: 50, paddingHorizontal: 14, marginBottom: 8 },
-  quickBar: { flexDirection: 'row', alignItems: 'center', gap: 4, borderTopWidth: 1, paddingHorizontal: 16, paddingVertical: 6 },
+  quickBar: { flexDirection: 'row', alignItems: 'center', gap: 2, borderWidth: 1, borderRadius: radius.lg, marginHorizontal: 20, marginBottom: 12, marginTop: 8, paddingLeft: 16, paddingRight: 5, paddingVertical: 4 },
   quickField: { flex: 1, minHeight: 48, fontSize: 14 },
-  goalCard: { borderWidth: 1, borderRadius: radius.md, marginBottom: 7, flexDirection: 'row', alignItems: 'center', minHeight: 76, padding: 11 },
+  quickSave: { minWidth: 48, minHeight: 48, justifyContent: 'center', alignItems: 'center' },
+  quickSaveIcon: { width: 34, height: 34, borderRadius: 10, justifyContent: 'center', alignItems: 'center' },
+  goalCard: { borderWidth: 1, borderRadius: radius.lg, marginBottom: 10, flexDirection: 'row', alignItems: 'center', minHeight: 88, paddingVertical: 8, paddingLeft: 6, paddingRight: 2 },
   checkboxTouch: { height: 48, width: 48, alignItems: 'center', justifyContent: 'center' },
-  checkbox: { width: 23, height: 23, borderRadius: 12, borderWidth: 1.5, justifyContent: 'center', alignItems: 'center' },
-  checkboxTick: { fontWeight: '700' },
+  checkbox: { width: 21, height: 21, borderRadius: 7, borderWidth: 1.3, justifyContent: 'center', alignItems: 'center' },
   cardContent: { flex: 1, paddingVertical: 9, gap: 6 },
-  goalTitle: { fontSize: 15, lineHeight: 21, fontWeight: '600' },
-  goalSubtitle: { fontSize: 12 },
-  goalSchedule: { fontSize: 11, fontWeight: '700', marginTop: 3 },
+  goalTitle: { fontSize: 15, lineHeight: 22, fontWeight: '600', letterSpacing: -.15 },
+  goalSubtitle: { fontSize: 12, lineHeight: 18 },
+  parentBadge: { flexDirection: 'row', alignItems: 'center', alignSelf: 'flex-start', gap: 5, paddingHorizontal: 7, paddingVertical: 4, borderRadius: 6, maxWidth: '100%' },
+  parentLabel: { fontSize: 10, lineHeight: 15, flexShrink: 1 },
+  scheduleRow: { flexDirection: 'row', alignItems: 'center', gap: 5 },
+  goalSchedule: { fontSize: 11, fontWeight: '500', lineHeight: 16, flexShrink: 1 },
   chevronTouch: { width: 48, height: 48, alignItems: 'center', justifyContent: 'center' },
-  chevron: { fontSize: 29 },
-  empty: { paddingTop: 29, paddingBottom: 25, alignItems: 'center', gap: 13, paddingHorizontal: spacing.md },
+  empty: { paddingTop: 36, paddingBottom: 25, alignItems: 'center', gap: 13, paddingHorizontal: spacing.md },
+  emptyEmblem: { width: 64, height: 64, borderRadius: 22, alignItems: 'center', justifyContent: 'center', marginBottom: 5 },
   emptyTitle: { fontSize: 17, fontWeight: '700', textAlign: 'center' },
   emptyBody: { fontSize: 13, lineHeight: 21, textAlign: 'center', maxWidth: 270 },
   wait: { marginTop: 60 },

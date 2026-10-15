@@ -3,6 +3,7 @@ import type { SQLiteDatabase } from 'expo-sqlite';
 import { normalizeGoalTitle, type Goal, type GoalInput } from '../domain/goals';
 import { HORIZONS, periodKey } from '../domain/horizons';
 import { nextOccurrence, validatePlanning, type RepeatRule } from '../domain/planning';
+import { closeFocusInTransaction } from './focus';
 
 interface GoalRow {
   id: string;
@@ -225,6 +226,13 @@ export async function archiveGoal(db: SQLiteDatabase, id: string): Promise<void>
       'SELECT id FROM goals WHERE id = ? AND archived_at IS NULL', [id],
     );
     if (!current) throw new Error('Goal is already archived or missing.');
+    const focusing = await tx.getFirstAsync(`WITH RECURSIVE subtree(id) AS (
+      SELECT id FROM goals WHERE id = ?
+      UNION SELECT child.id FROM goals child JOIN subtree p ON child.parent_id = p.id
+      WHERE child.archived_at IS NULL
+    ) SELECT 1 FROM focus_session f JOIN time_blocks b ON b.id = f.block_id
+      WHERE b.goal_id IN (SELECT id FROM subtree)`, [id]);
+    if (focusing) await closeFocusInTransaction(tx, Date.now(), 'stopped');
     await tx.runAsync(
       `WITH RECURSIVE subtree(id) AS (
         SELECT id FROM goals WHERE id = ? AND archived_at IS NULL

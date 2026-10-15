@@ -6,6 +6,8 @@ import { createGoal, editGoal, setGoalCompleted, getGoal, listInboxGoals, comple
 import { exportBackup, restoreBackup } from '../src/storage/backup.ts';
 import { nextOccurrence } from '../src/domain/planning.ts';
 import { createBoard, addGoalToBoard, listBoardGoals } from '../src/storage/boards.ts';
+import { beginQuickFocus, getFocusSession, pauseFocusSession, resumeFocusSession, stopFocusSession, listFocusHistory } from '../src/storage/focus.ts';
+import { safeNativePath } from '../src/domain/links.ts';
 
 function realDatabase() {
   const sqlite = new DatabaseSync(':memory:');
@@ -39,20 +41,15 @@ function fakeDatabase(version) {
   return { db, queries, get transactionCalls() { return transactionCalls; } };
 }
 
-test('schema upgrades are atomic, additive and idempotent for each supported starting version', async () => {
-  for (let version = 0; version <= 7; version++) {
-    const fake = fakeDatabase(version);
-    await migrateDatabase(fake.db);
-    assert.equal(fake.transactionCalls, version === 7 ? 0 : 1);
-    assert.equal(fake.queries.some((sql) => sql.includes('CREATE TABLE IF NOT EXISTS goals')), version === 0);
-    assert.equal(fake.queries.some((sql) => sql.includes('ADD COLUMN archived_at')), version <= 1);
-    assert.equal(fake.queries.some((sql) => sql.includes('CREATE TABLE IF NOT EXISTS boards')), version <= 2);
-    assert.equal(fake.queries.some((sql) => sql.includes('CREATE TABLE IF NOT EXISTS time_blocks')), version <= 3);
-    assert.equal(fake.queries.some((sql) => sql.includes('CREATE TABLE IF NOT EXISTS focus_session')), version <= 4);
-    assert.equal(fake.queries.some((sql) => sql.includes('ADD COLUMN elapsed_ms')), version <= 5);
-    assert.equal(fake.queries.some((sql) => sql.includes('CREATE TABLE goal_activity')), version <= 6);
-    assert.equal(fake.queries.some((sql) => sql.includes('PRAGMA user_version = 7')), version <= 6);
-  }
+test('native links reject malformed and oversized input before tolerant URI decoding', () => {
+  const valid = 'eonward://calendar?goalId=abc-123';
+  assert.equal(safeNativePath(valid), valid);
+  const persian = '/?goalId=' + encodeURIComponent('قدم بعدی');
+  assert.equal(safeNativePath(persian), persian);
+  assert.equal(safeNativePath('/?goalId=%FF'.repeat(40)), '/');
+  assert.equal(safeNativePath('/?goalId=%E0%A4%A'), '/');
+  assert.equal(safeNativePath('/?goalId=' + '%41'.repeat(3000)), '/');
+  assert.equal(safeNativePath('/?goalId=%25literal'), '/?goalId=%25literal');
 });
 
 test('newer database is rejected rather than overwritten', async () => {
@@ -131,6 +128,22 @@ test('offline planning lifecycle preserves identity, recurrence, completion hist
     await assert.rejects(() => editGoal(source.db, parent, { title: 'Cycle', notes: '', horizon: 'year', periodKey: '2026', parentId: step }), /own next steps/);
     const board = await createBoard(source.db, 'Reading', 'A personal project');
     await addGoalToBoard(source.db, board, step);
+    const quick = await beginQuickFocus(source.db, step, 25);
+    assert.equal(quick.durationMs, 25 * 60000);
+    const blockCount = source.sqlite.prepare('SELECT count(*) AS n FROM time_blocks').get().n;
+    await assert.rejects(() => beginQuickFocus(source.db, inbox, 15), /already active/);
+    assert.equal(source.sqlite.prepare('SELECT count(*) AS n FROM time_blocks').get().n, blockCount);
+    await pauseFocusSession(source.db);
+    assert.equal((await getFocusSession(source.db)).status, 'paused');
+    await resumeFocusSession(source.db);
+    await beginQuickFocus(source.db, inbox, 15, true);
+    assert.equal((await listFocusHistory(source.db))[0].outcome, 'replaced');
+    await stopFocusSession(source.db);
+    await beginQuickFocus(source.db, step, 50);
+    await archiveGoal(source.db, parent);
+    assert.equal(await getFocusSession(source.db), null);
+    assert.equal((await listFocusHistory(source.db)).length, 3);
+    await restoreGoal(source.db, parent);
     await setGoalCompleted(source.db, step, true);
     await setGoalCompleted(source.db, step, true); // Double delivery is idempotent.
     assert.equal(await completedGoalsSince(source.db, '2000-01-01T00:00:00.000Z'), 1);

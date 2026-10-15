@@ -1,9 +1,13 @@
-import { useEffect, useMemo, useState } from 'react';
-import { KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { Alert, KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import type { Goal } from '../../domain/goals';
 import { localClock, localDayKey, timeRangeFromInput, type BlockInput, type BlockKind, type TimeBlock } from '../../domain/timeblocks';
 import { colors, radius, spacing } from '../../theme/tokens';
+import { DateTimeField } from '../shared/DateTimeField';
+import { useReducedMotion } from '../../theme/useReducedMotion';
+import Check from 'lucide-react-native/icons/check';
+import X from 'lucide-react-native/icons/x';
 
 type Palette = typeof colors.light | typeof colors.dark;
 
@@ -22,6 +26,7 @@ interface Props {
   onStartFocus: (block: TimeBlock) => void;
 }
 export function TimeBlockEditor({ visible, date, goals, initial, suggestedGoalId, suggestedStartHour, palette, saving, activeBlockId, onCancel, onSave, onStartFocus }: Props) {
+  const reducedMotion = useReducedMotion();
   const [goalId, setGoalId] = useState<string | null>(null);
   const [showGoals, setShowGoals] = useState(false);
   const [search, setSearch] = useState('');
@@ -31,6 +36,7 @@ export function TimeBlockEditor({ visible, date, goals, initial, suggestedGoalId
   const [endsNextDay, setEndsNextDay] = useState(false);
   const [kind, setKind] = useState<BlockKind>('block');
   const [intention, setIntention] = useState('');
+  const originalDraft = useRef('');
   useEffect(() => {
     if (!visible) return;
     const begin = initial ? new Date(initial.startAt) : date;
@@ -47,7 +53,20 @@ export function TimeBlockEditor({ visible, date, goals, initial, suggestedGoalId
     setIntention(initial?.intention ?? '');
     setShowGoals(false);
     setSearch('');
+    originalDraft.current = JSON.stringify([initial?.goalId ?? suggestedGoalId ?? null, localDayKey(begin),
+      initial ? localClock(new Date(initial.startAt)) : `${String(hour).padStart(2, '0')}:00`,
+      initial ? localClock(new Date(initial.endAt)) : hour === 23 ? '00:00' : `${String(hour + 1).padStart(2, '0')}:00`,
+      initial ? localDayKey(new Date(initial.endAt)) !== localDayKey(begin) : hour === 23,
+      initial?.kind ?? 'block', initial?.intention ?? '']);
   }, [visible, initial?.id, suggestedGoalId, suggestedStartHour, date.getTime()]);
+  function requestCancel() {
+    if (saving) return;
+    const draft = JSON.stringify([goalId, dayText, start, end, endsNextDay, kind, intention]);
+    if (draft === originalDraft.current) onCancel();
+    else Alert.alert('Discard these changes?', 'Your saved calendar stays as it is.', [
+      { text: 'Keep editing', style: 'cancel' }, { text: 'Discard changes', style: 'destructive', onPress: onCancel },
+    ]);
+  }
   const filtered = useMemo(() => goals.filter((goal) =>
     goal.title.toLowerCase().includes(search.toLowerCase().trim())).slice(0, 25), [goals, search]);
   const goal = goals.find((g) => g.id === goalId);
@@ -57,20 +76,20 @@ export function TimeBlockEditor({ visible, date, goals, initial, suggestedGoalId
   const editingActive = !!initial && initial.id === activeBlockId;
   let changed = !initial;
   if (initial) {
-    let current: { startAt: string; endAt: string } | null = null;
-    try { current = timeRangeFromInput({ date: dayText, start, end, endsNextDay }); }
-    catch { /* Invalid unsaved form cannot match the saved Timebox. */ }
-    changed = !current || current.startAt !== initial.startAt ||
-      current.endAt !== initial.endAt || goalId !== initial.goalId ||
+    // The editor has minute precision; merely opening an instant-based quick
+    // session must not round its seconds or falsely create unsaved changes.
+    changed = dayText !== localDayKey(new Date(initial.startAt)) || start !== localClock(new Date(initial.startAt)) ||
+      end !== localClock(new Date(initial.endAt)) ||
+      endsNextDay !== (localDayKey(new Date(initial.startAt)) !== localDayKey(new Date(initial.endAt))) || goalId !== initial.goalId ||
       kind !== initial.kind || intention.trim() !== initial.intention;
   }
-  const valid = !!goalId && !validation && !saving && !editingActive;
+  const valid = !!goalId && !validation && !saving && !editingActive && changed;
 
   return (
-    <Modal visible={visible} animationType="slide" transparent statusBarTranslucent navigationBarTranslucent onRequestClose={onCancel}>
+    <Modal visible={visible} animationType={reducedMotion ? 'none' : 'slide'} transparent statusBarTranslucent navigationBarTranslucent onRequestClose={requestCancel}>
       <SafeAreaProvider>
-        <KeyboardAvoidingView style={styles.overlay} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-          <Pressable style={StyleSheet.absoluteFill} onPress={onCancel} accessibilityLabel="Close time editor" />
+        <KeyboardAvoidingView style={styles.overlay} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
+          <Pressable style={StyleSheet.absoluteFill} onPress={requestCancel} accessibilityLabel="Close time editor" />
           <View style={[styles.sheet, { backgroundColor: palette.background }]}>
             <View style={[styles.grabber, { backgroundColor: palette.border }]} />
             <View style={styles.header}>
@@ -80,8 +99,8 @@ export function TimeBlockEditor({ visible, date, goals, initial, suggestedGoalId
                   {initial ? 'Edit time block' : 'Plan a time block'}
                 </Text>
               </View>
-              <Pressable style={styles.close} onPress={onCancel} accessibilityRole="button" accessibilityLabel="Close">
-                <Text style={[styles.closeGlyph, { color: palette.muted }]}>×</Text>
+              <Pressable style={styles.close} onPress={requestCancel} accessibilityRole="button" accessibilityLabel="Close">
+                <X size={21} color={palette.muted} strokeWidth={1.8} />
               </Pressable>
             </View>
             <ScrollView keyboardShouldPersistTaps="handled" keyboardDismissMode="on-drag" contentContainerStyle={styles.form}>
@@ -105,7 +124,7 @@ export function TimeBlockEditor({ visible, date, goals, initial, suggestedGoalId
                         {item.id === goalId ? '✓  ' : '○  '}{item.title}
                       </Text>
                     </Pressable>
-                  )) : <Text style={[styles.hint, { color: palette.muted }]}>No matching goals. Create one in Horizons or Boards first.</Text>}
+                  )) : <Text style={[styles.hint, { color: palette.muted }]}>No matching goals. Create one in Plan or Boards first.</Text>}
                 </View>
               ) : null}
               <Text style={[styles.label, { color: palette.muted }]}>PLANNING STYLE</Text>
@@ -124,25 +143,16 @@ export function TimeBlockEditor({ visible, date, goals, initial, suggestedGoalId
                 {kind === 'box' ? 'A fixed work limit. Stop or reassess when it ends.' :
                   'A protected time window you can rearrange as plans change.'}
               </Text>
-              <Text style={[styles.label, { color: palette.muted }]}>DATE (YYYY-MM-DD)</Text>
-              <TextInput value={dayText} onChangeText={setDayText} maxLength={10}
-                keyboardType="numbers-and-punctuation" placeholder="YYYY-MM-DD"
-                placeholderTextColor={palette.muted} accessibilityLabel="Scheduled date"
-                style={[styles.input, styles.field, { backgroundColor: palette.surface, borderColor: palette.border, color: palette.foreground }]} />
+              <Text style={[styles.label, { color: palette.muted }]}>DATE</Text>
+              <DateTimeField value={dayText} onChange={setDayText} label="Scheduled date" />
               <View style={styles.times}>
                 <View style={styles.half}>
                   <Text style={[styles.label, { color: palette.muted }]}>START</Text>
-                  <TextInput value={start} onChangeText={setStart} maxLength={5} selectTextOnFocus
-                    placeholder="09:00" keyboardType="numbers-and-punctuation" accessibilityLabel="Start time"
-                    placeholderTextColor={palette.muted}
-                    style={[styles.input, styles.field, { backgroundColor: palette.surface, borderColor: palette.border, color: palette.foreground }]} />
+                  <DateTimeField mode="time" value={start} onChange={setStart} label="Start time" />
                 </View>
                 <View style={styles.half}>
                   <Text style={[styles.label, { color: palette.muted }]}>END</Text>
-                  <TextInput value={end} onChangeText={setEnd} maxLength={5} selectTextOnFocus
-                    placeholder="10:00" keyboardType="numbers-and-punctuation" accessibilityLabel="End time"
-                    placeholderTextColor={palette.muted}
-                    style={[styles.input, styles.field, { backgroundColor: palette.surface, borderColor: palette.border, color: palette.foreground }]} />
+                  <DateTimeField mode="time" value={end} onChange={setEnd} label="End time" />
                 </View>
               </View>
               <Pressable accessibilityRole="checkbox" accessibilityState={{ checked: endsNextDay }}
@@ -151,7 +161,7 @@ export function TimeBlockEditor({ visible, date, goals, initial, suggestedGoalId
                 style={[styles.overnight, { borderColor: palette.border, backgroundColor: palette.surface }]}>
                 <View style={[styles.check, { backgroundColor: endsNextDay ? palette.accent : 'transparent',
                   borderColor: endsNextDay ? palette.accent : palette.muted }]}>
-                  {endsNextDay ? <Text style={styles.checkGlyph}>✓</Text> : null}
+                  {endsNextDay ? <Check size={15} color={palette.onAccent} /> : null}
                 </View>
                 <View style={{ flex: 1 }}>
                   <Text style={[styles.overnightTitle, { color: palette.foreground }]}>End on the next day</Text>
@@ -205,7 +215,6 @@ const styles = StyleSheet.create({
   eyebrow: { fontSize: 10, fontWeight: '700', letterSpacing: 1.3 },
   heading: { fontSize: 23, fontWeight: '700', letterSpacing: -0.5 },
   close: { width: 48, minHeight: 48, justifyContent: 'center', alignItems: 'center' },
-  closeGlyph: { fontSize: 27 },
   form: { gap: 13, paddingHorizontal: spacing.lg, paddingTop: 20, paddingBottom: 22 },
   label: { fontSize: 10, fontWeight: '700', letterSpacing: 1.2, marginTop: 8 },
   select: { borderRadius: radius.lg, borderWidth: 1, minHeight: 55, flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 15 },
@@ -214,7 +223,6 @@ const styles = StyleSheet.create({
   input: { borderWidth: 1, minHeight: 49, borderRadius: radius.md, paddingHorizontal: 13, fontSize: 15 },
   choice: { minHeight: 44, justifyContent: 'center', paddingHorizontal: 10 },
   choiceText: { fontSize: 13 },
-  field: { minHeight: 51 },
   switch: { borderWidth: 1, padding: 5, flexDirection: 'row', gap: 6, borderRadius: radius.full },
   switchButton: { flex: 1, minHeight: 45, borderRadius: radius.full, alignItems: 'center', justifyContent: 'center' },
   switchText: { fontSize: 13, fontWeight: '700' },
@@ -222,7 +230,6 @@ const styles = StyleSheet.create({
   overnight: { flexDirection: 'row', alignItems: 'center', gap: 13, minHeight: 66, paddingHorizontal: 13,
     borderWidth: 1, borderRadius: radius.lg },
   check: { width: 24, height: 24, borderWidth: 1, borderRadius: 7, alignItems: 'center', justifyContent: 'center' },
-  checkGlyph: { color: '#FFFFFF', fontSize: 15, fontWeight: '800' },
   overnightTitle: { fontSize: 13, fontWeight: '700', marginBottom: 2 },
   times: { flexDirection: 'row', gap: 12 },
   half: { flex: 1, gap: 8 },

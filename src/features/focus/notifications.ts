@@ -33,8 +33,10 @@ function permitted(permissions: Notifications.NotificationPermissionsStatus): bo
 export async function askForFocusNotificationPermission(): Promise<void> {
   await prepareChannel();
   const current = await Notifications.getPermissionsAsync();
+  // Android's notifications wrapper reports DENIED while system notifications
+  // are disabled, including a fresh install that has never shown the prompt.
   if (!permitted(current) && current.canAskAgain &&
-      current.status === Notifications.PermissionStatus.UNDETERMINED) {
+      (Platform.OS === 'android' || current.status === Notifications.PermissionStatus.UNDETERMINED)) {
     await Notifications.requestPermissionsAsync();
   }
 }
@@ -44,7 +46,8 @@ let queue: Promise<void> = Promise.resolve();
 /**
  * Reconcile from the actual SQLite state, never a stale React snapshot.
  * The OS owns delivery while the app is closed. A persisted running session
- * survives a restart; we keep its existing scheduled reminder if possible.
+ * survives a restart. Re-arm its reminder: Android force-stop can remove the
+ * actual OS alarm while the notifications module still retains its request.
  */
 export function reconcileFocusNotification(db: SQLiteDatabase): Promise<string | null> {
   const work = queue.catch(() => {}).then(async () => {
@@ -54,24 +57,15 @@ export function reconcileFocusNotification(db: SQLiteDatabase): Promise<string |
     );
     const session = await getFocusSession(db);
     const needsReminder = session?.status === 'running' && session.deadlineMs > Date.now();
-    const expectedBlock = needsReminder ? session.blockId : null;
-    const expectedDeadline = needsReminder ? String(session.deadlineMs) : null;
     // Permissions can be revoked while the app is backgrounded, even if an
     // older reminder was already queued. Validate before trusting a match.
     const permissions = needsReminder ? await Notifications.getPermissionsAsync() : null;
     const allowed = !!permissions && permitted(permissions);
-    const matching = allowed && needsReminder ? pending.find((item) =>
-      item.content.data?.focusBlockId === expectedBlock &&
-      item.content.data?.deadlineMs === expectedDeadline,
-    ) : undefined;
     for (const item of pending) {
-      if (item.identifier !== matching?.identifier || !needsReminder) {
-        await Notifications.cancelScheduledNotificationAsync(item.identifier);
-      }
+      await Notifications.cancelScheduledNotificationAsync(item.identifier);
     }
     if (!needsReminder) return null;
     if (!allowed) return 'Background Focus alerts are off. Enable notifications in system settings.';
-    if (matching) return null;
     await Notifications.scheduleNotificationAsync({
       content: {
         title: 'Focus time is up',

@@ -9,7 +9,13 @@ import {
 } from '../../domain/timeblocks';
 import { createGoal, getGoal, listAllGoals } from '../../storage/goals';
 import { listDayBlocks, listRangeBlocks, removeBlock, saveBlock } from '../../storage/timeblocks';
-import { colors, radius, spacing } from '../../theme/tokens';
+import { colors, depth, radius, spacing } from '../../theme/tokens';
+import ChevronLeft from 'lucide-react-native/icons/chevron-left';
+import ChevronRight from 'lucide-react-native/icons/chevron-right';
+import ListPlus from 'lucide-react-native/icons/list-plus';
+import Plus from 'lucide-react-native/icons/plus';
+import ArrowUpRight from 'lucide-react-native/icons/arrow-up-right';
+import X from 'lucide-react-native/icons/x';
 import { DayTimeline } from './DayTimeline';
 import { WeekOverview } from './WeekOverview';
 import { MonthOverview } from './MonthOverview';
@@ -234,12 +240,13 @@ export function CalendarScreen() {
         <View style={styles.navigation}>
 
           <View style={styles.brandGroup}>
+            <Text style={[styles.brandLabel, { color: palette.muted }]}>EONWARD</Text>
             <Text style={[styles.brand, { color: foreground }]}>Calendar</Text>
           </View>
           <Pressable onPress={() => setNewGoalOpen(true)} accessibilityRole="button"
             accessibilityLabel="Create a new goal from calendar"
-            style={[styles.newGoal, { borderColor: palette.border, backgroundColor: palette.surface }]}>
-            <Text style={[styles.newGoalText, { color: palette.accent }]}>＋ Goal</Text>
+            style={styles.newGoal}>
+            <ListPlus size={22} color={palette.foreground} strokeWidth={1.8} />
           </Pressable>
           <Pressable onPress={() => { setDay(new Date()); setMode('timeline'); }} accessibilityRole="button"
             accessibilityLabel="Go to today's timeline" style={[styles.todayPill, { backgroundColor: palette.surface, borderColor: palette.border }]}>
@@ -247,7 +254,7 @@ export function CalendarScreen() {
           </Pressable>
           <Pressable onPress={() => createAt()} accessibilityRole="button"
             accessibilityLabel="Plan a time block" style={[styles.create, { backgroundColor: palette.accent }]}>
-            <Text style={[styles.createGlyph, { color: palette.onAccent }]}>＋</Text>
+            <Plus size={23} color={palette.onAccent} strokeWidth={1.8} />
           </Pressable>
         </View>
         <View style={styles.dateTitleRow}>
@@ -263,13 +270,13 @@ export function CalendarScreen() {
               onPress={() => setDay((current) => mode === 'month'
                 ? new Date(current.getFullYear(), current.getMonth() - 1, 1, 12)
                 : shiftLocalDay(current, -7))}>
-              <Text style={[styles.weekArrowGlyph, { color: foreground }]}>‹</Text>
+              <ChevronLeft size={21} color={foreground} strokeWidth={1.8} />
             </Pressable>
             <Pressable style={styles.weekArrow} accessibilityRole="button" accessibilityLabel={mode === "month" ? "Next month" : "Next week"}
               onPress={() => setDay((current) => mode === 'month'
                 ? new Date(current.getFullYear(), current.getMonth() + 1, 1, 12)
                 : shiftLocalDay(current, 7))}>
-              <Text style={[styles.weekArrowGlyph, { color: foreground }]}>›</Text>
+              <ChevronRight size={21} color={foreground} strokeWidth={1.8} />
             </Pressable>
           </View>
         </View>
@@ -283,8 +290,8 @@ export function CalendarScreen() {
                 accessibilityState={{ selected }}
                 onPress={() => setDay(date)} style={styles.weekDay}>
                 <Text style={[styles.weekName, { color: selected ? foreground : palette.muted }]}>{WEEKDAYS[index]}</Text>
-                <View style={[styles.dayCircle, selected && { backgroundColor: foreground }]}>
-                  <Text style={[styles.dayNumber, { color: selected ? palette.background : foreground }]}>
+                <View style={[styles.dayCircle, selected && { backgroundColor: palette.accentSoft }]}>
+                  <Text style={[styles.dayNumber, { color: selected ? palette.accent : foreground }]}>
                     {date.getDate()}
                   </Text>
                 </View>
@@ -305,13 +312,13 @@ export function CalendarScreen() {
               } · {mode === 'month' ? 'this month' : mode === 'week' ? 'this week' : completedGoals + ' linked goals done'}
             </Text>
           </View>
-          <View style={[styles.viewToggle, { backgroundColor: palette.surface, borderColor: palette.border }]}>
+          <View style={[styles.viewToggle, { backgroundColor: palette.inset }]}>
             {(['timeline', 'week', 'month', 'list'] as const).map((item) => (
               <Pressable key={item} accessibilityRole="button"
                 accessibilityState={{ selected: mode === item }}
                 onPress={() => setMode(item)}
-                style={[styles.modeButton, mode === item && { backgroundColor: foreground }]}>
-                <Text style={[styles.modeText, { color: mode === item ? palette.background : palette.muted }]}>
+                style={[styles.modeButton, mode === item && { backgroundColor: palette.surface, boxShadow: palette === colors.dark ? depth.dark.control : depth.light.control }]}>
+                <Text style={[styles.modeText, { color: mode === item ? foreground : palette.muted }]}>
                   {item === 'timeline' ? 'Day' : item === 'week' ? 'Week' : item === 'month' ? 'Month' : 'List'}
                 </Text>
               </Pressable>
@@ -402,11 +409,11 @@ export function CalendarScreen() {
                 ) : null}
                 <Pressable accessibilityRole="button" accessibilityLabel={`Open ${block.goalTitle}`}
                   onPress={() => router.push({ pathname: '/', params: { goalId: block.goalId } })} style={styles.action}>
-                  <Text style={[styles.actionGlyph, { color: palette.accent }]}>↗</Text>
+                  <ArrowUpRight size={20} color={palette.accent} />
                 </Pressable>
                 <Pressable accessibilityRole="button" accessibilityLabel={`Remove ${block.goalTitle} time block`}
                   onPress={() => remove(block)} style={styles.action}>
-                  <Text style={[styles.actionGlyph, { color: palette.muted }]}>×</Text>
+                  <X size={20} color={palette.muted} />
                 </Pressable>
               </View>
             </View>
@@ -428,28 +435,24 @@ export function CalendarScreen() {
 
 const styles = StyleSheet.create({
   screen: { flex: 1 },
-  top: { paddingHorizontal: spacing.md, paddingTop: 4 },
-  navigation: { minHeight: 56, flexDirection: 'row', alignItems: 'center', gap: 10 },
-  back: { width: 48, height: 48, borderWidth: 1, borderRadius: radius.full, justifyContent: 'center', alignItems: 'center' },
-  backArrow: { fontSize: 29 },
-  brandGroup: { flex: 1, gap: 2 },
-  brand: { fontSize: 20, fontWeight: '700', letterSpacing: -.4 },
-  newGoal: { minHeight: 48, borderWidth: 1, borderRadius: radius.full, paddingHorizontal: 11, justifyContent: 'center' },
-  newGoalText: { fontSize: 12, fontWeight: '800' },
-  todayPill: { borderRadius: radius.full, minHeight: 48, paddingHorizontal: 14, borderWidth: 1, justifyContent: 'center' },
+  top: { paddingHorizontal: 20, paddingTop: 20 },
+  navigation: { minHeight: 68, flexDirection: 'row', alignItems: 'center', gap: 6 },
+  brandGroup: { flex: 1, gap: 10 },
+  brandLabel: { fontSize: 10, fontWeight: '600', letterSpacing: 2.3 },
+  brand: { fontSize: 28, fontWeight: '700', letterSpacing: -1 },
+  newGoal: { minHeight: 48, minWidth: 48, justifyContent: 'center', alignItems: 'center' },
+  todayPill: { borderRadius: radius.md, minHeight: 48, paddingHorizontal: 12, borderWidth: 1, justifyContent: 'center' },
   todayLabel: { fontSize: 12, fontWeight: '700' },
-  create: { width: 48, height: 48, borderRadius: radius.full, justifyContent: 'center', alignItems: 'center' },
-  createGlyph: { fontSize: 25, fontWeight: '500', color: '#FFFFFF' },
+  create: { width: 48, height: 48, borderRadius: radius.md, justifyContent: 'center', alignItems: 'center' },
   dateTitleRow: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingTop: 2, paddingBottom: 2 },
   dateTitleGroup: { flex: 1, gap: 4 },
-  dateTitle: { fontSize: 20, fontWeight: '700', letterSpacing: -0.55 },
+  dateTitle: { fontSize: 16, fontWeight: '500', letterSpacing: -0.2 },
   weekArrows: { flexDirection: 'row', gap: 2 },
   weekArrow: { width: 48, height: 48, alignItems: 'center', justifyContent: 'center' },
-  weekArrowGlyph: { fontSize: 30 },
   weekStrip: { flexDirection: 'row', marginBottom: 8 },
   weekDay: { flex: 1, minHeight: 64, alignItems: 'center', gap: 5, justifyContent: 'center' },
   weekName: { fontSize: 11, fontWeight: '600' },
-  dayCircle: { width: 39, height: 39, borderRadius: 20, alignItems: 'center', justifyContent: 'center' },
+  dayCircle: { width: 39, height: 39, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
   dayNumber: { fontSize: 15, fontWeight: '700', fontVariant: ['tabular-nums'] },
   todayDot: { width: 4, height: 4, borderRadius: 2 },
   summaryRow: { flexDirection: 'column', alignItems: 'stretch', gap: 8, paddingVertical: 7, borderBottomWidth: 1 },
@@ -457,8 +460,8 @@ const styles = StyleSheet.create({
   summaryValue: { fontSize: 16, fontWeight: '800', fontVariant: ['tabular-nums'] },
   summaryLabel: { fontSize: 12, fontWeight: '400' },
   summarySecond: { fontSize: 11 },
-  viewToggle: { flexDirection: 'row', padding: 4, gap: 3, borderWidth: 1, borderRadius: radius.full },
-  modeButton: { flex: 1, paddingHorizontal: 9, minHeight: 48, borderRadius: radius.full, alignItems: 'center', justifyContent: 'center' },
+  viewToggle: { flexDirection: 'row', padding: 4, gap: 3, borderRadius: 14 },
+  modeButton: { flex: 1, paddingHorizontal: 9, minHeight: 48, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
   modeText: { fontSize: 12, fontWeight: '700' },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   error: { borderWidth: 1, borderRadius: radius.lg, margin: 16, padding: 22, gap: 12 },

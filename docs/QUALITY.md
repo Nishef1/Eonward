@@ -1,6 +1,6 @@
 # Acceptance and quality checklist
 
-This document describes expected validation. It does not claim these tests already pass.
+This document describes whole-gate validation. Sampled current evidence is in ROADMAP.md and ANDROID_QA.md; a partial emulator pass does not check off a whole release gate. Both Android and iOS are release targets.
 
 ## Domain and persistence
 
@@ -9,7 +9,7 @@ This document describes expected validation. It does not claim these tests alrea
 - [ ] Correct leap-year, week-start, time-zone and DST handling.
 - [ ] Save/edit/delete operations remain atomic.
 - [ ] Data survives force stop, device reboot and app updates.
-- [ ] Backup restores notes, attachments, schedule and preferences.
+- [ ] Backup restores all implemented snapshot fields and relationships. Attachments/preferences are not currently implemented backup fields.
 
 ## UX and accessibility
 

@@ -9,13 +9,17 @@ import { periodKey, startOfWeek } from '../../domain/horizons';
 import { localDayKey, shiftLocalDay } from '../../domain/timeblocks';
 import { listFocusHistory, listFocusHistorySince } from '../../storage/focus';
 import { archiveGoal, completedGoalsSince, listOpenPastGoals, reviewPastGoal } from '../../storage/goals';
-import { colors } from '../../theme/tokens';
+import { colors, depth } from '../../theme/tokens';
+import RefreshCw from 'lucide-react-native/icons/refresh-cw';
+import Sprout from 'lucide-react-native/icons/sprout';
+import { useFocusSession } from '../focus/FocusProvider';
 
 function duration(ms: number): string {
   const minutes = Math.floor(ms / 60000), hours = Math.floor(minutes / 60);
   return minutes < 1 ? ms > 0 ? '<1m' : '0m' : hours ? `${hours}h ${minutes % 60}m` : `${minutes}m`;
 }
 export function InsightsScreen() {
+  const focus = useFocusSession();
   const db = useSQLiteContext(), router = useRouter();
   const palette = useColorScheme() === 'dark' ? colors.dark : colors.light;
   const [weekHistory, setWeekHistory] = useState<FocusHistory[]>([]);
@@ -48,7 +52,7 @@ export function InsightsScreen() {
     if (locked.current) return;
     locked.current = true; setBusy(true);
     try {
-      if (action === 'archive') await archiveGoal(db, goal.id);
+      if (action === 'archive') { await archiveGoal(db, goal.id); void focus.refresh().catch(() => {}); }
       else await reviewPastGoal(db, goal.id, action === 'move');
       setRevision((n) => n + 1);
     } catch (reason) { Alert.alert('Could not update goal', reason instanceof Error ? reason.message : 'Try again.'); }
@@ -68,8 +72,8 @@ export function InsightsScreen() {
   return <SafeAreaView edges={['top', 'left', 'right']} style={{ flex: 1, backgroundColor: palette.background }}>
     <ScrollView contentContainerStyle={styles.content}>
       <View style={styles.header}>
-        <View style={{ flex: 1, gap: 5 }}><Text style={[styles.title, { color: palette.foreground }]}>This week</Text><Text style={[styles.muted, { color: palette.muted }]}>{periodKey('day', monday)} – {periodKey('day', days[6])}</Text></View>
-        <Pressable accessibilityRole="button" accessibilityLabel="Refresh weekly review" onPress={() => setRevision((n) => n + 1)} style={styles.icon}><Text style={{ color: palette.accent, fontSize: 24 }}>↻</Text></Pressable>
+        <View style={{ flex: 1, gap: 6 }}><Text style={[styles.brand, { color: palette.muted }]}>EONWARD</Text><Text style={[styles.title, { color: palette.foreground }]}>This week</Text><Text style={[styles.muted, { color: palette.muted }]}>{periodKey('day', monday)} – {periodKey('day', days[6])}</Text></View>
+        <Pressable accessibilityRole="button" accessibilityLabel="Refresh weekly review" onPress={() => setRevision((n) => n + 1)} style={styles.icon}><RefreshCw size={21} color={palette.foreground} strokeWidth={1.8} /></Pressable>
       </View>
       {loading ? <ActivityIndicator color={palette.accent} /> : error ? <View style={styles.section}>
         <Text style={{ color: palette.foreground }}>{error}</Text><Pressable accessibilityRole="button" style={styles.icon} onPress={() => setRevision((n) => n + 1)}><Text style={{ color: palette.accent }}>Try again</Text></Pressable>
@@ -90,7 +94,8 @@ export function InsightsScreen() {
             </Pressable>)}
           </View> : null}
           <Text style={[styles.caption, { color: palette.muted }]}>Reopened goals are excluded. Completions from before progress recording began may not appear.</Text>
-        </> : <View style={[styles.card, { borderColor: palette.border, backgroundColor: palette.surface }]}>
+        </> : <View style={[styles.card, { borderColor: palette.border, backgroundColor: palette.surface, boxShadow: palette === colors.dark ? depth.dark.card : depth.light.card }]}>
+          <View style={[styles.emptyEmblem, { backgroundColor: palette.accentSoft }]}><Sprout size={25} color={palette.accent} strokeWidth={1.5} /></View>
           <Text style={[styles.sectionTitle, { color: palette.foreground }]}>Progress starts with one step.</Text>
           <Text style={[styles.muted, { color: palette.muted }]}>Complete a goal or finish a focus session. Your recorded progress will appear here.</Text>
           <Pressable accessibilityRole="button" onPress={() => router.navigate('/')} style={styles.action}><Text style={{ color: palette.accent, fontWeight: '700' }}>Open your plan →</Text></Pressable>
@@ -123,11 +128,13 @@ export function InsightsScreen() {
   </SafeAreaView>;
 }
 const styles = StyleSheet.create({
-  content: { padding: 18, paddingBottom: 32, gap: 15 }, header: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 8 },
-  title: { fontSize: 28, fontWeight: '700', letterSpacing: -.6 }, muted: { fontSize: 13, lineHeight: 21 }, caption: { fontSize: 11, lineHeight: 18 },
+  content: { padding: 20, paddingBottom: 32, gap: 16 }, header: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingBottom: 10 },
+  brand: { fontSize: 10, fontWeight: '600', letterSpacing: 2.3, marginBottom: 7 },
+  emptyEmblem: { width: 48, height: 48, borderRadius: 15, justifyContent: 'center', alignItems: 'center', marginBottom: 10 },
+  title: { fontSize: 32, fontWeight: '700', letterSpacing: -1.2 }, muted: { fontSize: 13, lineHeight: 21 }, caption: { fontSize: 11, lineHeight: 18 },
   icon: { minHeight: 48, minWidth: 48, justifyContent: 'center', alignItems: 'center' }, stats: { flexDirection: 'row', gap: 20, marginVertical: 10 },
   number: { fontSize: 34, fontWeight: '700', letterSpacing: -1 }, section: { gap: 9, marginTop: 10 }, sectionTitle: { fontSize: 18, fontWeight: '700' },
-  card: { padding: 15, borderWidth: 1, borderRadius: 15, gap: 8 }, goalTitle: { minHeight: 48, gap: 6, justifyContent: 'center' },
+  card: { padding: 18, borderWidth: 1, borderRadius: 16, gap: 8 }, goalTitle: { minHeight: 48, gap: 6, justifyContent: 'center' },
   decisions: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', gap: 5 }, action: { minHeight: 48, minWidth: 48, justifyContent: 'center', paddingHorizontal: 5 },
   chart: { flexDirection: 'row', justifyContent: 'space-between', borderBottomWidth: 1, paddingBottom: 12 }, day: { flex: 1, minHeight: 120, alignItems: 'center', gap: 5 },
   track: { height: 80, justifyContent: 'flex-end' }, log: { flexDirection: 'row', gap: 10, alignItems: 'center', minHeight: 68, borderBottomWidth: 1, paddingVertical: 10 },

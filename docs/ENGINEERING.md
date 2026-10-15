@@ -39,6 +39,8 @@ Start Android with `npm run android` once an emulator or real device is configur
 
 Already installed: Expo SQLite, Crypto, Notifications, FileSystem, DocumentPicker, Sharing, SystemUI, Reanimated and Worklets. Not installed: Drizzle, rich note editor, haptics, gesture-handler or native widgets.
 
+Also installed for the native planning/Studio pass: SDK-compatible DateTimePicker 9.1.0 (MIT), SplashScreen ~57.0.10 (MIT), SVG 15.15.4 (MIT) and Lucide React Native 1.57.0 (ISC). Import individual icons through public `lucide-react-native/icons/*` exports; importing the whole icon index inflated the sampled mobile bundle. Native additions require rebuilding the installed binary.
+
 ## Verification steps for each implementation
 
 - Review the diff for accidental secrets, unrelated edits, stale placeholders or unnecessary abstractions.
@@ -79,3 +81,22 @@ Schema v7 uses additive upgrades on the provider's existing transaction connecti
 - Startup migrations use the provider's existing transaction connection. Do not reintroduce an exclusive second connection during initialization, and never reset user data to resolve a lock.
 - Use the currently verified Metro owner/port, not a remembered port. This session's Eonward Metro is 8091; 8082 belongs to another project. A Windows localhost-only listener may bind IPv6 only, which ADB reverse cannot reach through IPv4; the verified local workflow uses `expo start --port 8091 --lan --max-workers 2` and explicit device reverse forwarding.
 - Screenshots, local backup files and native QA databases stay outside Git. Do not publish personal planning data or private research.
+
+## Standalone QA and release boundary
+
+- Set `EONWARD_BUILD_VARIANT=qa` when generating the native project to use a separate QA name, scheme and identifier. This preserves the primary app's database. `eas.json` also provides internal preview, iOS simulator and production build profiles.
+- On Windows, generate Android with `npx expo prebuild --platform android --no-install`; build with `android/gradlew.bat app:assembleRelease --max-workers=2 -PreactNativeArchitectures=x86_64,arm64-v8a`. PowerShell must quote that comma-containing architecture argument.
+- Generated local release APKs currently use Expo's debug signing configuration. They are standalone QA artifacts, not Play/App Store submissions. Production signing credentials and publisher metadata are not configured by this work.
+- After QA generation, regenerate without the QA environment variable before the ordinary primary-app development workflow. Keep Metro processes for other projects intact.
+- `npm run bundle:ios` verifies the shared iOS JavaScript/Hermes bundle. Linux CI can generate both native projects; Windows cannot produce or validate an Xcode archive. Native iOS remains a separate gate.
+- Android 35 emulator samples include offline embedded-bundle launch, native file restoration, full Gboard capture, dirty draft close, time editing, light/dark, 130% Plan/horizon controls and a one-minute background notification. Physical-device timing/idle, screen readers and Apple runtime remain unverified.
+
+## Dependency audit — 2026-10-15
+
+Current `npm audit` reports 22 affected entries (19 high, 3 moderate), rooted in three advisories. This is not a clean-audit claim:
+
+- `braces` and `node-forge` are transitive tooling dependencies with no newer patched release available at this check. They were absent from the inspected Android release source map. Their remaining build/tooling exposure is not eliminated by that runtime observation.
+- `decode-uri-component` is included through Router/query-string. A malformed/oversized native-path guard rejects hostile percent encoding before tolerant decoding. This reduces that entry-point exposure; it does not remove the vulnerable transitive package. Its newer ESM-only major cannot be blindly substituted into the current CommonJS consumer.
+- Override only `xcode`'s `uuid` to 11.1.1; the native project UUID generator was exercised successfully. Do not use `npm audit fix --force` to downgrade Expo/RN or introduce incompatible native versions.
+
+Source advisories: https://github.com/advisories/GHSA-vfj7-8cjw-p6xm and https://github.com/advisories/GHSA-86w9-cpqp-85rv. Track upstream SDK-compatible fixes and re-evaluate before store release.

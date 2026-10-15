@@ -1,8 +1,8 @@
 # Android acceptance: concise critical path
 
-**Status: not yet confirmed after UI refinements.** Initial emulator screenshots (2026-10-14) prove Focus, Perspective, Archive and an empty Create Goal form render. They do not prove saved data or keyboard behavior.
+**Status: sampled standalone release QA on Android 35, 2026-10-15; full device acceptance remains open.** Current evidence is summarized in ROADMAP.md. Plan/Horizons/details/Calendar/Boards/Review renders, light/dark, 130% Plan text, full Gboard capture and dirty draft close were sampled. Native restoration and one-minute background notification delivery were exercised. None certifies the entire matrix below.
 
-These twelve **manual checks** are acceptance evidence, not additional automated tests. Do not create a new regression test for each checkbox. Record a screenshot or an exact reproduction only when a check fails.
+These **manual checks** are the remaining acceptance matrix, not additional automated test cases. A sampled subflow does not check off its whole matrix row. Keep synthetic screenshot evidence outside Git and record a reproducible failure when a check fails.
 
 - [ ] **Native Focus reminder:** Install a fresh native/development build after the notification plugin change (Metro hot reload cannot install new native modules). Grant or deny Android 13+ notifications; grant or deny Android 14+ Alarms & reminders separately. Start a short Timebox, background and lock the device, and verify one native alert. Pause/Resume, Replace, End, delete a Timebox and force-close/relaunch to check stale alerts are canceled. Confirm no private goal title appears on lock screen. Log OS version and whether exact-alarm special access is granted.
 - [ ] **Focus history and Insights (v6):** Upgrade populated v5 without uninstalling, including an already paused timer. Stop early, replace another timer, let a third expire and finalize, then delete an active Timebox. Ensure each finalized entry appears exactly once in Insights, elapsed time excludes pauses, active Timebox edits are rejected and results persist after force-close.

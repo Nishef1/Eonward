@@ -1,9 +1,18 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useReducedMotion } from '../../theme/useReducedMotion';
 import { useFocusEffect, useRouter } from 'expo-router';
-import { Alert, ActivityIndicator, Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, useColorScheme, View } from 'react-native';
+import { Alert, ActivityIndicator, KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, useColorScheme, View } from 'react-native';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import { useSQLiteContext } from 'expo-sqlite';
-import { colors, radius, spacing } from '../../theme/tokens';
+import { colors, depth, radius, spacing } from '../../theme/tokens';
+import Check from 'lucide-react-native/icons/check';
+import ChevronLeft from 'lucide-react-native/icons/chevron-left';
+import ChevronRight from 'lucide-react-native/icons/chevron-right';
+import Circle from 'lucide-react-native/icons/circle';
+import Clock3 from 'lucide-react-native/icons/clock-3';
+import FolderOpen from 'lucide-react-native/icons/folder-open';
+import Plus from 'lucide-react-native/icons/plus';
+import X from 'lucide-react-native/icons/x';
 import { HORIZON_TITLES } from '../../domain/horizons';
 import { createGoal, listAllGoals, setGoalCompleted } from '../../storage/goals';
 import type { Goal, GoalInput } from '../../domain/goals';
@@ -13,9 +22,8 @@ import {
   listBoards, removeGoalFromBoard, type Board, type BoardGoal,
 } from '../../storage/boards';
 
-type Palette = typeof colors.light | typeof colors.dark;
-
 export function BoardsScreen() {
+  const reducedMotion = useReducedMotion();
   const db = useSQLiteContext();
   const router = useRouter();
   const palette = useColorScheme() === 'dark' ? colors.dark : colors.light;
@@ -194,17 +202,15 @@ export function BoardsScreen() {
     <SafeAreaView edges={['top', 'left', 'right']} style={[styles.screen, { backgroundColor: palette.background }]}>
       <ScrollView contentContainerStyle={styles.page} keyboardShouldPersistTaps="handled">
         <View style={styles.topRow}>
-          <Pressable onPress={() => current ? setCurrent(null) : router.back()}
-            accessibilityRole="button" accessibilityLabel={current ? 'Back to boards' : 'Back to Horizons'}
+          <Text style={[styles.brand, { color: palette.muted }]}>EONWARD</Text>
+          {current ? <Pressable onPress={() => setCurrent(null)}
+            accessibilityRole="button" accessibilityLabel="Back to boards"
             style={[styles.back, { backgroundColor: palette.surface, borderColor: palette.border }]}>
-            <Text style={[styles.backText, { color: controlColor }]}>‹</Text>
-          </Pressable>
-          <Text style={[styles.brand, { color: palette.foreground }]}>EONWARD  /  BOARDS</Text>
-
+            <ChevronLeft size={21} color={controlColor} />
+          </Pressable> : null}
         </View>
 
-        <Text style={[styles.eyebrow, { color: palette.accent }]}>ORGANIZE YOUR IDEAS</Text>
-        <Text style={[styles.heading, { color: palette.foreground }]}>{current ? current.title : 'Boards.'}</Text>
+        <Text style={[styles.heading, { color: palette.foreground }]}>{current ? current.title : 'Boards'}</Text>
         <Text style={[styles.subtitle, { color: palette.muted }]}>
           {current ? current.description || 'Keep related goals together, across every horizon.' :
             'A home for projects, topics and plans beyond a single date.'}
@@ -233,7 +239,7 @@ export function BoardsScreen() {
             <View style={styles.boardEntryActions}>
               <Pressable onPress={() => void startNewGoal()} accessibilityRole="button"
                 style={[styles.boardPrimaryAction, { backgroundColor: palette.accent }]}>
-                <Text style={[styles.primaryText, { color: palette.onAccent }]}>＋  New goal</Text>
+                <Plus size={18} color={palette.onAccent} /><Text style={[styles.primaryText, { color: palette.onAccent }]}>New goal</Text>
               </Pressable>
               <Pressable onPress={() => void startPicker()} accessibilityRole="button"
                 style={[styles.boardSecondaryAction, { backgroundColor: palette.surface, borderColor: palette.border }]}>
@@ -254,7 +260,7 @@ export function BoardsScreen() {
                   disabled={busy}
                   style={styles.checkbox}
                   onPress={() => void write(async () => { await setGoalCompleted(db, goal.id, !goal.completed); })}>
-                  <Text style={[styles.tick, { color: palette.accent }]}>{goal.completed ? '✓' : '○'}</Text>
+                  {goal.completed ? <Check size={20} color={palette.accent} /> : <Circle size={20} color={palette.muted} strokeWidth={1.4} />}
                 </Pressable>
                 <Pressable style={styles.goalCopy} accessibilityRole="button"
                   accessibilityLabel={`Open ${goal.title} in Horizons`}
@@ -273,11 +279,11 @@ export function BoardsScreen() {
                 <Pressable accessibilityRole="button" accessibilityLabel={`Schedule ${goal.title}`}
                   onPress={() => router.push({ pathname: '/calendar', params: { goalId: goal.id } })}
                   style={styles.schedule}>
-                  <Text style={[styles.scheduleText, { color: palette.accent }]}>◷</Text>
+                  <Clock3 size={20} color={palette.accent} strokeWidth={1.8} />
                 </Pressable>
                 <Pressable accessibilityRole="button" accessibilityLabel={`Remove ${goal.title} from board`}
                   onPress={() => detach(goal)} style={styles.remove}>
-                  <Text style={[styles.removeText, { color: palette.muted }]}>×</Text>
+                  <X size={19} color={palette.muted} strokeWidth={1.8} />
                 </Pressable>
               </View>
             ))}
@@ -286,7 +292,7 @@ export function BoardsScreen() {
           <>
             <Pressable onPress={createFromList} accessibilityRole="button"
               style={[styles.primary, { backgroundColor: palette.accent }]}>
-              <Text style={[styles.primaryText, { color: palette.onAccent }]}>＋  Create a board</Text>
+              <Plus size={19} color={palette.onAccent} /><Text style={[styles.primaryText, { color: palette.onAccent }]}>Create a board</Text>
             </Pressable>
             {boards.length === 0 ? (
               <View style={[styles.notice, { backgroundColor: palette.surface, borderColor: palette.border }]}>
@@ -297,7 +303,8 @@ export function BoardsScreen() {
               </View>
             ) : boards.map((board) => (
               <Pressable key={board.id} accessibilityRole="button" accessibilityLabel={`Open board ${board.title}`}
-                onPress={() => setCurrent(board)} style={[styles.boardCard, { backgroundColor: palette.surface, borderColor: palette.border }]}>
+                onPress={() => setCurrent(board)} style={[styles.boardCard, { backgroundColor: palette.surface, borderColor: palette.border, boxShadow: palette === colors.dark ? depth.dark.card : depth.light.card }]}>
+                <View style={[styles.boardEmblem, { backgroundColor: palette.accentSoft }]}><FolderOpen size={23} color={palette.accent} strokeWidth={1.5} /></View>
                 <View style={styles.boardCopy}>
                   <Text style={[styles.boardTitle, { color: palette.foreground }]} numberOfLines={1}>{board.title}</Text>
                   <Text style={[styles.goalMeta, { color: palette.muted }]} numberOfLines={2}>
@@ -307,7 +314,7 @@ export function BoardsScreen() {
                     {board.goalCount} goals · {board.completedCount} done
                   </Text>
                 </View>
-                <Text style={[styles.chevron, { color: palette.muted }]}>›</Text>
+                <ChevronRight size={20} color={palette.muted} strokeWidth={1.8} />
               </Pressable>
             ))}
           </>
@@ -328,10 +335,10 @@ export function BoardsScreen() {
         onSave={saveNewGoal}
       />
 
-      <Modal visible={editing} transparent animationType="slide" navigationBarTranslucent statusBarTranslucent
+      <Modal visible={editing} transparent animationType={reducedMotion ? 'none' : 'slide'} navigationBarTranslucent statusBarTranslucent
         onRequestClose={() => setEditing(false)}>
         <SafeAreaProvider>
-          <View style={styles.overlay}>
+          <KeyboardAvoidingView style={styles.overlay} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
             <Pressable style={StyleSheet.absoluteFill} onPress={() => setEditing(false)} />
             <SafeAreaView edges={['bottom']} style={[styles.sheet, { backgroundColor: palette.background }]}>
               <Text style={[styles.sheetHeading, { color: palette.foreground }]}>
@@ -351,20 +358,20 @@ export function BoardsScreen() {
                 <Text style={[styles.actionText, { color: palette.muted }]}>Cancel</Text>
               </Pressable>
             </SafeAreaView>
-          </View>
+          </KeyboardAvoidingView>
         </SafeAreaProvider>
       </Modal>
 
-      <Modal visible={picker} transparent animationType="slide" statusBarTranslucent navigationBarTranslucent
+      <Modal visible={picker} transparent animationType={reducedMotion ? 'none' : 'slide'} statusBarTranslucent navigationBarTranslucent
         onRequestClose={() => setPicker(false)}>
         <SafeAreaProvider>
-          <View style={styles.overlay}>
+          <KeyboardAvoidingView style={styles.overlay} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
             <Pressable style={StyleSheet.absoluteFill} onPress={() => setPicker(false)} />
             <SafeAreaView edges={['bottom']} style={[styles.pickerSheet, { backgroundColor: palette.background }]}>
               <View style={styles.pickerHeading}>
                 <Text style={[styles.sheetHeading, { color: palette.foreground }]}>Add goals</Text>
                 <Pressable onPress={() => setPicker(false)} accessibilityRole="button" accessibilityLabel="Close selector" style={styles.remove}>
-                  <Text style={[styles.removeText, { color: palette.muted }]}>×</Text>
+                  <X size={21} color={palette.muted} strokeWidth={1.8} />
                 </Pressable>
               </View>
               <TextInput placeholder="Search your goals" placeholderTextColor={palette.muted} value={query}
@@ -390,7 +397,7 @@ export function BoardsScreen() {
                 ))}
               </ScrollView>
             </SafeAreaView>
-          </View>
+          </KeyboardAvoidingView>
         </SafeAreaProvider>
       </Modal>
     </SafeAreaView>
@@ -399,40 +406,33 @@ export function BoardsScreen() {
 
 const styles = StyleSheet.create({
   screen: { flex: 1 },
-  page: { padding: spacing.lg, paddingBottom: 60, gap: 14 },
-  topRow: { flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 24 },
-  back: { width: 47, height: 47, borderWidth: 1, borderRadius: radius.full, alignItems: 'center', justifyContent: 'center' },
-  backText: { fontSize: 30 },
-  brand: { fontSize: 11, letterSpacing: 1.3, fontWeight: '700', flex: 1 },
-  calendarShortcut: { minHeight: 46, borderWidth: 1, borderRadius: radius.full, paddingHorizontal: 12, justifyContent: 'center' },
-  calendarText: { fontSize: 12, fontWeight: '700' },
-  eyebrow: { fontSize: 11, letterSpacing: 1.5, fontWeight: '700' },
-  heading: { fontSize: 35, letterSpacing: -1.2, fontWeight: '700' },
-  subtitle: { fontSize: 14, lineHeight: 22, marginBottom: 15 },
-  primary: { minHeight: 53, borderRadius: radius.lg, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 15, marginBottom: 9 },
+  page: { padding: 20, paddingBottom: 40, gap: 12 },
+  topRow: { flexDirection: 'row', alignItems: 'center', minHeight: 20 },
+  back: { width: 48, height: 48, borderWidth: 1, borderRadius: radius.md, alignItems: 'center', justifyContent: 'center' },
+  brand: { fontSize: 10, letterSpacing: 2.3, fontWeight: '600', flex: 1 },
+  heading: { fontSize: 32, letterSpacing: -1.2, fontWeight: '700' },
+  subtitle: { fontSize: 13, lineHeight: 21, marginBottom: 10 },
+  primary: { minHeight: 53, borderRadius: radius.md, flexDirection: 'row', gap: 8, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 15, marginBottom: 9 },
   primaryText: { fontSize: 15, fontWeight: '700', color: '#FFFFFF' },
   boardTools: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 },
   boardEntryActions: { flexDirection: 'row', gap: 9, marginBottom: 11 },
-  boardPrimaryAction: { flex: 1, minHeight: 53, alignItems: 'center', justifyContent: 'center', borderRadius: radius.lg },
+  boardPrimaryAction: { flex: 1, minHeight: 53, flexDirection: 'row', gap: 8, alignItems: 'center', justifyContent: 'center', borderRadius: radius.md },
   boardSecondaryAction: { flex: 1, minHeight: 53, alignItems: 'center', justifyContent: 'center', borderRadius: radius.lg, borderWidth: 1 },
   smallAction: { minHeight: 47, paddingHorizontal: 9, justifyContent: 'center' },
   actionText: { fontSize: 13, fontWeight: '700' },
   deleteText: { color: '#A85858', fontSize: 13, fontWeight: '700' },
   count: { fontSize: 12, fontWeight: '600' },
-  boardCard: { borderWidth: 1, borderRadius: radius.lg, flexDirection: 'row', alignItems: 'center', padding: 18, minHeight: 112 },
+  boardCard: { borderWidth: 1, borderRadius: radius.lg, flexDirection: 'row', gap: 13, alignItems: 'center', padding: 16, minHeight: 112 },
+  boardEmblem: { width: 44, height: 44, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
   boardCopy: { flex: 1, gap: 8 },
-  boardTitle: { fontSize: 17, fontWeight: '700' },
+  boardTitle: { fontSize: 16, fontWeight: '600', letterSpacing: -.2 },
   goalMeta: { fontSize: 12 },
-  chevron: { fontSize: 30, paddingHorizontal: 8 },
   goalCard: { borderWidth: 1, borderRadius: radius.lg, minHeight: 77, padding: 10, flexDirection: 'row', alignItems: 'center', gap: 4 },
   checkbox: { minHeight: 48, minWidth: 42, alignItems: 'center', justifyContent: 'center' },
-  tick: { fontSize: 25 },
   goalCopy: { flex: 1, gap: 5, paddingVertical: 10 },
   goalTitle: { fontSize: 15, fontWeight: '600' },
   schedule: { width: 39, minHeight: 48, alignItems: 'center', justifyContent: 'center' },
-  scheduleText: { fontSize: 23 },
   remove: { width: 42, minHeight: 48, alignItems: 'center', justifyContent: 'center' },
-  removeText: { fontSize: 26 },
   notice: { borderWidth: 1, borderRadius: radius.lg, padding: spacing.lg, gap: 10 },
   noticeTitle: { fontSize: 17, fontWeight: '700' },
   noticeText: { fontSize: 13, lineHeight: 21 },
