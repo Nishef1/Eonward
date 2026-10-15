@@ -1,5 +1,7 @@
 # Android acceptance: concise critical path
 
+For the new isolated APK/iOS Simulator Maestro smoke paths, manual EAS setup, crash-buffer evidence and device gates, see [NATIVE_ACCEPTANCE.md](NATIVE_ACCEPTANCE.md). The automation files are prepared but native jobs have **not** been run as part of the existing JavaScript CI.
+
 **Status: sampled standalone release QA on Android 35, 2026-10-15; full device acceptance remains open.** Current evidence is summarized in ROADMAP.md. Plan/Horizons/details/Calendar/Boards/Review renders, light/dark, 130% Plan text, full Gboard capture and dirty draft close were sampled. Native restoration and one-minute background notification delivery were exercised. None certifies the entire matrix below.
 
 These **manual checks** are the remaining acceptance matrix, not additional automated test cases. A sampled subflow does not check off its whole matrix row. Keep synthetic screenshot evidence outside Git and record a reproducible failure when a check fails.
