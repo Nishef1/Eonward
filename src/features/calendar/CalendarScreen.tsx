@@ -156,6 +156,7 @@ export function CalendarScreen() {
 
   const ordered = useMemo(() => [...blocks].sort((a, b) => a.startAt.localeCompare(b.startAt)), [blocks]);
   const localDayHours = (Date.parse(dayBounds.to) - Date.parse(dayBounds.from)) / 3_600_000;
+  const displayMode = mode === 'timeline' && localDayHours !== 24 ? 'list' : mode;
   const dayLoad = useMemo(() => analyzeDayLoad(blocks, day), [blocks, key]);
   // All calendar headers use the same occupied-wall-time accounting as their cards.
   const weekLoad = analyzeRangeLoad(weekBlocks, weekFromMs, weekToMs);
@@ -222,7 +223,7 @@ export function CalendarScreen() {
   }
   function save(input: BlockInput) {
     return write(async () => {
-      await saveBlock(db, input, editingBlock?.id);
+      await saveBlock(db, input, editingBlock?.id, editingBlock ?? undefined);
       setDay(parseLocalDay(input.date) ?? day);
       setEditorOpen(false);
       setEditingBlock(null);
@@ -356,7 +357,7 @@ export function CalendarScreen() {
             ))}
           </View>
         </View>
-        {mode === 'timeline' && key === todayKey ? <View
+        {displayMode === 'timeline' && key === todayKey ? <View
           style={{ flexDirection: 'row', gap: 10, alignItems: 'center' }}>
           <Pressable accessibilityRole="button" onPress={() => setRecoveryOpen(true)}
             style={{ minHeight: 48, justifyContent: 'center', flex: 1 }}>
@@ -372,6 +373,14 @@ export function CalendarScreen() {
           <Text style={{ color: palette.accent, fontSize: 12 }}>{untimed.length} goal{untimed.length === 1 ? '' : 's'} without a time · Plan when ready →</Text>
         </Pressable> : null}
       </View>
+      {mode === 'timeline' && localDayHours !== 24 ? (
+        <View accessibilityRole="summary" style={[styles.clockChangeNotice,
+          { backgroundColor: palette.surface, borderColor: palette.border }]}>
+          <Text style={[styles.clockChangeText, { color: palette.foreground }]}>
+            Clock change · {localDayHours} actual hours today. Showing exact List times instead of an inaccurate 24-hour timeline.
+          </Text>
+        </View>
+      ) : null}
       {loading ? (
         <View style={styles.center}><ActivityIndicator color={palette.accent} /></View>
       ) : failure ? (
@@ -381,17 +390,8 @@ export function CalendarScreen() {
             <Text style={{ color: palette.accent, fontWeight: '700' }}>Try again</Text>
           </Pressable>
         </View>
-      ) : mode === 'timeline' ? (
+      ) : displayMode === 'timeline' ? (
         <View style={styles.timelineArea}>
-          {localDayHours !== 24 ? (
-            <Pressable accessibilityRole="button" accessibilityLabel="View schedule list for daylight saving time change"
-              onPress={() => setMode('list')}
-              style={[styles.clockChangeNotice, { backgroundColor: palette.surface, borderColor: palette.border }]}>
-              <Text style={[styles.clockChangeText, { color: palette.foreground }]}>
-                Clock change today · This day has {localDayHours} actual hours. The timeline uses wall-clock positions; open List for exact times →
-              </Text>
-            </Pressable>
-          ) : null}
           <DayTimeline date={day} blocks={ordered} palette={palette}
             actualByBlock={actualByBlock} activeSession={focus.session}
             busy={busy} onApplyTimeEdit={(preview, onSaved) => { void commitTimelineEdit(preview, onSaved); }}

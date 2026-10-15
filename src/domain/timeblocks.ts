@@ -20,6 +20,7 @@ export interface TimeBlock {
   kind: BlockKind;
   intention: string;
   flexible: boolean;
+  updatedAt?: string; // Saved revision for optimistic editing; missing only in synthetic read models.
 }
 export function localDayKey(date: Date): string {
   const pad = (n: number) => String(n).padStart(2, '0');

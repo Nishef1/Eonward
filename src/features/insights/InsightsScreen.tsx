@@ -48,7 +48,7 @@ export function InsightsScreen() {
       }).catch((reason: unknown) => { if (live) setError(reason instanceof Error ? reason.message : 'Could not load your review.'); })
       .finally(() => { if (live) setLoading(false); });
     return () => { live = false; };
-  }, [db, revision, todayKey]));
+  }, [db, revision, todayKey, focus.session?.blockId]));
   async function decide(goal: Goal, action: 'keep' | 'move' | 'archive') {
     if (locked.current) return;
     locked.current = true; setBusy(true);

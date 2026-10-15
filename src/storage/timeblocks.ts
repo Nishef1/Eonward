@@ -13,6 +13,7 @@ interface TimeBlockRow {
   kind: BlockKind;
   intention: string;
   flexible: number;
+  updated_at: string;
 }
 const SELECT = `SELECT tb.*, g.title AS goal_title, g.completed AS goal_completed
   FROM time_blocks tb JOIN goals g ON g.id = tb.goal_id
@@ -22,6 +23,7 @@ function map(row: TimeBlockRow): TimeBlock {
     id: row.id, goalId: row.goal_id, goalTitle: row.goal_title,
     goalCompleted: row.goal_completed === 1, startAt: row.start_at, endAt: row.end_at,
     kind: row.kind, intention: row.intention, flexible: row.flexible === 1,
+    updatedAt: row.updated_at,
   };
 }
 export async function listRangeBlocks(db: SQLiteDatabase, from: string, to: string): Promise<TimeBlock[]> {
@@ -45,21 +47,30 @@ export async function getBlock(db: SQLiteDatabase, id: string): Promise<TimeBloc
   const row = await db.getFirstAsync<TimeBlockRow>(`${SELECT} AND tb.id = ?`, [id]);
   return row ? map(row) : null;
 }
-export async function saveBlock(db: SQLiteDatabase, input: BlockInput, id?: string): Promise<string> {
+export async function saveBlock(db: SQLiteDatabase, input: BlockInput, id?: string,
+  expected?: TimeBlock): Promise<string> {
   const { startAt, endAt } = timeRangeFromInput(input);
   if (input.kind !== 'block' && input.kind !== 'box') throw new Error('Invalid time planning mode.');
   const now = new Date().toISOString();
   const newId = id ?? randomUUID();
   await db.withExclusiveTransactionAsync(async (tx) => {
     const goal = await tx.getFirstAsync<{ id: string }>(
-      'SELECT id FROM goals WHERE id = ? AND archived_at IS NULL', [input.goalId],
+      'SELECT id FROM goals WHERE id = ? AND completed = 0 AND archived_at IS NULL', [input.goalId],
     );
-    if (!goal) throw new Error('Select an active goal.');
+    if (!goal) throw new Error('Select an open goal.');
     if (id) {
-      const existing = await tx.getFirstAsync<{ goal_id: string }>(
-        'SELECT goal_id FROM time_blocks WHERE id = ?', [id],
-      );
+      const existing = await tx.getFirstAsync<{
+        goal_id: string; start_at: string; end_at: string; kind: BlockKind;
+        flexible: number; intention: string; updated_at: string;
+      }>('SELECT goal_id, start_at, end_at, kind, flexible, intention, updated_at FROM time_blocks WHERE id = ?', [id]);
       if (!existing) throw new Error('The scheduled block no longer exists.');
+      if (expected && (expected.id !== id || existing.goal_id !== expected.goalId ||
+        existing.start_at !== expected.startAt || existing.end_at !== expected.endAt ||
+        existing.kind !== expected.kind || existing.intention !== expected.intention ||
+        (existing.flexible === 1) !== expected.flexible ||
+        (expected.updatedAt && existing.updated_at !== expected.updatedAt))) {
+        throw new Error('This Timebox changed since you opened it. Close and reopen to review the latest version.');
+      }
       const focusing = await tx.getFirstAsync<{ block_id: string }>(
         'SELECT block_id FROM focus_session WHERE id = 1 AND block_id = ?', [id],
       );
@@ -76,6 +87,8 @@ export async function saveBlock(db: SQLiteDatabase, input: BlockInput, id?: stri
         [newId, input.goalId, startAt, endAt, input.kind, input.intention.trim(), input.flexible ? 1 : 0, now, now],
       );
     }
+    // A separate manual calendar mutation makes a previous Ripple Undo unsafe.
+    await tx.runAsync('DELETE FROM replan_checkpoint WHERE id = 1');
   });
   return newId;
 }
@@ -86,5 +99,6 @@ export async function removeBlock(db: SQLiteDatabase, blockId: string): Promise<
     );
     if (focusing) await closeFocusInTransaction(tx, Date.now(), 'stopped');
     await tx.runAsync('DELETE FROM time_blocks WHERE id = ?', [blockId]);
+    await tx.runAsync('DELETE FROM replan_checkpoint WHERE id = 1');
   });
 }

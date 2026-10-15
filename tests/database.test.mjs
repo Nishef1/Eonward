@@ -249,6 +249,11 @@ test('offline planning lifecycle preserves identity, recurrence, completion hist
     assert.equal((await listDayBlocks(source.db, selectedDay)).find((block) => block.id === sourceBlock.id).startAt,
       directPreview.toStart);
     await assert.rejects(() => applyTimelineEdit(source.db, directPreview), /changed/);
+    // A stale native time editor cannot overwrite a newer drag or another saved edit.
+    await assert.rejects(() => saveBlock(source.db, {
+      goalId: sourceBlock.goalId, date: '2026-10-14', start: '13:45', end: '14:15',
+      kind: sourceBlock.kind, intention: sourceBlock.intention, flexible: sourceBlock.flexible,
+    }, sourceBlock.id, sourceBlock), /changed since you opened/);
     const afterDirect = (await listDayBlocks(source.db, selectedDay)).find((block) => block.id === sourceBlock.id);
     const restoreDirect = previewTimelineEdit(afterDirect, await listDayBlocks(source.db, selectedDay),
       selectedDay, 'move', -15);
@@ -309,10 +314,12 @@ test('offline planning lifecycle preserves identity, recurrence, completion hist
     assert.equal(await getFocusSession(source.db), null);
     assert.equal((await listFocusHistory(source.db)).length, 3);
     await restoreGoal(source.db, parent);
-    await setGoalCompleted(source.db, step, true);
-    await assert.rejects(() => planGoal(source.db, step, { horizon: 'day', periodKey: '2026-02-02' }), /open goal/);
     const completedBox = await saveBlock(source.db, { goalId: step, date: '2026-10-14',
       start: '16:00', end: '16:25', kind: 'box', intention: 'Already done', flexible: false });
+    await setGoalCompleted(source.db, step, true);
+    await assert.rejects(() => planGoal(source.db, step, { horizon: 'day', periodKey: '2026-02-02' }), /open goal/);
+    await assert.rejects(() => saveBlock(source.db, { goalId: step, date: '2026-10-14',
+      start: '16:40', end: '17:00', kind: 'box', intention: '', flexible: false }), /open goal/);
     await assert.rejects(() => beginFocusSession(source.db, completedBox), /unavailable/);
     await setGoalCompleted(source.db, step, true); // Double delivery is idempotent.
     assert.equal(await completedGoalsSince(source.db, '2000-01-01T00:00:00.000Z'), 1);
