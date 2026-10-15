@@ -35,6 +35,7 @@ export function TimeBlockEditor({ visible, date, goals, initial, suggestedGoalId
   const [end, setEnd] = useState('10:00');
   const [endsNextDay, setEndsNextDay] = useState(false);
   const [kind, setKind] = useState<BlockKind>('block');
+  const [flexible, setFlexible] = useState(false);
   const [intention, setIntention] = useState('');
   const originalDraft = useRef('');
   useEffect(() => {
@@ -50,6 +51,7 @@ export function TimeBlockEditor({ visible, date, goals, initial, suggestedGoalId
       ? localDayKey(new Date(initial.endAt)) !== localDayKey(new Date(initial.startAt))
       : hour === 23);
     setKind(initial?.kind ?? 'block');
+    setFlexible(initial?.flexible ?? false);
     setIntention(initial?.intention ?? '');
     setShowGoals(false);
     setSearch('');
@@ -57,11 +59,11 @@ export function TimeBlockEditor({ visible, date, goals, initial, suggestedGoalId
       initial ? localClock(new Date(initial.startAt)) : `${String(hour).padStart(2, '0')}:00`,
       initial ? localClock(new Date(initial.endAt)) : hour === 23 ? '00:00' : `${String(hour + 1).padStart(2, '0')}:00`,
       initial ? localDayKey(new Date(initial.endAt)) !== localDayKey(begin) : hour === 23,
-      initial?.kind ?? 'block', initial?.intention ?? '']);
+      initial?.kind ?? 'block', initial?.intention ?? '', initial?.flexible ?? false]);
   }, [visible, initial?.id, suggestedGoalId, suggestedStartHour, date.getTime()]);
   function requestCancel() {
     if (saving) return;
-    const draft = JSON.stringify([goalId, dayText, start, end, endsNextDay, kind, intention]);
+    const draft = JSON.stringify([goalId, dayText, start, end, endsNextDay, kind, intention, flexible]);
     if (draft === originalDraft.current) onCancel();
     else Alert.alert('Discard these changes?', 'Your saved calendar stays as it is.', [
       { text: 'Keep editing', style: 'cancel' }, { text: 'Discard changes', style: 'destructive', onPress: onCancel },
@@ -81,7 +83,7 @@ export function TimeBlockEditor({ visible, date, goals, initial, suggestedGoalId
     changed = dayText !== localDayKey(new Date(initial.startAt)) || start !== localClock(new Date(initial.startAt)) ||
       end !== localClock(new Date(initial.endAt)) ||
       endsNextDay !== (localDayKey(new Date(initial.startAt)) !== localDayKey(new Date(initial.endAt))) || goalId !== initial.goalId ||
-      kind !== initial.kind || intention.trim() !== initial.intention;
+      kind !== initial.kind || intention.trim() !== initial.intention || flexible !== initial.flexible;
   }
   const valid = !!goalId && !validation && !saving && !editingActive && changed;
 
@@ -143,6 +145,20 @@ export function TimeBlockEditor({ visible, date, goals, initial, suggestedGoalId
                 {kind === 'box' ? 'A fixed work limit. Stop or reassess when it ends.' :
                   'A protected time window you can rearrange as plans change.'}
               </Text>
+              <Pressable accessibilityRole="checkbox" accessibilityState={{ checked: flexible }}
+                onPress={() => setFlexible((current) => !current)}
+                style={[styles.overnight, { borderColor: palette.border, backgroundColor: palette.surface }]}>
+                <View style={[styles.check, { backgroundColor: flexible ? palette.accent : 'transparent',
+                  borderColor: flexible ? palette.accent : palette.muted }]}>
+                  {flexible ? <Check size={15} color={palette.onAccent} /> : null}
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={[styles.overnightTitle, { color: palette.foreground }]}>Flexible reservation</Text>
+                  <Text style={[styles.hint, { color: palette.muted }]}>
+                    Recovery may suggest moving this time only after you approve a preview. Off keeps it protected.
+                  </Text>
+                </View>
+              </Pressable>
               <Text style={[styles.label, { color: palette.muted }]}>DATE</Text>
               <DateTimeField value={dayText} onChange={setDayText} label="Scheduled date" />
               <View style={styles.times}>
@@ -195,7 +211,7 @@ export function TimeBlockEditor({ visible, date, goals, initial, suggestedGoalId
                 </Pressable>
               ) : null}
               <Pressable disabled={!valid} accessibilityRole="button" accessibilityState={{ disabled: !valid }}
-                onPress={() => { if (valid && goalId) void onSave({ goalId, date: dayText, start, end, endsNextDay, kind, intention }); }}
+                onPress={() => { if (valid && goalId) void onSave({ goalId, date: dayText, start, end, endsNextDay, kind, intention, flexible }); }}
                 style={[styles.save, { backgroundColor: palette.accent, opacity: valid ? 1 : 0.45 }]}>
                 <Text style={[styles.saveText, { color: palette.onAccent }]}>{saving ? 'Saving…' : initial ? 'Save changes' : 'Schedule time'}</Text>
               </Pressable>
