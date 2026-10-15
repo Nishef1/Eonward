@@ -453,7 +453,8 @@ export function CalendarScreen() {
         </ScrollView>
       )}
       <RecoverySheet visible={recoveryOpen} day={day} blocks={ordered} palette={palette}
-        busy={busy} onClose={() => { if (!busy) setRecoveryOpen(false); }}
+        busy={busy} activeBlockId={focus.session?.blockId ?? null}
+        onClose={() => { if (!busy) setRecoveryOpen(false); }}
         onApply={(preview) => { void applyPreview(preview); }} />
       <GoalEditor visible={newGoalOpen} initial={null} parent={null} parentOptions={goals}
         defaultHorizon="day" anchorDate={day} palette={palette} saving={busy}

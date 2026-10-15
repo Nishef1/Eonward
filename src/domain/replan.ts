@@ -9,12 +9,13 @@ export interface ReplanMove {
 }
 export interface ReplanPreview {
   day: string;
+  atMs: number;
   mode: 'recover' | 'extend';
   moves: ReplanMove[];
   protectedCount: number;
   availableMinutes: number;
 }
-type ReplanRequest = { mode: 'recover' | 'extend'; now: Date; day: Date; targetId?: string; extraMinutes?: 15 | 30 };
+type ReplanRequest = { mode: 'recover' | 'extend'; now: Date; day: Date; targetId?: string; extraMinutes?: 15 | 30; lockedBlockId?: string };
 type Interval = { start: number; end: number };
 const overlap = (a: Interval, b: Interval) => a.start < b.end && b.start < a.end;
 
@@ -29,7 +30,7 @@ export function previewReplan(blocks: readonly TimeBlock[], request: ReplanReque
   const sorted = [...blocks].sort((a, b) => a.startAt.localeCompare(b.startAt) || a.id.localeCompare(b.id));
   if (new Set(sorted.map((block) => block.id)).size !== sorted.length) throw new Error('Duplicate calendar block.');
   const target = request.mode === 'extend' ? sorted.find((block) => block.id === request.targetId) : undefined;
-  if (request.mode === 'extend' && (!target || !target.flexible || target.goalCompleted ||
+  if (request.mode === 'extend' && (!target || !target.flexible || target.goalCompleted || target.id === request.lockedBlockId ||
     ![15, 30].includes(request.extraMinutes ?? -1) ||
     Date.parse(target.endAt) <= now || Date.parse(target.startAt) > limit)) {
     throw new Error('Select an unfinished, flexible block that has not ended.');
@@ -37,7 +38,7 @@ export function previewReplan(blocks: readonly TimeBlock[], request: ReplanReque
   const targetStart = target ? Date.parse(target.startAt) : now;
   const movable = sorted.filter((block) => {
     const start = Date.parse(block.startAt), end = Date.parse(block.endAt);
-    return block.flexible && !block.goalCompleted && start >= begin && end <= limit &&
+    return block.flexible && block.id !== request.lockedBlockId && !block.goalCompleted && start >= begin && end <= limit &&
       (request.mode === 'recover' ? start >= now : block.id !== target?.id && start >= targetStart);
   });
   const movableIds = new Set(movable.map((block) => block.id));
@@ -80,6 +81,6 @@ export function previewReplan(blocks: readonly TimeBlock[], request: ReplanReque
     .filter((slot) => slot.end > slot.start).sort((a, b) => a.start - b.start);
   let busy = 0, last = now;
   for (const slot of intervals) { busy += Math.max(0, slot.end - Math.max(last, slot.start)); last = Math.max(last, slot.end); }
-  return { day, mode: request.mode, moves,
+  return { day, atMs: now, mode: request.mode, moves,
     protectedCount: protectedBlocks.length, availableMinutes: Math.max(0, Math.floor((limit - now - busy) / 60000)) };
 }

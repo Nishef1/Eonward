@@ -1,6 +1,6 @@
 import type { SQLiteDatabase } from 'expo-sqlite';
 import type { ReplanMove, ReplanPreview } from '../domain/replan';
-import { localDayBounds } from '../domain/timeblocks';
+import { localDayBounds, localDayKey } from '../domain/timeblocks';
 
 type Row = { id: string; start_at: string; end_at: string; flexible: number; kind: string; goal_id: string; completed: number };
 async function snapshot(db: Pick<SQLiteDatabase, 'getAllAsync'>, day: string): Promise<Row[]> {
@@ -15,7 +15,9 @@ type ReplanCheckpoint = { moves: ReplanMove[] };
 /** Only exact previewed states may be written; active Focus blocks are immutable. */
 export async function applyReplan(db: SQLiteDatabase, preview: ReplanPreview, expected: readonly {
   id: string; startAt: string; endAt: string; flexible: boolean; kind: string; goalId: string; goalCompleted: boolean;
-}[]): Promise<void> {
+}[], nowMs = Date.now()): Promise<void> {
+  if (nowMs < preview.atMs - 2000 || nowMs - preview.atMs > 120000 || localDayKey(new Date(nowMs)) !== preview.day)
+    throw new Error('Recovery preview expired. Reopen it to use the current time.');
   if (!preview.moves.length) throw new Error('There are no changes to apply.');
   const ids = new Set(preview.moves.map((m) => m.id));
   if (ids.size !== preview.moves.length) throw new Error('Duplicate change.');

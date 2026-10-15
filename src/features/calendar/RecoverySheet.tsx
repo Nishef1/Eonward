@@ -8,28 +8,28 @@ import { useReducedMotion } from '../../theme/useReducedMotion';
 
 type Palette = typeof colors.light | typeof colors.dark;
 interface Props {
-  visible: boolean; day: Date; blocks: TimeBlock[]; palette: Palette; busy: boolean;
+  visible: boolean; day: Date; blocks: TimeBlock[]; palette: Palette; busy: boolean; activeBlockId: string | null;
   onClose: () => void; onApply: (preview: ReplanPreview) => void;
 }
 const clock = (value: string) => localClock(new Date(value));
 
-export function RecoverySheet({ visible, day, blocks, palette, busy, onClose, onApply }: Props) {
+export function RecoverySheet({ visible, day, blocks, palette, busy, activeBlockId, onClose, onApply }: Props) {
   const reducedMotion = useReducedMotion();
   const [now, setNow] = useState(() => new Date());
   const [mode, setMode] = useState<'recover' | 'extend'>('recover');
   const [targetId, setTargetId] = useState('');
   const [minutes, setMinutes] = useState<15 | 30>(15);
   useEffect(() => { if (visible) { setNow(new Date()); setMode('recover'); setTargetId(''); } }, [visible]);
-  const eligible = blocks.filter((b) => b.flexible && !b.goalCompleted && Date.parse(b.endAt) > now.getTime());
+  const eligible = blocks.filter((b) => b.flexible && b.id !== activeBlockId && !b.goalCompleted && Date.parse(b.endAt) > now.getTime());
   const selected = eligible.find((b) => b.id === targetId) ?? eligible[0];
   const result = useMemo(() => {
     try {
       return { value: previewReplan(blocks, { mode, day, now,
-        targetId: selected?.id, extraMinutes: minutes }), error: '' };
+        targetId: selected?.id, extraMinutes: minutes, lockedBlockId: activeBlockId ?? undefined }), error: '' };
     } catch (error) {
       return { value: null, error: error instanceof Error ? error.message : 'Cannot preview this day.' };
     }
-  }, [blocks, mode, day, now, selected?.id, minutes]);
+  }, [blocks, mode, day, now, selected?.id, minutes, activeBlockId]);
   return <Modal visible={visible} transparent animationType={reducedMotion ? 'none' : 'slide'}
     statusBarTranslucent navigationBarTranslucent onRequestClose={onClose}>
     <SafeAreaProvider>
