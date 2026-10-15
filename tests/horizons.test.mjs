@@ -3,7 +3,7 @@ import test from 'node:test';
 import { isoWeekKey, periodKey, shiftPeriod, startOfWeek, periodLabel, dateFromPeriodKey, parseDateInput } from '../src/domain/horizons.ts';
 import { normalizeGoalTitle, availableGoalParents } from '../src/domain/goals.ts';
 import { buildPerspectiveSections } from '../src/domain/perspective.ts';
-import { analyzeDayLoad, analyzeRangeLoad, blockOverlapsRange, blockClockRangeForDay, layoutBlocks, localDayBounds, localDayKey, monthGridDays, timeRangeFromInput } from '../src/domain/timeblocks.ts';
+import { analyzeDayLoad, clockWithUtcOffset, analyzeRangeLoad, blockOverlapsRange, blockClockRangeForDay, layoutBlocks, localDayBounds, localDayKey, monthGridDays, timeRangeFromInput } from '../src/domain/timeblocks.ts';
 import { formatFocusTime, getFocusDurationMs, getFocusRemainingMs, getFocusElapsedMs } from '../src/domain/focus.ts';
 import { previewReplan } from '../src/domain/replan.ts';
 import { semantic } from '../src/theme/tokens.ts';
@@ -154,6 +154,8 @@ test('overlapping time blocks split their timeline lanes, consecutive blocks reu
     { startAt: instant(9, 0), endAt: instant(10, 0) },
     { startAt: instant(9, 30), endAt: instant(10, 30) },
   ], new Date(2026, 9, 14, 12));
+  const offsetClock = clockWithUtcOffset(new Date(2026, 9, 14, 9, 30));
+  assert.ok(/^09:30 UTC[+-][0-9]{2}:[0-9]{2}$/.test(offsetClock));
   assert.deepEqual([load.reservedMinutes, load.occupiedMinutes, load.overlapMinutes, load.dayMinutes],
     [120, 90, 30, 1440]);
   const from = Date.parse(instant(9, 0)), to = Date.parse(instant(11, 0));
