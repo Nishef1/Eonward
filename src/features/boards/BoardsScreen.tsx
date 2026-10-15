@@ -17,6 +17,7 @@ import { HORIZON_TITLES } from '../../domain/horizons';
 import { createGoal, listAllGoals, setGoalCompleted } from '../../storage/goals';
 import type { Goal, GoalInput } from '../../domain/goals';
 import { GoalEditor } from '../horizons/GoalEditor';
+import { useFocusSession } from '../focus/FocusProvider';
 import {
   addGoalToBoard, createBoard, deleteBoard, editBoard, getBoard, listBoardGoals,
   listBoards, removeGoalFromBoard, type Board, type BoardGoal,
@@ -25,6 +26,7 @@ import {
 export function BoardsScreen() {
   const reducedMotion = useReducedMotion();
   const db = useEonwardDatabase();
+  const focus = useFocusSession();
   const router = useRouter();
   const palette = useColorScheme() === 'dark' ? colors.dark : colors.light;
   const [boards, setBoards] = useState<Board[]>([]);
@@ -293,7 +295,10 @@ export function BoardsScreen() {
                   accessibilityLabel={`${goal.completed ? 'Reopen' : 'Complete'} ${goal.title}`}
                   disabled={busy}
                   style={styles.checkbox}
-                  onPress={() => void write(async () => { await setGoalCompleted(db, goal.id, !goal.completed); })}>
+                  onPress={() => void write(async () => {
+                    await setGoalCompleted(db, goal.id, !goal.completed);
+                    await focus.refresh();
+                  })}>
                   {goal.completed ? <Check size={20} color={palette.accent} /> : <Circle size={20} color={palette.muted} strokeWidth={1.4} />}
                 </Pressable>
                 <Pressable style={styles.goalCopy} accessibilityRole="button"

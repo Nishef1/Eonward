@@ -397,6 +397,8 @@ export function HorizonsScreen() {
     const completed = !goal.completed;
     await perform(async () => {
       await setGoalCompleted(db, goal.id, completed);
+      // Goal completion may atomically end its active Focus timer.
+      await focus.refresh();
       setDetailStack((items) => items.map((item) => item.id === goal.id ? { ...item, completed } : item));
       setChildren((items) => items.map((item) => item.id === goal.id ? { ...item, completed } : item));
     });
