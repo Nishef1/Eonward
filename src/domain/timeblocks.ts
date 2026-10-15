@@ -8,6 +8,7 @@ export interface BlockInput {
   endsNextDay?: boolean; // explicitly allow scheduling into the following local date
   kind: BlockKind;
   intention: string;
+  flexible?: boolean; // opt-in: only these reservations may be moved by Recovery
 }
 export interface TimeBlock {
   id: string;
@@ -18,6 +19,7 @@ export interface TimeBlock {
   endAt: string;
   kind: BlockKind;
   intention: string;
+  flexible: boolean;
 }
 export function localDayKey(date: Date): string {
   const pad = (n: number) => String(n).padStart(2, '0');

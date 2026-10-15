@@ -108,7 +108,27 @@ const V7_SCHEMA = `
   CREATE INDEX goal_activity_by_time ON goal_activity(occurred_at, goal_id);
 `;
 
-export const SCHEMA_VERSION = 7;
+const V8_SCHEMA = `
+  -- Old reservations remain protected until a user explicitly makes them flexible.
+  ALTER TABLE time_blocks ADD COLUMN flexible INTEGER NOT NULL DEFAULT 0 CHECK (flexible IN (0, 1));
+  -- Old focus rows remain unattributed; never guess identities from a title.
+  ALTER TABLE focus_history ADD COLUMN goal_id TEXT;
+  ALTER TABLE focus_history ADD COLUMN block_id TEXT;
+  CREATE INDEX focus_history_by_goal_end ON focus_history(goal_id, ended_at_ms);
+  CREATE TABLE time_budgets (
+    goal_id TEXT PRIMARY KEY NOT NULL REFERENCES goals(id) ON DELETE CASCADE,
+    weekly_minutes INTEGER NOT NULL CHECK (weekly_minutes >= 30 AND weekly_minutes <= 10080)
+  );
+  -- One reversible replan, never included in a portable backup.
+  CREATE TABLE replan_checkpoint (
+    id INTEGER PRIMARY KEY NOT NULL CHECK (id = 1),
+    before_json TEXT NOT NULL,
+    after_json TEXT NOT NULL,
+    created_at TEXT NOT NULL
+  );
+`;
+
+export const SCHEMA_VERSION = 8;
 
 export async function migrateDatabase(db: SQLiteDatabase): Promise<void> {
   await db.execAsync('PRAGMA foreign_keys = ON; PRAGMA journal_mode = WAL;');
@@ -128,6 +148,7 @@ export async function migrateDatabase(db: SQLiteDatabase): Promise<void> {
     if (version <= 4) await tx.execAsync(V5_SCHEMA);
     if (version <= 5) await tx.execAsync(V6_SCHEMA);
     if (version <= 6) await tx.execAsync(V7_SCHEMA);
+    if (version <= 7) await tx.execAsync(V8_SCHEMA);
     await tx.execAsync(`PRAGMA user_version = ${SCHEMA_VERSION};`);
   });
 }

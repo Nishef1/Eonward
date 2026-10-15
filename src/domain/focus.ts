@@ -3,6 +3,8 @@ export type FocusStatus = 'running' | 'paused';
 export type FocusOutcome = 'completed' | 'stopped' | 'replaced';
 export interface FocusHistory {
   id: string;
+  goalId: string | null; // unavailable for events recorded before schema v8
+  blockId: string | null;
   goalTitle: string;
   startedAtMs: number;
   endedAtMs: number;

@@ -8,7 +8,7 @@ export async function exportBackup(db: SQLiteDatabase): Promise<Backup> {
       tables[name] = await tx.getAllAsync<BackupRow>(`SELECT ${BACKUP_COLUMNS[name].join(', ')} FROM ${name}`);
     }
   });
-  return parseBackup(JSON.stringify({ format: 'eonward-backup', version: 1, schemaVersion: 7,
+  return parseBackup(JSON.stringify({ format: 'eonward-backup', version: 2, schemaVersion: 8,
     createdAt: new Date().toISOString(), tables }));
 }
 
@@ -21,8 +21,10 @@ export async function restoreBackup(db: SQLiteDatabase, text: string): Promise<n
     for (const name of Object.keys(BACKUP_COLUMNS) as BackupTable[]) {
       const columns = BACKUP_COLUMNS[name];
       for (const row of backup.tables[name]) {
-        const where = name === 'board_goals' ? 'board_id = ? AND goal_id = ?' : 'id = ?';
-        const values = name === 'board_goals' ? [row.board_id, row.goal_id] : [row.id];
+        const where = name === 'board_goals' ? 'board_id = ? AND goal_id = ?' :
+          name === 'time_budgets' ? 'goal_id = ?' : 'id = ?';
+        const values = name === 'board_goals' ? [row.board_id, row.goal_id] :
+          name === 'time_budgets' ? [row.goal_id] : [row.id];
         if (await tx.getFirstAsync(`SELECT 1 FROM ${name} WHERE ${where}`, values)) continue;
         // Do not use OR IGNORE: it would silently skip corrupt/conflicting records.
         const result = await tx.runAsync(`INSERT INTO ${name} (${columns.join(', ')})

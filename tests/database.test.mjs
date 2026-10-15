@@ -53,16 +53,16 @@ test('native links reject malformed and oversized input before tolerant URI deco
 });
 
 test('newer database is rejected rather than overwritten', async () => {
-  const fake = fakeDatabase(8);
+  const fake = fakeDatabase(9);
   await assert.rejects(() => migrateDatabase(fake.db), /newer Eonward database/);
   assert.equal(fake.transactionCalls, 0);
 });
 
-test('real SQLite migrates populated v5 data to v7 without losing goals, boards or timer state', async () => {
+test('real SQLite migrates populated v5 data to v8 without losing goals, boards or timer state', async () => {
   const { sqlite, db } = realDatabase();
   try {
     await migrateDatabase(db);
-    assert.equal(sqlite.prepare('PRAGMA user_version').get().user_version, 7);
+    assert.equal(sqlite.prepare('PRAGMA user_version').get().user_version, 8);
     const stamp = '2026-10-14T21:00:00.000Z';
     sqlite.prepare(`INSERT INTO goals
       (id, title, notes, horizon, period_key, created_at, updated_at)
@@ -97,7 +97,7 @@ test('real SQLite migrates populated v5 data to v7 without losing goals, boards 
       (id, block_id, status, duration_ms, remaining_ms, deadline_ms, updated_at_ms)
       VALUES (1, ?, 'paused', ?, ?, ?, ?)`).run('t1', 1200000, 720000, 1500000, 1500000);
     await migrateDatabase(db);
-    assert.equal(sqlite.prepare('PRAGMA user_version').get().user_version, 7);
+    assert.equal(sqlite.prepare('PRAGMA user_version').get().user_version, 8);
     assert.equal(sqlite.prepare('SELECT notes FROM goals WHERE id = ?').get('g1').notes, 'Keep this note');
     assert.equal(sqlite.prepare('SELECT count(*) AS n FROM board_goals').get().n, 1);
     assert.equal(sqlite.prepare('SELECT intention FROM time_blocks WHERE id = ?').get('t1').intention, 'Deep work');

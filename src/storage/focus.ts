@@ -19,6 +19,8 @@ interface SessionRow {
 }
 interface HistoryRow {
   id: string;
+  goal_id: string | null;
+  block_id: string | null;
   goal_title: string;
   started_at_ms: number;
   ended_at_ms: number;
@@ -44,7 +46,7 @@ function convert(row: SessionRow): FocusSession {
 }
 function convertHistory(row: HistoryRow): FocusHistory {
   return {
-    id: row.id, goalTitle: row.goal_title, startedAtMs: row.started_at_ms,
+    id: row.id, goalId: row.goal_id, blockId: row.block_id, goalTitle: row.goal_title, startedAtMs: row.started_at_ms,
     endedAtMs: row.ended_at_ms, plannedMs: row.planned_ms,
     focusedMs: row.focused_ms, outcome: row.outcome,
   };
@@ -65,9 +67,9 @@ export async function closeFocusInTransaction(
   const outcome: FocusOutcome = getFocusRemainingMs(session, now) === 0 ? 'completed' : reason;
   await tx.runAsync(
     `INSERT INTO focus_history
-      (id, goal_title, started_at_ms, ended_at_ms, planned_ms, focused_ms, outcome)
-      VALUES (?, ?, ?, ?, ?, ?, ?)`,
-    [randomUUID(), session.goalTitle, session.startedAtMs, now, session.durationMs, focusedMs, outcome],
+      (id, goal_id, block_id, goal_title, started_at_ms, ended_at_ms, planned_ms, focused_ms, outcome)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    [randomUUID(), session.goalId, session.blockId, session.goalTitle, session.startedAtMs, now, session.durationMs, focusedMs, outcome],
   );
   await tx.runAsync('DELETE FROM focus_session WHERE id = 1');
 }
@@ -185,4 +187,12 @@ export async function getFocusSummary(db: SQLiteDatabase): Promise<FocusSummary>
        COALESCE(SUM(focused_ms), 0) AS focused FROM focus_history`,
   );
   return { sessions: row?.sessions ?? 0, completed: row?.completed ?? 0, focusedMs: row?.focused ?? 0 };
+}
+
+/** Recorded sessions ending within the selected civil-day bounds. Unattributed legacy sessions stay separate. */
+export async function listFocusHistoryBetween(db: SQLiteDatabase, fromMs: number, toMs: number): Promise<FocusHistory[]> {
+  const rows = await db.getAllAsync<HistoryRow>(
+    'SELECT * FROM focus_history WHERE ended_at_ms >= ? AND ended_at_ms < ? ORDER BY ended_at_ms', [fromMs, toMs],
+  );
+  return rows.map(convertHistory);
 }

@@ -12,6 +12,7 @@ interface TimeBlockRow {
   end_at: string;
   kind: BlockKind;
   intention: string;
+  flexible: number;
 }
 const SELECT = `SELECT tb.*, g.title AS goal_title, g.completed AS goal_completed
   FROM time_blocks tb JOIN goals g ON g.id = tb.goal_id
@@ -20,7 +21,7 @@ function map(row: TimeBlockRow): TimeBlock {
   return {
     id: row.id, goalId: row.goal_id, goalTitle: row.goal_title,
     goalCompleted: row.goal_completed === 1, startAt: row.start_at, endAt: row.end_at,
-    kind: row.kind, intention: row.intention,
+    kind: row.kind, intention: row.intention, flexible: row.flexible === 1,
   };
 }
 export async function listRangeBlocks(db: SQLiteDatabase, from: string, to: string): Promise<TimeBlock[]> {
@@ -64,15 +65,15 @@ export async function saveBlock(db: SQLiteDatabase, input: BlockInput, id?: stri
       );
       if (focusing) throw new Error('End the active focus session before editing this Timebox.');
       await tx.runAsync(
-        `UPDATE time_blocks SET goal_id = ?, start_at = ?, end_at = ?, kind = ?, intention = ?, updated_at = ?
+        `UPDATE time_blocks SET goal_id = ?, start_at = ?, end_at = ?, kind = ?, intention = ?, flexible = ?, updated_at = ?
           WHERE id = ?`,
-        [input.goalId, startAt, endAt, input.kind, input.intention.trim(), now, id],
+        [input.goalId, startAt, endAt, input.kind, input.intention.trim(), input.flexible ? 1 : 0, now, id],
       );
     } else {
       await tx.runAsync(
-        `INSERT INTO time_blocks (id, goal_id, start_at, end_at, kind, intention, created_at, updated_at)
-          VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-        [newId, input.goalId, startAt, endAt, input.kind, input.intention.trim(), now, now],
+        `INSERT INTO time_blocks (id, goal_id, start_at, end_at, kind, intention, flexible, created_at, updated_at)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        [newId, input.goalId, startAt, endAt, input.kind, input.intention.trim(), input.flexible ? 1 : 0, now, now],
       );
     }
   });

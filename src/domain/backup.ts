@@ -1,7 +1,7 @@
 import { HORIZONS, parseDateInput } from './horizons';
 import { REPEAT_RULES, validatePlanning } from './planning';
 
-export const BACKUP_COLUMNS = {
+const V1_COLUMNS = {
   goals: ['id', 'title', 'notes', 'horizon', 'period_key', 'parent_id', 'completed', 'created_at', 'updated_at',
     'archived_at', 'sort_rank', 'in_inbox', 'due_date', 'repeat_rule', 'repeat_anchor', 'recurrence_from_id', 'reviewed_period'],
   boards: ['id', 'title', 'description', 'created_at', 'updated_at'],
@@ -10,10 +10,16 @@ export const BACKUP_COLUMNS = {
   focus_history: ['id', 'goal_title', 'started_at_ms', 'ended_at_ms', 'planned_ms', 'focused_ms', 'outcome'],
   goal_activity: ['id', 'goal_id', 'kind', 'occurred_at'],
 } as const;
+export const BACKUP_COLUMNS = {
+  ...V1_COLUMNS,
+  time_blocks: [...V1_COLUMNS.time_blocks, 'flexible'],
+  focus_history: [...V1_COLUMNS.focus_history, 'goal_id', 'block_id'],
+  time_budgets: ['goal_id', 'weekly_minutes'],
+} as const;
 export type BackupTable = keyof typeof BACKUP_COLUMNS;
 export type BackupRow = Record<string, string | number | null>;
 export interface Backup {
-  format: 'eonward-backup'; version: 1; schemaVersion: 7; createdAt: string;
+  format: 'eonward-backup'; version: 2; schemaVersion: 8; createdAt: string;
   tables: Record<BackupTable, BackupRow[]>;
 }
 export const MAX_BACKUP_BYTES = 10 * 1024 * 1024;
@@ -33,8 +39,28 @@ export function parseBackup(text: string): Backup {
   }
   let data: Backup;
   try { data = JSON.parse(text) as Backup; } catch { return fail('not valid JSON.'); }
-  if (!data || data.format !== 'eonward-backup' || data.version !== 1 || data.schemaVersion !== 7
-    || !stamp(data.createdAt) || !data.tables || Array.isArray(data.tables)) fail('unsupported format or version.');
+  if (!data || data.format !== 'eonward-backup' ||
+    !((data.version === 1 && data.schemaVersion === 7) || (data.version === 2 && data.schemaVersion === 8)) ||
+    !stamp(data.createdAt) || !data.tables || Array.isArray(data.tables)) fail('unsupported format or version.');
+  if (data.version === 1) {
+    // Validate legacy row shapes before adding the new opt-in columns.
+    for (const table of Object.keys(V1_COLUMNS) as (keyof typeof V1_COLUMNS)[]) {
+      const rows = data.tables[table];
+      const columns: readonly string[] = V1_COLUMNS[table];
+      if (!Array.isArray(rows) || rows.some((row) => !row || typeof row !== 'object'
+        || Object.keys(row).length !== columns.length || Object.keys(row).some((key) => !columns.includes(key)))) {
+        fail('invalid legacy ' + table + ' fields.');
+      }
+    }
+    if (Object.keys(data.tables).some((key) => !(key in V1_COLUMNS))) fail('unexpected legacy collection.');
+    data = { ...data, version: 2, schemaVersion: 8, tables: {
+      ...data.tables,
+      time_blocks: data.tables.time_blocks.map((row) => ({ ...row, flexible: 0 })),
+      focus_history: data.tables.focus_history.map((row) => ({ ...row, goal_id: null, block_id: null })),
+      time_budgets: [],
+    } };
+  }
+  if (Object.keys(data.tables).some((key) => !(key in BACKUP_COLUMNS))) fail('unexpected collection.');
   for (const table of Object.keys(BACKUP_COLUMNS) as BackupTable[]) {
     const rows = data.tables[table];
     if (!Array.isArray(rows) || rows.length > 50000) fail(`invalid ${table} collection.`);
@@ -51,7 +77,8 @@ export function parseBackup(text: string): Backup {
         if (typeof value === 'string' && value.length > 1000000) fail(`oversized ${key}.`);
         if (['created_at', 'updated_at', 'added_at', 'occurred_at'].includes(key) && !stamp(value)) fail(`invalid ${key}.`);
       }
-      const id = table === 'board_goals' ? JSON.stringify([row.board_id, row.goal_id]) : row.id;
+      const id = table === 'board_goals' ? JSON.stringify([row.board_id, row.goal_id]) :
+        table === 'time_budgets' ? row.goal_id : row.id;
       if (!identifier(id) || ids.has(id)) fail(`duplicate or invalid ${table} ID.`);
       ids.add(id);
     }
@@ -100,7 +127,7 @@ export function parseBackup(text: string): Backup {
   for (const row of data.tables.time_blocks) {
     if (!goals.has(row.goal_id) || !stamp(row.start_at) || !stamp(row.end_at)
       || String(row.end_at) <= String(row.start_at) || !['block', 'box'].includes(String(row.kind))
-      || typeof row.intention !== 'string') fail('invalid time block.');
+      || typeof row.intention !== 'string' || ![0, 1].includes(row.flexible as number)) fail('invalid time block.');
   }
   for (const row of data.tables.goal_activity) {
     if (!goals.has(row.goal_id) || !['completed', 'reopened'].includes(String(row.kind))) fail('invalid goal activity.');
@@ -110,6 +137,14 @@ export function parseBackup(text: string): Backup {
       || ['started_at_ms', 'ended_at_ms', 'planned_ms', 'focused_ms'].some((key) => typeof row[key] !== 'number' || row[key] < 0)
       || Number(row.planned_ms) <= 0 || Number(row.focused_ms) > Number(row.planned_ms)
       || Number(row.ended_at_ms) < Number(row.started_at_ms)) fail('invalid focus history.');
+  }
+  for (const row of data.tables.time_budgets) {
+    if (!goals.has(row.goal_id) || !Number.isInteger(row.weekly_minutes)
+      || Number(row.weekly_minutes) < 30 || Number(row.weekly_minutes) > 10080) fail('invalid weekly time budget.');
+  }
+  for (const row of data.tables.focus_history) {
+    if ((row.goal_id !== null && !identifier(row.goal_id)) ||
+      (row.block_id !== null && !identifier(row.block_id))) fail('invalid focus attribution.');
   }
   return data;
 }
