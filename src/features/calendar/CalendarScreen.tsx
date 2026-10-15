@@ -5,7 +5,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useEonwardDatabase } from '../../storage/use-database';
 import type { Goal, GoalInput } from '../../domain/goals';
 import {
-  analyzeDayLoad, analyzeRangeLoad, blockOverlapsRange, localDayBounds, localDayKey, monthGridDays, parseLocalDay, shiftLocalDay, type BlockInput, type TimeBlock,
+  analyzeDayLoad, analyzeRangeLoad, blockOverlapsRange, clockWithUtcOffset, localDayBounds, localDayKey, monthGridDays, parseLocalDay, shiftLocalDay, type BlockInput, type TimeBlock,
 } from '../../domain/timeblocks';
 import { createGoal, getGoal, listAllGoals } from '../../storage/goals';
 import { listRangeBlocks, removeBlock, saveBlock } from '../../storage/timeblocks';
@@ -433,7 +433,9 @@ export function CalendarScreen() {
                 accessibilityLabel={`Edit time for ${block.goalTitle}`}>
                 <Text numberOfLines={1} style={[styles.listTitle, { color: foreground }]}>{block.goalTitle}</Text>
                 <Text style={[styles.listTime, { color: palette.accent }]}>
-                  {timeLabel(block.startAt)} – {timeLabel(block.endAt)}{
+                  {localDayHours !== 24 ? clockWithUtcOffset(new Date(block.startAt)) : timeLabel(block.startAt)}
+                  {' – '}
+                  {localDayHours !== 24 ? clockWithUtcOffset(new Date(block.endAt)) : timeLabel(block.endAt)}{
                     localDayKey(new Date(block.endAt)) !== localDayKey(new Date(block.startAt)) ? ' (+1 day)' : ''
                   } ·
                   {' '}{durationLabel((new Date(block.endAt).getTime() - new Date(block.startAt).getTime()) / 60000)}
