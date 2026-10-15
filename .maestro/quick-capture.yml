@@ -1,0 +1,14 @@
+# Synthetic data only. This flow clears storage on the isolated QA app.
+appId: com.nishef.eonward.qa
+---
+- launchApp:
+    clearState: true
+- assertVisible: 'EONWARD'
+- tapOn: 'Quick goal title'
+- inputText: 'QA test: a real editable goal'
+- tapOn: 'Save quick goal'
+- assertVisible: 'QA test: a real editable goal'
+- tapOn: 'Calendar'
+- assertVisible: 'Calendar'
+- tapOn: 'Plan'
+- assertVisible: 'QA test: a real editable goal'
