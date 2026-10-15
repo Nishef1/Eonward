@@ -39,10 +39,12 @@ export function parseBackup(text: string): Backup {
   }
   let data: Backup;
   try { data = JSON.parse(text) as Backup; } catch { return fail('not valid JSON.'); }
+  const incomingVersion: number = data?.version;
+  const incomingSchema: number = data?.schemaVersion;
   if (!data || data.format !== 'eonward-backup' ||
-    !((data.version === 1 && data.schemaVersion === 7) || (data.version === 2 && data.schemaVersion === 8)) ||
+    !((incomingVersion === 1 && incomingSchema === 7) || (incomingVersion === 2 && incomingSchema === 8)) ||
     !stamp(data.createdAt) || !data.tables || Array.isArray(data.tables)) fail('unsupported format or version.');
-  if (data.version === 1) {
+  if (incomingVersion === 1) {
     // Validate legacy row shapes before adding the new opt-in columns.
     for (const table of Object.keys(V1_COLUMNS) as (keyof typeof V1_COLUMNS)[]) {
       const rows = data.tables[table];
