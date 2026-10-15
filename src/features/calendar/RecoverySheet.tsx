@@ -1,0 +1,129 @@
+import { useEffect, useMemo, useState } from 'react';
+import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
+import { colors } from '../../theme/tokens';
+import { localClock, type TimeBlock } from '../../domain/timeblocks';
+import { previewReplan, type ReplanPreview } from '../../domain/replan';
+import { useReducedMotion } from '../../theme/useReducedMotion';
+
+type Palette = typeof colors.light | typeof colors.dark;
+interface Props {
+  visible: boolean; day: Date; blocks: TimeBlock[]; palette: Palette; busy: boolean;
+  onClose: () => void; onApply: (preview: ReplanPreview) => void;
+}
+const clock = (value: string) => localClock(new Date(value));
+
+export function RecoverySheet({ visible, day, blocks, palette, busy, onClose, onApply }: Props) {
+  const reducedMotion = useReducedMotion();
+  const [now, setNow] = useState(() => new Date());
+  const [mode, setMode] = useState<'recover' | 'extend'>('recover');
+  const [targetId, setTargetId] = useState('');
+  const [minutes, setMinutes] = useState<15 | 30>(15);
+  useEffect(() => { if (visible) { setNow(new Date()); setMode('recover'); setTargetId(''); } }, [visible]);
+  const eligible = blocks.filter((b) => b.flexible && !b.goalCompleted && Date.parse(b.endAt) > now.getTime());
+  const selected = eligible.find((b) => b.id === targetId) ?? eligible[0];
+  const result = useMemo(() => {
+    try {
+      return { value: previewReplan(blocks, { mode, day, now,
+        targetId: selected?.id, extraMinutes: minutes }), error: '' };
+    } catch (error) {
+      return { value: null, error: error instanceof Error ? error.message : 'Cannot preview this day.' };
+    }
+  }, [blocks, mode, day, now, selected?.id, minutes]);
+  return <Modal visible={visible} transparent animationType={reducedMotion ? 'none' : 'slide'}
+    statusBarTranslucent navigationBarTranslucent onRequestClose={onClose}>
+    <SafeAreaProvider>
+      <View style={styles.overlay}>
+        <Pressable style={StyleSheet.absoluteFill} onPress={() => { if (!busy) onClose(); }}
+          accessibilityLabel="Close recovery preview" />
+        <View style={[styles.sheet, { backgroundColor: palette.background }]}>
+          <SafeAreaView edges={['bottom']}>
+            <ScrollView contentContainerStyle={styles.content}>
+              <Text style={[styles.kicker, { color: palette.accent }]}>TIME · IN MOTION</Text>
+              <Text style={[styles.title, { color: palette.foreground }]}>Recover your day</Text>
+              <Text style={[styles.caption, { color: palette.muted }]}>
+                All changes are previews. Protected reservations, completed work and past time stay untouched.
+                Only blocks you've marked Flexible can move.
+              </Text>
+              <View style={styles.row}>
+                {(['recover', 'extend'] as const).map((item) => <Pressable key={item} accessibilityRole="button"
+                  accessibilityState={{ selected: mode === item }} onPress={() => setMode(item)}
+                  style={[styles.chip, { borderColor: palette.border,
+                    backgroundColor: mode === item ? palette.accentSoft : palette.surface }]}>
+                  <Text style={{ color: mode === item ? palette.accent : palette.foreground, fontWeight: '700' }}>
+                    {item === 'recover' ? 'Reflow today' : 'Extend time'}
+                  </Text>
+                </Pressable>)}
+              </View>
+              {mode === 'extend' ? <>
+                <Text style={[styles.kicker, { color: palette.muted }]}>CHOOSE A FLEXIBLE BLOCK</Text>
+                {!eligible.length ? <Text style={{ color: palette.muted }}>No eligible flexible block. Mark one Flexible in its editor first.</Text> :
+                  eligible.map((b) => <Pressable key={b.id} accessibilityRole="radio"
+                    accessibilityState={{ checked: selected?.id === b.id }} onPress={() => setTargetId(b.id)}
+                    style={[styles.option, { borderColor: selected?.id === b.id ? palette.accent : palette.border,
+                      backgroundColor: palette.surface }]}>
+                    <Text numberOfLines={2} style={{ color: palette.foreground, flex: 1 }}>{b.goalTitle}</Text>
+                    <Text style={{ color: palette.muted, fontSize: 11 }}>{clock(b.startAt)}–{clock(b.endAt)}</Text>
+                  </Pressable>)}
+                <View style={styles.row}>
+                  {([15, 30] as const).map((value) => <Pressable key={value} accessibilityRole="button"
+                    accessibilityState={{ selected: minutes === value }} onPress={() => setMinutes(value)}
+                    style={[styles.chip, { borderColor: palette.border,
+                      backgroundColor: minutes === value ? palette.accentSoft : palette.surface }]}>
+                    <Text style={{ color: palette.foreground }}>+{value} min</Text>
+                  </Pressable>)}
+                </View>
+              </> : <Text style={[styles.caption, { color: palette.muted }]}>
+                Reflow flexible blocks after a 15-minute buffer, respecting fixed time and existing order.
+              </Text>}
+              <View style={[styles.preview, { backgroundColor: palette.surface, borderColor: palette.border }]}>
+                <Text style={[styles.kicker, { color: palette.muted }]}>PREVIEW · NOTHING CHANGED YET</Text>
+                {result.error ? <Text style={{ color: palette.foreground }}>{result.error}</Text>
+                  : result.value?.moves.length ? result.value.moves.map((move) => <View key={move.id}
+                    style={[styles.move, { borderBottomColor: palette.border }]}>
+                    <Text numberOfLines={2} style={{ color: palette.foreground, flex: 1 }}>
+                      {blocks.find((b) => b.id === move.id)?.goalTitle}
+                    </Text>
+                    <View style={{ alignItems: 'flex-end', gap: 4 }}>
+                      <Text style={{ color: palette.muted, fontSize: 11 }}>{clock(move.fromStart)}–{clock(move.fromEnd)}</Text>
+                      <Text style={{ color: palette.accent, fontWeight: '700' }}>{clock(move.toStart)}–{clock(move.toEnd)}</Text>
+                    </View>
+                  </View>) : <Text style={{ color: palette.muted }}>No changes needed or no flexible blocks to move.</Text>}
+                {result.value ? <Text style={[styles.caption, { color: palette.muted }]}>
+                  {result.value.protectedCount} protected blocks · ~{result.value.availableMinutes} free min remaining
+                </Text> : null}
+              </View>
+              <View style={styles.row}>
+                <Pressable accessibilityRole="button" disabled={busy} onPress={onClose}
+                  style={[styles.action, { borderWidth: 1, borderColor: palette.border }]}>
+                  <Text style={{ color: palette.foreground, fontWeight: '700' }}>Cancel</Text>
+                </Pressable>
+                <Pressable accessibilityRole="button" disabled={busy || !result.value?.moves.length}
+                  accessibilityState={{ disabled: busy || !result.value?.moves.length }}
+                  onPress={() => { if (result.value) onApply(result.value); }}
+                  style={[styles.action, { backgroundColor: palette.accent,
+                    opacity: busy || !result.value?.moves.length ? 0.4 : 1 }]}>
+                  <Text style={{ color: palette.onAccent, fontWeight: '700' }}>{busy ? 'Saving…' : 'Apply preview'}</Text>
+                </Pressable>
+              </View>
+            </ScrollView>
+          </SafeAreaView>
+        </View>
+      </View>
+    </SafeAreaProvider>
+  </Modal>;
+}
+const styles = StyleSheet.create({
+  overlay: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.4)' },
+  sheet: { maxHeight: '94%', borderTopLeftRadius: 27, borderTopRightRadius: 27, overflow: 'hidden' },
+  content: { padding: 21, gap: 14, paddingBottom: 20 },
+  kicker: { fontSize: 10, fontWeight: '700', letterSpacing: 1 },
+  title: { fontSize: 26, fontWeight: '700', letterSpacing: -0.7 },
+  caption: { fontSize: 12, lineHeight: 20 },
+  row: { flexDirection: 'row', gap: 10, flexWrap: 'wrap' },
+  chip: { borderWidth: 1, borderRadius: 14, minHeight: 48, paddingHorizontal: 15, justifyContent: 'center' },
+  option: { minHeight: 48, borderWidth: 1, borderRadius: 12, padding: 10, flexDirection: 'row', alignItems: 'center', gap: 10 },
+  preview: { borderRadius: 17, padding: 14, borderWidth: 1, gap: 12 },
+  move: { minHeight: 56, flexDirection: 'row', gap: 10, alignItems: 'center', borderBottomWidth: StyleSheet.hairlineWidth },
+  action: { flex: 1, minHeight: 52, borderRadius: 13, alignItems: 'center', justifyContent: 'center' },
+});
