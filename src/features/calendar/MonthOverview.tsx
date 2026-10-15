@@ -12,19 +12,13 @@ interface Props {
   onSelectDay: (day: Date) => void;
 }
 const LETTERS = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
-function minutesInsideDay(block: TimeBlock, day: Date): number {
-  const { from, to } = localDayBounds(day);
-  const lower = Date.parse(from), upper = Date.parse(to);
-  return blockOverlapsRange(block, lower, upper)
-    ? Math.max(0, Math.min(upper, Date.parse(block.endAt)) - Math.max(lower, Date.parse(block.startAt))) / 60000
-    : 0;
-}
 export function MonthOverview({ month, blocks, todayKey, selectedKey, palette, onSelectDay }: Props) {
   const days = monthGridDays(month);
   const metrics = days.map((day) => {
     const key = localDayKey(day);
     const hours = analyzeDayLoad(blocks, day).occupiedMinutes / 60;
-    const count = blocks.filter((block) => minutesInsideDay(block, day) > 0).length;
+    const { from, to } = localDayBounds(day);
+    const count = blocks.filter((block) => blockOverlapsRange(block, Date.parse(from), Date.parse(to))).length;
     return { day, key, hours, count, active: day.getMonth() === month.getMonth() };
   });
   const monthHours = metrics.reduce((sum, item) => sum + (item.active ? item.hours : 0), 0);
