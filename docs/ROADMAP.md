@@ -27,6 +27,32 @@ This file is the single source of truth for **planned vs completed** work. It is
 | M5 — Mobile integration | Notifications, widgets, localization, backup | Native picker/backup/reminders implemented; widgets/localization remain open | Physical-device and Apple acceptance |
 | M6 — Quality & release | Performance, accessibility, testing, release build | Isolated Android release QA APK built; iOS JS export passes | Store signing, native iOS, physical-device and accessibility gates |
 
+## Additional edge-case sweep — recovery, OS boundaries and UX truth (2026-10-15)
+
+The prior cross-feature audit covered many happy paths. This pass checks *format fidelity*, large-but-valid identifiers and OS/user transitions that normal JS bundle tests cannot certify.
+
+**Source defects fixed:**
+
+- [x] A valid backup was measured as **compact** JSON in `exportBackup` and then written as **pretty-printed** JSON in Settings. Near 10 MB, that could create a file exceeding the **importer's own** size limit, rendering the saved copy unrestorable. Save the identical compact representation that `parseBackup` validated; no artificial new limit, encryption scheme or storage subsystem.
+- [x] A Board membership used `JSON.stringify([board_id, goal_id])` as its in-memory composite uniqueness key but applied the single-ID 200-character limit to the **whole pair**. Two individually valid 120-character IDs made that pair invalid. Validate the two ID components independently, keep the collision-proof serialized tuple as the Set key, and cover it with an existing backup test.
+
+**New cases that still require evidence or a product decision:**
+
+| Area | Case | Next requirement |
+| --- | --- | --- |
+| Device time zone | A 09:00 reserved **instant** changes wall-clock display when the user travels across zones | Choose explicit “device-local display” versus “floating home-local reservation” semantics; test travel and DST transitions |
+| Day boundary | Focus running across midnight and a weekly boundary currently contributes history to its **end** date rather than prorating elapsed work | Decide reporting contract, then write interval-split fixture tests if the UI promises daily Focus |
+| Focus duration | User launches an existing Timebox days after its scheduled date | Define whether a Timebox is a reusable duration or a reservation in clock time; test in-app language |
+| Clock manipulation | System clock jumps backward while Focus is running; deadline-based `Date.now` extends remaining time unexpectedly | Native monotonic-clock experiments, including restart and suspend; avoid assuming background JS execution |
+| Notifications | Permission revoked, system reboot, OS exact-alarm limits, expired alert during rescheduling | Real Android/iOS tests with Focus stopped, paused and replaced; Expo notifications queue uses separate OS state |
+| OS backups | Device backup may copy SQLite app database even if Eonward has no sync, depending on native backup settings | Verify app configuration and wording on Android 12+/iOS device backup |
+| Large imports | A bounded valid 10-MB JSON backup may carry thousands of rows and slow a transaction or exhaust memory | Benchmark real native restore, interrupted import and “no partial write” rollback |
+| App lifecycle | Two overlapping refreshes return data across a mutation; page may briefly pair stale goals with fresh blocks | Measure and decide whether an atomic read snapshot is necessary, rather than adding a second global store |
+| Dense UI | Three-lane ribbon represents fourth+ overlapping items on an already occupied lane | Device screenshots with 4–12 overlapping reservations; show density/overflow rather than hiding actual conflicts |
+| Long IDs and archives | Restoring a valid graph to a device with same IDs but divergent parent/board meaning | QA-only dry-run with safe user-facing merge/conflict summary; current restore preserves local IDs and values |
+
+Keep P0 native expo-sqlite issue #2 and P1 visual/native gesture issue #3 open. The two fixed defects have JS/SQLite test evidence, but full backup export/share recipient, physical time shifts and actual restore UX remain unverified.
+
 ## Neglected contradiction audit — data lifecycle, time and truth in UI (2026-10-15)
 
 This sweep is intentionally **cross-boundary**, not another palette refactor. It verifies the lifecycle Capture → Calendar → Timebox → Focus → Review → Backup against source, active SQLite tests and Expo/React Native/SQLite specifications.
