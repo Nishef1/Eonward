@@ -89,6 +89,14 @@ export function CalendarScreen() {
 
   useFocusEffect(useCallback(() => { refresh(); }, [refresh]));
   useEffect(() => {
+    if (!hasUndo) return;
+    // Keep the ephemeral Undo action aligned with the five-minute SQLite safety window.
+    const timer = setInterval(() => {
+      void canUndoReplan(db).then(setHasUndo).catch(() => setHasUndo(false));
+    }, 30000);
+    return () => clearInterval(timer);
+  }, [db, hasUndo]);
+  useEffect(() => {
     let active = true;
     setLoading(true);
     const weekFrom = localDayBounds(week[0]).from;

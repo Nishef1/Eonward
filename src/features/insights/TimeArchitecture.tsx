@@ -10,9 +10,12 @@ import { listWeeklyCapacity, setWeeklyCapacity, type WeeklyCapacity } from '../.
 import { colors } from '../../theme/tokens';
 
 type Palette = typeof colors.light | typeof colors.dark;
-const format = (minutes: number) => minutes >= 60
-  ? `${Math.floor(minutes / 60)}h${minutes % 60 ? ` ${Math.floor(minutes % 60)}m` : ''}`
-  : `${Math.floor(minutes)}m`;
+const format = (minutes: number) => {
+  const rounded = Math.max(0, Math.round(minutes));
+  return rounded >= 60
+    ? `${Math.floor(rounded / 60)}h${rounded % 60 ? ` ${rounded % 60}m` : ''}`
+    : `${rounded}m`;
+};
 interface Props { palette: Palette; history: FocusHistory[]; refreshKey: number }
 export function TimeArchitecture({ palette, history, refreshKey }: Props) {
   const db = useEonwardDatabase();
@@ -117,6 +120,13 @@ export function TimeArchitecture({ palette, history, refreshKey }: Props) {
         <Text style={[styles.caption, { color: palette.muted }]}>Reserved {format(b.plannedMinutes)}</Text>
         <Text style={[styles.caption, { color: palette.muted }]}>Focused {format(b.focusedMinutes)}</Text>
       </View>
+      <Text style={[styles.caption, { color: palette.muted }]}>
+        {b.plannedMinutes > b.weeklyMinutes
+          ? `${format(b.plannedMinutes - b.weeklyMinutes)} reserved above your weekly target. Consider reducing or redistributing time.`
+          : b.plannedMinutes === 0
+            ? 'Nothing reserved yet. You can schedule the first session without filling your whole week.'
+            : `${format(b.weeklyMinutes - b.plannedMinutes)} of your target is not reserved. Leaving it free is also an option.`}
+      </Text>
       <View style={styles.head}>
         <Pressable accessibilityRole="button" accessibilityLabel={`Edit weekly hours for ${b.title}`}
           onPress={() => { const goal = goals.find((g) => g.id === b.goalId); if (goal) pick(goal); }}

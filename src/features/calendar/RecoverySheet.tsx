@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { AppState, Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import { colors } from '../../theme/tokens';
 import { localClock, type TimeBlock } from '../../domain/timeblocks';
@@ -16,10 +16,20 @@ const clock = (value: string) => localClock(new Date(value));
 export function RecoverySheet({ visible, day, blocks, palette, busy, activeBlockId, onClose, onApply }: Props) {
   const reducedMotion = useReducedMotion();
   const [now, setNow] = useState(() => new Date());
+  const [clockMs, setClockMs] = useState(() => Date.now());
   const [mode, setMode] = useState<'recover' | 'extend'>('recover');
   const [targetId, setTargetId] = useState('');
   const [minutes, setMinutes] = useState<15 | 30>(15);
-  useEffect(() => { if (visible) { setNow(new Date()); setMode('recover'); setTargetId(''); } }, [visible]);
+  useEffect(() => {
+    if (!visible) return;
+    setNow(new Date()); setClockMs(Date.now()); setMode('recover'); setTargetId('');
+    const interval = setInterval(() => setClockMs(Date.now()), 10000);
+    const subscription = AppState.addEventListener('change', (state) => {
+      if (state === 'active') setClockMs(Date.now());
+    });
+    return () => { clearInterval(interval); subscription.remove(); };
+  }, [visible]);
+  const expired = clockMs - now.getTime() > 110000 || clockMs < now.getTime() - 2000;
   const eligible = blocks.filter((b) => b.flexible && b.id !== activeBlockId && !b.goalCompleted && Date.parse(b.endAt) > now.getTime());
   const selected = eligible.find((b) => b.id === targetId) ?? eligible[0];
   const result = useMemo(() => {
@@ -77,7 +87,19 @@ export function RecoverySheet({ visible, day, blocks, palette, busy, activeBlock
                 Reflow flexible blocks after a 15-minute buffer, respecting fixed time and existing order.
               </Text>}
               <View style={[styles.preview, { backgroundColor: palette.surface, borderColor: palette.border }]}>
-                <Text style={[styles.kicker, { color: palette.muted }]}>PREVIEW · NOTHING CHANGED YET</Text>
+                <View style={[styles.row, { alignItems: 'center', justifyContent: 'space-between' }]}>
+                  <Text style={[styles.kicker, { color: palette.muted }]}>
+                    {expired ? 'PREVIEW EXPIRED' : 'PREVIEW · NOTHING CHANGED YET'}
+                  </Text>
+                  <Pressable accessibilityRole="button" accessibilityLabel="Refresh recovery preview with current time"
+                    disabled={busy} onPress={() => { setNow(new Date()); setClockMs(Date.now()); }}
+                    style={styles.refresh}>
+                    <Text style={{ color: palette.accent, fontWeight: '700', fontSize: 12 }}>↻ Refresh</Text>
+                  </Pressable>
+                </View>
+                {expired ? <Text style={[styles.caption, { color: palette.muted }]}>
+                  This preview is older than two minutes. Refresh before applying; past time stays protected.
+                </Text> : null}
                 {result.error ? <Text style={{ color: palette.foreground }}>{result.error}</Text>
                   : result.value?.moves.length ? result.value.moves.map((move) => <View key={move.id}
                     style={[styles.move, { borderBottomColor: palette.border }]}>
@@ -98,11 +120,11 @@ export function RecoverySheet({ visible, day, blocks, palette, busy, activeBlock
                   style={[styles.action, { borderWidth: 1, borderColor: palette.border }]}>
                   <Text style={{ color: palette.foreground, fontWeight: '700' }}>Cancel</Text>
                 </Pressable>
-                <Pressable accessibilityRole="button" disabled={busy || !result.value?.moves.length}
-                  accessibilityState={{ disabled: busy || !result.value?.moves.length }}
+                <Pressable accessibilityRole="button" disabled={busy || expired || !result.value?.moves.length}
+                  accessibilityState={{ disabled: busy || expired || !result.value?.moves.length }}
                   onPress={() => { if (result.value) onApply(result.value); }}
                   style={[styles.action, { backgroundColor: palette.accent,
-                    opacity: busy || !result.value?.moves.length ? 0.4 : 1 }]}>
+                    opacity: busy || expired || !result.value?.moves.length ? 0.4 : 1 }]}>
                   <Text style={{ color: palette.onAccent, fontWeight: '700' }}>{busy ? 'Saving…' : 'Apply preview'}</Text>
                 </Pressable>
               </View>
@@ -121,6 +143,7 @@ const styles = StyleSheet.create({
   title: { fontSize: 26, fontWeight: '700', letterSpacing: -0.7 },
   caption: { fontSize: 12, lineHeight: 20 },
   row: { flexDirection: 'row', gap: 10, flexWrap: 'wrap' },
+  refresh: { minHeight: 48, justifyContent: 'center', paddingHorizontal: 6 },
   chip: { borderWidth: 1, borderRadius: 14, minHeight: 48, paddingHorizontal: 15, justifyContent: 'center' },
   option: { minHeight: 48, borderWidth: 1, borderRadius: 12, padding: 10, flexDirection: 'row', alignItems: 'center', gap: 10 },
   preview: { borderRadius: 17, padding: 14, borderWidth: 1, gap: 12 },
