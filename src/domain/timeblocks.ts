@@ -29,6 +29,14 @@ export function localDayKey(date: Date): string {
 export function localClock(date: Date): string {
   return `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`;
 }
+/** Include absolute UTC offset on clock-change dates where local times repeat. */
+export function clockWithUtcOffset(date: Date): string {
+  const east = -date.getTimezoneOffset();
+  const sign = east >= 0 ? '+' : '-';
+  const abs = Math.abs(east);
+  return localClock(date) + ' UTC' + sign + String(Math.floor(abs / 60)).padStart(2, '0') +
+    ':' + String(abs % 60).padStart(2, '0');
+}
 export function parseLocalDay(value: string): Date | null {
   const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value.trim());
   if (!match) return null;
