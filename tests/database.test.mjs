@@ -138,6 +138,15 @@ test('real SQLite migrates populated v5 data to v8 without losing goals, boards 
     assert.equal(sqlite.prepare('PRAGMA foreign_key_check').all().length, 0);
     await migrateDatabase(db); // Idempotent: opening again must not create extra rows.
     assert.equal(sqlite.prepare('SELECT count(*) AS n FROM goals').get().n, 1);
+    // A quick-check success does not imply that foreign keys are consistent.
+    sqlite.exec('PRAGMA foreign_keys = OFF');
+    sqlite.prepare('INSERT INTO board_goals(board_id, goal_id, added_at) VALUES (?, ?, ?)')
+      .run('b1', 'orphan-goal', stamp);
+    sqlite.exec('PRAGMA foreign_keys = ON');
+    const health = await checkLocalHealth(db);
+    assert.equal(health.structureOkay, true);
+    assert.equal(health.foreignKeysOkay, false);
+    assert.equal(health.orphanRelations, 1);
   } finally {
     sqlite.close();
   }

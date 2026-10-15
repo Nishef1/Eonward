@@ -10,7 +10,12 @@ async function snapshot(db: Pick<SQLiteDatabase, 'getAllAsync'>, day: string): P
     g.completed FROM time_blocks tb JOIN goals g ON g.id = tb.goal_id
     WHERE g.archived_at IS NULL AND tb.start_at < ? AND tb.end_at > ? ORDER BY tb.id`, [bounds.to, bounds.from]);
 }
-function same(a: Row[], b: Row[]) { return JSON.stringify(a) === JSON.stringify(b); }
+function same(a: Row[], b: Row[]) {
+  // SQLite orders IDs using binary collation; JS localeCompare can differ for
+  // imported mixed-case/non-ASCII IDs, rejecting an otherwise unchanged day.
+  const byId = (left: Row, right: Row) => left.id < right.id ? -1 : left.id > right.id ? 1 : 0;
+  return JSON.stringify([...a].sort(byId)) === JSON.stringify([...b].sort(byId));
+}
 const UNDO_WINDOW_MS = 5 * 60 * 1000;
 /** Only exact previewed states may be written; active Focus blocks are immutable. */
 export async function applyReplan(db: SQLiteDatabase, preview: ReplanPreview, expected: readonly {

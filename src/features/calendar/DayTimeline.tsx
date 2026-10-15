@@ -97,7 +97,9 @@ export function DayTimeline({ date, blocks, palette, isDark, onEdit, onQuickAdd,
           onPress={() => Alert.alert('Your timeline', 'Tap an empty hour to reserve time. Tap a block to edit it, or hold it to open the goal. Use + and − to change the scale.')}
           style={[styles.toolbarCopy, { minHeight: 48, justifyContent: 'center' }]}>
           <Text style={[styles.heading, { color: palette.foreground }]}>Living timeline ⓘ</Text>
-          <Text style={{ color: palette.muted, fontSize: 11 }}>{Math.floor(recordedMs / 60000)}m recorded Focus</Text>
+          <Text style={{ color: palette.muted, fontSize: 11 }}>
+            {Math.floor(recordedMs / 60000)}m linked Focus · sessions ending here + active time
+          </Text>
         </Pressable>
         <View style={[styles.zoom, { backgroundColor: palette.surface, borderColor: palette.border }]}>
           <Pressable accessibilityRole="button" accessibilityLabel="Zoom out of day timeline"
