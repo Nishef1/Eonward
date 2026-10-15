@@ -262,6 +262,25 @@ test('offline planning lifecycle preserves identity, recurrence, completion hist
       sourceBlock.startAt);
     assert.deepEqual((await listDayBlocks(source.db, selectedDay)).map((b) => [b.id, b.startAt, b.endAt]).sort(),
       beforeRecovery.map((b) => [b.id, b.startAt, b.endAt]).sort());
+    // An edit timestamp alone is meaningful even if the block content was restored.
+    const savedForEditor = (await listDayBlocks(source.db, selectedDay)).find((b) => b.id === sourceBlock.id);
+    source.sqlite.prepare('UPDATE time_blocks SET updated_at = ? WHERE id = ?')
+      .run('2099-01-01T00:00:00.000Z', sourceBlock.id);
+    await assert.rejects(() => saveBlock(source.db, {
+      goalId: sourceBlock.goalId, date: '2026-10-14', start: '13:00', end: '13:30',
+      kind: sourceBlock.kind, intention: 'Stale description', flexible: sourceBlock.flexible,
+    }, sourceBlock.id, savedForEditor), /changed since you opened/);
+    source.sqlite.prepare('UPDATE time_blocks SET updated_at = ? WHERE id = ?')
+      .run(savedForEditor.updatedAt, sourceBlock.id);
+    // Any manual edit invalidates the prior Recovery checkpoint, even for another item.
+    const stampForUndo = new Date().toISOString();
+    source.sqlite.prepare('INSERT INTO replan_checkpoint (id, before_json, after_json, created_at) VALUES (1, ?, ?, ?)')
+      .run('[]', '[]', stampForUndo);
+    await saveBlock(source.db, {
+      goalId: sourceBlock.goalId, date: '2026-10-14', start: '13:00', end: '13:30',
+      kind: sourceBlock.kind, intention: sourceBlock.intention, flexible: sourceBlock.flexible,
+    }, sourceBlock.id, savedForEditor);
+    assert.equal(source.sqlite.prepare('SELECT id FROM replan_checkpoint WHERE id = 1').get(), undefined);
     await setWeeklyCapacity(source.db, parent, 240);
     assert.equal((await listWeeklyCapacity(source.db, new Date(2026, 9, 12, 12)))[0].weeklyMinutes, 240);
     // Overlapping descendant reservations must count as occupied wall time, not summed durations.
