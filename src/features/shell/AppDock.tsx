@@ -6,7 +6,7 @@ import { AppState, Alert, Keyboard, Linking, Modal, Pressable, StyleSheet, Text,
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import { getFocusRemainingMs, formatFocusTime } from '../../domain/focus';
 import { useFocusSession } from '../focus/FocusProvider';
-import { colors, radius } from '../../theme/tokens';
+import { colors, radius, semantic } from '../../theme/tokens';
 import { useReducedMotion } from '../../theme/useReducedMotion';
 import CalendarDays from 'lucide-react-native/icons/calendar-days';
 import ChartNoAxesCombined from 'lucide-react-native/icons/chart-no-axes-combined';
@@ -104,7 +104,7 @@ export function AppDock() {
                   finished ? 'Review your progress' : session.status === 'paused' ? 'Tap to resume or end' : 'Tap to pause or end'}
               </Text>
             </View>
-            <Text style={[styles.miniClock, { color: finished ? '#BE8353' : palette.accent }]}>
+            <Text style={[styles.miniClock, { color: finished ? (palette === colors.dark ? semantic.dark.warning : semantic.light.warning) : palette.accent }]}>
               {formatFocusTime(remaining)}
             </Text>
           </Pressable>
@@ -151,7 +151,7 @@ export function AppDock() {
                   See this step in your goal path →
                 </Text>
               </Pressable> : null}
-              <Text style={[styles.clock, { color: finished ? '#BA7C4A' : palette.foreground }]}>
+              <Text style={[styles.clock, { color: finished ? (palette === colors.dark ? semantic.dark.warning : semantic.light.warning) : palette.foreground }]}>
                 {formatFocusTime(remaining)}
               </Text>
               <Text style={[styles.explainer, { color: palette.muted }]}>
@@ -161,7 +161,7 @@ export function AppDock() {
               </Text>
               {notificationNotice && !finished && session?.status === 'running' ? (
                 <View style={styles.noticeSection}>
-                  <Text style={[styles.warning, { color: '#BC8653' }]}>{notificationNotice}</Text>
+                  <Text style={[styles.warning, { color: palette === colors.dark ? semantic.dark.warning : semantic.light.warning }]}>{notificationNotice}</Text>
                   <Pressable accessibilityRole="button" accessibilityLabel="Open system app settings"
                     onPress={() => { void Linking.openSettings().catch(() =>
                       Alert.alert('Settings unavailable', 'Open your device settings and choose Eonward → Notifications.')); }}

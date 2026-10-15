@@ -3,7 +3,7 @@ import { Alert, KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, St
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import type { Goal } from '../../domain/goals';
 import { localClock, localDayKey, timeRangeFromInput, type BlockInput, type BlockKind, type TimeBlock } from '../../domain/timeblocks';
-import { colors, radius, spacing, type Palette } from '../../theme/tokens';
+import { colors, radius, spacing, semantic, type Palette } from '../../theme/tokens';
 import { DateTimeField } from '../shared/DateTimeField';
 import { useReducedMotion } from '../../theme/useReducedMotion';
 import Check from 'lucide-react-native/icons/check';
@@ -191,7 +191,7 @@ export function TimeBlockEditor({ visible, date, goals, initial, suggestedGoalId
                 placeholder={kind === 'box' ? 'Define an outcome for this timebox…' : 'What will you focus on?'}
                 placeholderTextColor={palette.muted} accessibilityLabel="Time block intention"
                 style={[styles.input, styles.notes, { backgroundColor: palette.surface, borderColor: palette.border, color: palette.foreground }]} />
-              {validation ? <Text style={styles.validation}>{validation}</Text> : null}
+              {validation ? <Text style={[styles.validation, { color: palette === colors.dark ? semantic.dark.danger : semantic.light.danger }]}>{validation}</Text> : null}
               {editingActive ? <Text style={styles.validation}>
                 End the active Focus session before editing this Timebox.
               </Text> : null}
@@ -250,7 +250,7 @@ const styles = StyleSheet.create({
   times: { flexDirection: 'row', gap: 12 },
   half: { flex: 1, gap: 8 },
   notes: { height: 85, paddingTop: 13, textAlignVertical: 'top' },
-  validation: { fontSize: 12, color: '#B34F4F' },
+  validation: { fontSize: 12 },
   footer: { borderTopWidth: 1, paddingTop: 12, paddingHorizontal: spacing.lg, paddingBottom: 8 },
   focusAction: { minHeight: 50, borderRadius: radius.lg, borderWidth: 1, alignItems: 'center', justifyContent: 'center', marginBottom: 9 },
   focusActionText: { fontSize: 14, fontWeight: '700' },

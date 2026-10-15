@@ -3,9 +3,10 @@ import test from 'node:test';
 import { isoWeekKey, periodKey, shiftPeriod, startOfWeek, periodLabel, dateFromPeriodKey, parseDateInput } from '../src/domain/horizons.ts';
 import { normalizeGoalTitle, availableGoalParents } from '../src/domain/goals.ts';
 import { buildPerspectiveSections } from '../src/domain/perspective.ts';
-import { analyzeDayLoad, blockClockRangeForDay, layoutBlocks, localDayBounds, localDayKey, monthGridDays, timeRangeFromInput } from '../src/domain/timeblocks.ts';
+import { analyzeDayLoad, analyzeRangeLoad, blockOverlapsRange, blockClockRangeForDay, layoutBlocks, localDayBounds, localDayKey, monthGridDays, timeRangeFromInput } from '../src/domain/timeblocks.ts';
 import { formatFocusTime, getFocusDurationMs, getFocusRemainingMs, getFocusElapsedMs } from '../src/domain/focus.ts';
 import { previewReplan } from '../src/domain/replan.ts';
+import { semantic } from '../src/theme/tokens.ts';
 import { pixelsToQuarterHours, previewTimelineEdit } from '../src/domain/timeline-edit.ts';
 
 test('all seven horizon keys use independent periods', () => {
@@ -155,6 +156,30 @@ test('overlapping time blocks split their timeline lanes, consecutive blocks reu
   ], new Date(2026, 9, 14, 12));
   assert.deepEqual([load.reservedMinutes, load.occupiedMinutes, load.overlapMinutes, load.dayMinutes],
     [120, 90, 30, 1440]);
+  const from = Date.parse(instant(9, 0)), to = Date.parse(instant(11, 0));
+  const calendar = [
+    { startAt: instant(8, 30), endAt: instant(10, 0) },
+    { startAt: instant(9, 30), endAt: instant(10, 30) },
+    { startAt: instant(13, 0), endAt: instant(14, 0) },
+  ];
+  const range = analyzeRangeLoad(calendar, from, to);
+  assert.deepEqual(range, { reservedMinutes: 150, occupiedMinutes: 90, overlapMinutes: 60 });
+  assert.equal(blockOverlapsRange(calendar[0], from, to), true);
+  assert.equal(blockOverlapsRange(calendar[2], from, to), false);
+  assert.deepEqual(analyzeRangeLoad([], from, to), {
+    reservedMinutes: 0, occupiedMinutes: 0, overlapMinutes: 0,
+  });
+  assert.throws(() => analyzeRangeLoad(calendar, to, from), /valid time range/);
+  // Semantic timeline surfaces retain readable white text in both themes.
+  const luminance = (hex) => {
+    const channels = [1, 3, 5].map((offset) => Number.parseInt(hex.slice(offset, offset + 2), 16) / 255);
+    const linear = channels.map((v) => v <= 0.04045 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4);
+    return linear[0] * 0.2126 + linear[1] * 0.7152 + linear[2] * 0.0722;
+  };
+  for (const ink of [semantic.timeline.planned, semantic.timeline.timebox,
+    semantic.timeline.completed, semantic.timeline.now]) {
+    assert.ok((1.05 / (luminance(ink) + 0.05)) >= 4.5, ink + ' lacks white-text contrast');
+  }
 
   // A real recovery proposal must preserve fixed time and move only opted-in blocks.
   const local = (h, m) => new Date(2026, 9, 14, h, m).toISOString();

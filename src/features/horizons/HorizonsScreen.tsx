@@ -7,7 +7,7 @@ import { dateFromPeriodKey, HORIZONS, HORIZON_TITLES, periodKey, periodLabel, sh
 import { availableGoalParents, type Goal, type GoalInput } from '../../domain/goals';
 import { buildPerspectiveSections } from '../../domain/perspective';
 import { archiveGoal, createGoal, editGoal, getGoal, listAllGoals, listArchivedGoals, listChildGoals, listGoalAncestors, listGoals, listInboxGoals, listPerspectiveGoals, moveGoal, planGoal, restoreGoal, setGoalCompleted } from '../../storage/goals';
-import { colors, depth, radius, spacing, type Palette } from '../../theme/tokens';
+import { colors, depth, radius, spacing, semantic, type Palette } from '../../theme/tokens';
 import Archive from 'lucide-react-native/icons/archive';
 import Check from 'lucide-react-native/icons/check';
 import ChevronDown from 'lucide-react-native/icons/chevron-down';
@@ -704,7 +704,7 @@ export function HorizonsScreen() {
             ) : null}
             <Pressable accessibilityRole="button" onPress={archiveSelectedFromMenu}
               style={[styles.organizeAction, { backgroundColor: palette.surface, borderColor: palette.border }]}>
-              <Text style={[styles.organizeActionText, { color: '#B34F4F' }]}>↘  Archive goal and next steps</Text>
+              <Text style={[styles.organizeActionText, { color: palette === colors.dark ? semantic.dark.danger : semantic.light.danger }]}>↘  Archive goal and next steps</Text>
             </Pressable>
             <Pressable accessibilityRole="button" onPress={() => setOrganizing(null)}
               style={styles.organizeCancel}>

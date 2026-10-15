@@ -4,7 +4,7 @@ import { useFocusEffect, useRouter } from 'expo-router';
 import { Alert, ActivityIndicator, KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, useColorScheme, View } from 'react-native';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import { useEonwardDatabase } from '../../storage/use-database';
-import { colors, depth, radius, spacing } from '../../theme/tokens';
+import { colors, depth, radius, spacing, semantic } from '../../theme/tokens';
 import Check from 'lucide-react-native/icons/check';
 import ChevronLeft from 'lucide-react-native/icons/chevron-left';
 import ChevronRight from 'lucide-react-native/icons/chevron-right';
@@ -245,7 +245,7 @@ export function BoardsScreen() {
                 <Text style={[styles.actionText, { color: palette.accent }]}>Edit</Text>
               </Pressable>
               <Pressable onPress={confirmDelete} accessibilityRole="button" style={styles.smallAction}>
-                <Text style={styles.deleteText}>Delete</Text>
+                <Text style={[styles.deleteText, { color: palette === colors.dark ? semantic.dark.danger : semantic.light.danger }]}>Delete</Text>
               </Pressable>
             </View>
             <View style={styles.boardEntryActions}>
@@ -462,7 +462,7 @@ const styles = StyleSheet.create({
   lensTab: { flex: 1, minHeight: 48, borderRadius: 11, alignItems: 'center', justifyContent: 'center', gap: 3 },
   lensLabel: { fontSize: 11 },
   actionText: { fontSize: 13, fontWeight: '700' },
-  deleteText: { color: '#A85858', fontSize: 13, fontWeight: '700' },
+  deleteText: { fontSize: 13, fontWeight: '700' },
   count: { fontSize: 12, fontWeight: '600' },
   boardCard: { borderWidth: 1, borderRadius: radius.lg, flexDirection: 'row', gap: 13, alignItems: 'center', padding: 16, minHeight: 112 },
   boardEmblem: { width: 44, height: 44, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
