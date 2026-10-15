@@ -41,6 +41,22 @@ export function RecoverySheet({ visible, day, blocks, palette, busy, activeBlock
       return { value: null, error: error instanceof Error ? error.message : 'Cannot preview this day.' };
     }
   }, [blocks, mode, day, now, selected?.id, minutes, activeBlockId]);
+  // Fit the visual shift strip to all affected reservations, not an arbitrary
+  // twenty-four hour scale where a 15-minute difference would be invisible.
+  const window = useMemo(() => {
+    const moves = result.value?.moves ?? [];
+    if (!moves.length) return null;
+    const earliest = Math.min(...moves.flatMap((item) => [Date.parse(item.fromStart), Date.parse(item.toStart)]));
+    const latest = Math.max(...moves.flatMap((item) => [Date.parse(item.fromEnd), Date.parse(item.toEnd)]));
+    return { start: earliest - 15 * 60000, end: latest + 15 * 60000 };
+  }, [result.value]);
+  function bar(startIso: string, endIso: string) {
+    if (!window) return { left: '0%' as const, width: '0%' as const };
+    const span = window.end - window.start;
+    const left = Math.max(0, (Date.parse(startIso) - window.start) / span * 100);
+    const width = Math.max(1.8, (Date.parse(endIso) - Date.parse(startIso)) / span * 100);
+    return { left: `${left}%` as const, width: `${Math.min(width, 100 - left)}%` as const };
+  }
   return <Modal visible={visible} transparent animationType={reducedMotion ? 'none' : 'slide'}
     statusBarTranslucent navigationBarTranslucent onRequestClose={onClose}>
     <SafeAreaProvider>
@@ -102,16 +118,44 @@ export function RecoverySheet({ visible, day, blocks, palette, busy, activeBlock
                 {expired ? <Text style={[styles.caption, { color: palette.muted }]}>
                   This preview is no longer current. Refresh before applying; past time stays protected.
                 </Text> : null}
+                {window && result.value?.moves.length ? <View style={styles.visualLegend}>
+                  <Text style={[styles.legendText, { color: palette.muted }]}>
+                    Before <Text style={{ color: palette.foreground }}>━</Text>   Proposed <Text style={{ color: palette.accent }}>━</Text>
+                  </Text>
+                  <View style={styles.legendBounds}>
+                    <Text style={[styles.caption, { color: palette.muted }]}>
+                      {clock(new Date(window.start).toISOString())}
+                    </Text>
+                    <Text style={[styles.caption, { color: palette.muted }]}>
+                      {clock(new Date(window.end).toISOString())}
+                    </Text>
+                  </View>
+                </View> : null}
                 {result.error ? <Text style={{ color: palette.foreground }}>{result.error}</Text>
                   : result.value?.moves.length ? result.value.moves.map((move) => <View key={move.id}
                     style={[styles.move, { borderBottomColor: palette.border }]}>
-                    <Text numberOfLines={2} style={{ color: palette.foreground, flex: 1 }}>
-                      {blocks.find((b) => b.id === move.id)?.goalTitle}
-                    </Text>
-                    <View style={{ alignItems: 'flex-end', gap: 4 }}>
-                      <Text style={{ color: palette.muted, fontSize: 11 }}>{clock(move.fromStart)}–{clock(move.fromEnd)}</Text>
-                      <Text style={{ color: palette.accent, fontWeight: '700' }}>{clock(move.toStart)}–{clock(move.toEnd)}</Text>
+                    <View style={styles.row}>
+                      <Text numberOfLines={2} style={{ color: palette.foreground, flex: 1, fontWeight: '700' }}>
+                        {blocks.find((b) => b.id === move.id)?.goalTitle}
+                      </Text>
+                      <Text style={{ color: palette.muted, fontSize: 12 }}>{clock(move.fromStart)} → {clock(move.toStart)}</Text>
                     </View>
+                    <View accessible accessibilityRole="summary"
+                      accessibilityLabel={`${blocks.find((b) => b.id === move.id)?.goalTitle ?? 'Block'} changes from
+                        ${clock(move.fromStart)}–${clock(move.fromEnd)} to ${clock(move.toStart)}–${clock(move.toEnd)}`}
+                      style={styles.dualTrack}>
+                      <View style={[styles.track, { backgroundColor: palette.inset }]}>
+                        <View style={[styles.trackBar, bar(move.fromStart, move.fromEnd),
+                          { backgroundColor: palette.muted, opacity: 0.65 }]} />
+                      </View>
+                      <View style={[styles.track, { backgroundColor: palette.accentSoft }]}>
+                        <View style={[styles.trackBar, bar(move.toStart, move.toEnd),
+                          { backgroundColor: palette.accent }]} />
+                      </View>
+                    </View>
+                    <Text style={[styles.caption, { color: palette.muted }]}>
+                      Proposed {clock(move.toStart)}–{clock(move.toEnd)} · Nothing saved yet
+                    </Text>
                   </View>) : <Text style={{ color: palette.muted }}>No changes needed or no flexible blocks to move.</Text>}
                 {result.value ? <Text style={[styles.caption, { color: palette.muted }]}>
                   {result.value.protectedCount} protected blocks · ~{result.value.availableMinutes} free min remaining
@@ -149,6 +193,12 @@ const styles = StyleSheet.create({
   chip: { borderWidth: 1, borderRadius: 14, minHeight: 48, paddingHorizontal: 15, justifyContent: 'center' },
   option: { minHeight: 48, borderWidth: 1, borderRadius: 12, padding: 10, flexDirection: 'row', alignItems: 'center', gap: 10 },
   preview: { borderRadius: 17, padding: 14, borderWidth: 1, gap: 12 },
-  move: { minHeight: 56, flexDirection: 'row', gap: 10, alignItems: 'center', borderBottomWidth: StyleSheet.hairlineWidth },
+  move: { minHeight: 86, gap: 8, paddingVertical: 11, borderBottomWidth: StyleSheet.hairlineWidth },
+  visualLegend: { gap: 3 },
+  legendText: { fontSize: 11, fontWeight: '700' },
+  legendBounds: { flexDirection: 'row', justifyContent: 'space-between' },
+  dualTrack: { gap: 4 },
+  track: { height: 9, borderRadius: 5, position: 'relative', overflow: 'hidden' },
+  trackBar: { position: 'absolute', height: 9, borderRadius: 5 },
   action: { flex: 1, minHeight: 52, borderRadius: 13, alignItems: 'center', justifyContent: 'center' },
 });
