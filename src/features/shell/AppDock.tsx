@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { usePathname, useRouter } from 'expo-router';
-import { useSQLiteContext } from 'expo-sqlite';
+import { useEonwardDatabase } from '../../storage/use-database';
 import { getGoalPath } from '../../storage/goals';
 import { AppState, Alert, Keyboard, Linking, Modal, Pressable, StyleSheet, Text, useColorScheme, View } from 'react-native';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
@@ -26,7 +26,7 @@ const routes = [
 export function AppDock() {
   const reducedMotion = useReducedMotion();
   const router = useRouter();
-  const db = useSQLiteContext();
+  const db = useEonwardDatabase();
   const pathname = usePathname();
   const palette = useColorScheme() === 'dark' ? colors.dark : colors.light;
   const { session, busy, error, notificationNotice, pause, resume, finish, refresh } = useFocusSession();
