@@ -76,15 +76,16 @@ export function CalendarScreen() {
   const key = localDayKey(day);
   const week = useMemo(() => weekOf(day), [key]);
   const [todayKey, setTodayKey] = useState(() => localDayKey(new Date()));
+  const refresh = useCallback(() => setRevision((n) => n + 1), []);
   useEffect(() => {
     const updateToday = () => setTodayKey(localDayKey(new Date()));
     const interval = setInterval(updateToday, 60000);
     const listener = AppState.addEventListener('change', (state) => {
-      if (state === 'active') updateToday();
+      // A timezone change can alter day boundaries without changing the visible date key.
+      if (state === 'active') { updateToday(); refresh(); }
     });
     return () => { clearInterval(interval); listener.remove(); };
-  }, []);
-  const refresh = useCallback(() => setRevision((n) => n + 1), []);
+  }, [refresh]);
 
   useFocusEffect(useCallback(() => { refresh(); }, [refresh]));
   useEffect(() => {

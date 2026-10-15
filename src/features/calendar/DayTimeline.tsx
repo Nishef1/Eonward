@@ -48,6 +48,7 @@ export function DayTimeline({ date, blocks, palette, isDark, onEdit, onQuickAdd,
   const scrollOffset = useRef(0);
   const dateKey = localDayKey(date);
   const isToday = localDayKey(now) === dateKey;
+  const offset = now.getTimezoneOffset();
   useEffect(() => {
     setNow(new Date());
     const interval = setInterval(() => setNow(new Date()), 60000);
@@ -59,7 +60,7 @@ export function DayTimeline({ date, blocks, palette, isDark, onEdit, onQuickAdd,
 
   const positioned = useMemo(
     () => layoutBlocks(blocks, hourHeight, date),
-    [blocks, dateKey, hourHeight],
+    [blocks, dateKey, hourHeight, offset],
   );
   const visibleRange = (block: TimeBlock) => blockClockRangeForDay(block, date);
   const firstHour = positioned.length
@@ -83,7 +84,7 @@ export function DayTimeline({ date, blocks, palette, isDark, onEdit, onQuickAdd,
       return { id: block.id, left: (start - begin) / span * 100,
         width: (finish - start) / span * 100, tone: blockTone(block) };
     }).filter((entry): entry is NonNullable<typeof entry> => entry !== null);
-  }, [blocks, dateKey]);
+  }, [blocks, dateKey, offset]);
   const recordedMs = Object.values(actualByBlock).reduce((sum, value) => sum + value, 0) +
     (activeSession && blocks.some((b) => b.id === activeSession.blockId)
       ? getFocusElapsedMs(activeSession, now.getTime()) : 0);
