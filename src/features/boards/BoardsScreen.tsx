@@ -30,6 +30,7 @@ export function BoardsScreen() {
   const [boards, setBoards] = useState<Board[]>([]);
   const [current, setCurrent] = useState<Board | null>(null);
   const [items, setItems] = useState<BoardGoal[]>([]);
+  const [boardLens, setBoardLens] = useState<'open' | 'scheduled' | 'done' | 'all'>('open');
   const [candidates, setCandidates] = useState<Goal[]>([]);
   const [goalOptions, setGoalOptions] = useState<Goal[]>([]);
   const [addingGoal, setAddingGoal] = useState(false);
@@ -197,13 +198,22 @@ export function BoardsScreen() {
     ]);
   }
 
+  const lensItems = items.filter((goal) =>
+    boardLens === 'all' ? true : boardLens === 'done' ? goal.completed :
+    boardLens === 'scheduled' ? !goal.completed && !!goal.nextBlockAt : !goal.completed);
+  const lensOptions = [
+    { id: 'open', title: 'Open', count: items.filter((goal) => !goal.completed).length },
+    { id: 'scheduled', title: 'Scheduled', count: items.filter((goal) => !goal.completed && !!goal.nextBlockAt).length },
+    { id: 'done', title: 'Done', count: items.filter((goal) => goal.completed).length },
+    { id: 'all', title: 'All', count: items.length },
+  ] as const;
   const controlColor = palette.foreground;
   return (
     <SafeAreaView edges={['top', 'left', 'right']} style={[styles.screen, { backgroundColor: palette.background }]}>
       <ScrollView contentContainerStyle={styles.page} keyboardShouldPersistTaps="handled">
         <View style={styles.topRow}>
           <Text style={[styles.brand, { color: palette.muted }]}>EONWARD</Text>
-          {current ? <Pressable onPress={() => setCurrent(null)}
+          {current ? <Pressable onPress={() => { setCurrent(null); setBoardLens('open'); }}
             accessibilityRole="button" accessibilityLabel="Back to boards"
             style={[styles.back, { backgroundColor: palette.surface, borderColor: palette.border }]}>
             <ChevronLeft size={21} color={controlColor} />
@@ -246,6 +256,19 @@ export function BoardsScreen() {
                 <Text style={[styles.actionText, { color: palette.accent }]}>Link existing</Text>
               </Pressable>
             </View>
+            <View accessibilityRole="tablist" style={[styles.lensBar, { backgroundColor: palette.inset }]}>
+              {lensOptions.map((lens) => (
+                <Pressable key={lens.id} accessibilityRole="tab"
+                  accessibilityLabel={`${lens.title}, ${lens.count} goals`}
+                  accessibilityState={{ selected: boardLens === lens.id }}
+                  onPress={() => setBoardLens(lens.id)}
+                  style={[styles.lensTab, boardLens === lens.id && { backgroundColor: palette.surface }]}>
+                  <Text style={[styles.lensLabel, { color: boardLens === lens.id ? palette.foreground : palette.muted,
+                    fontWeight: boardLens === lens.id ? '700' : '500' }]}>{lens.title}</Text>
+                  <Text style={{ color: boardLens === lens.id ? palette.accent : palette.muted, fontSize: 10 }}>{lens.count}</Text>
+                </Pressable>
+              ))}
+            </View>
             {items.length === 0 ? (
               <View style={[styles.notice, { backgroundColor: palette.surface, borderColor: palette.border }]}>
                 <Text style={[styles.noticeTitle, { color: palette.foreground }]}>Start building this board</Text>
@@ -253,7 +276,18 @@ export function BoardsScreen() {
                   Add goals from different horizons. The originals remain in place.
                 </Text>
               </View>
-            ) : items.map((goal) => (
+            ) : lensItems.length === 0 ? (
+              <View style={[styles.notice, { backgroundColor: palette.surface, borderColor: palette.border }]}>
+                <Text style={[styles.noticeTitle, { color: palette.foreground }]}>
+                  {boardLens === 'done' ? 'No completed goals yet' : boardLens === 'scheduled' ?
+                    'Nothing is scheduled' : 'No goals in this view'}
+                </Text>
+                <Text style={[styles.noticeText, { color: palette.muted }]}>
+                  {boardLens === 'scheduled' ? 'Reserve time in Calendar to see upcoming work here.' :
+                    'Try a different view or add a goal to this board.'}
+                </Text>
+              </View>
+            ) : lensItems.map((goal) => (
               <View key={goal.id} style={[styles.goalCard, { backgroundColor: palette.surface, borderColor: palette.border }]}>
                 <Pressable accessibilityRole="checkbox" accessibilityState={{ checked: goal.completed }}
                   accessibilityLabel={`${goal.completed ? 'Reopen' : 'Complete'} ${goal.title}`}
@@ -418,7 +452,10 @@ const styles = StyleSheet.create({
   boardEntryActions: { flexDirection: 'row', gap: 9, marginBottom: 11 },
   boardPrimaryAction: { flex: 1, minHeight: 53, flexDirection: 'row', gap: 8, alignItems: 'center', justifyContent: 'center', borderRadius: radius.md },
   boardSecondaryAction: { flex: 1, minHeight: 53, alignItems: 'center', justifyContent: 'center', borderRadius: radius.lg, borderWidth: 1 },
-  smallAction: { minHeight: 47, paddingHorizontal: 9, justifyContent: 'center' },
+  smallAction: { minHeight: 48, paddingHorizontal: 9, justifyContent: 'center' },
+  lensBar: { flexDirection: 'row', borderRadius: 15, padding: 4, gap: 3, marginBottom: 4 },
+  lensTab: { flex: 1, minHeight: 48, borderRadius: 11, alignItems: 'center', justifyContent: 'center', gap: 3 },
+  lensLabel: { fontSize: 11 },
   actionText: { fontSize: 13, fontWeight: '700' },
   deleteText: { color: '#A85858', fontSize: 13, fontWeight: '700' },
   count: { fontSize: 12, fontWeight: '600' },
