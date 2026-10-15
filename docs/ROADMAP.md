@@ -27,6 +27,21 @@ This file is the single source of truth for **planned vs completed** work. It is
 | M5 — Mobile integration | Notifications, widgets, localization, backup | Native picker/backup/reminders implemented; widgets/localization remain open | Physical-device and Apple acceptance |
 | M6 — Quality & release | Performance, accessibility, testing, release build | Isolated Android release QA APK built; iOS JS export passes | Store signing, native iOS, physical-device and accessibility gates |
 
+## Native gate enablement and SQLite access audit (2026-10-15)
+
+**Implemented and verified in source/JS CI, not yet accepted on an Android/iOS device.**
+
+- [x] Resolve a real missed raw SQLite access in `AppDock`: goal-path reads now use the same guarded per-handle connection as Plan, Boards, Calendar, Focus, Review and Settings.
+- [x] Add a zero-dependency source rule (`scripts/check-database-access.mjs`) to the domain workflow and npm script. A new feature component cannot silently bypass `useEonwardDatabase`.
+- [x] Keep the already-existing `app.config.js` QA variant, without introducing duplicate native configuration. Add an EAS `e2e-test` profile and CI assertion that both QA IDs have a `.qa` suffix while production IDs remain unchanged.
+- [x] Prepare separate Android APK and iOS Simulator build/test jobs through EAS Workflows and isolated Maestro navigation/quick-capture flows; outputs target `com.nishef.eonward.qa`. See [NATIVE_ACCEPTANCE.md](NATIVE_ACCEPTANCE.md).
+- [x] Add emulator-only Android font/theme stress script, native crash-buffer collection and local-only `.qa-evidence/` ignore rule; never alter phone settings or wipe main app data from scripts.
+- [ ] **EAS project authentication/linking** and actual native Android/iOS smoke run. Existing CI validates the files and identities; it does not execute the EAS Maestro jobs.
+- [ ] Reproduce/diagnose issue [#2](https://github.com/Nishef1/Eonward/issues/2) with emulator/physical native evidence before a release or any claim of crash resolution.
+- [ ] Complete manual Focus, Recovery, backup, accessibility and store signing gates in [NATIVE_ACCEPTANCE.md](NATIVE_ACCEPTANCE.md).
+
+**Self-critique:** Passing TypeScript and exporting Android/iOS JavaScript previously allowed the team to overestimate coverage. Native E2E workflows are now prepared, but it would be inaccurate to call them passing until an actual simulator/device build is run. The QA variant existed already; rebuilding it from scratch would have been redundant and riskier than extending its EAS profile.
+
 ## CTO feature gate — whole-product audit (2026-10-15)
 
 **Decision: improve the shipped core, do not add another headline feature in this slice.** The seven horizons, editable goals, Boards, day/week/month Calendar, global Focus, Review, Guided Plans and protected Recovery provide a sufficiently complete first-version workflow. More feature inventory does not solve unverified Android SQLite lifecycle or native platform acceptance. See `docs/CAPABILITIES.md` for implementation boundaries.
