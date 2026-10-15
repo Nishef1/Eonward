@@ -108,3 +108,11 @@ Expo issues [#48999](https://github.com/expo/expo/issues/48999) and [#48995](htt
 All seven UI/Focus consumers now receive `serializeDatabase(useSQLiteContext())` via `src/storage/use-database.ts`. The pure gate serializes `getFirstAsync`, `getAllAsync`, `runAsync`, `execAsync` and full exclusive transactions per native handle. Each exclusive callback receives an independently gated transaction object, and startup initialization remains on SQLiteProvider's original connection. Do not use the raw provider hook from feature code or call back into the parent database object from inside its own guarded exclusive transaction: that can deadlock the queue.
 
 A JS serialization gate cannot prevent an independent native GC/teardown use-after-free; issue [#2](https://github.com/Nishef1/Eonward/issues/2) remains a **P0 release blocker**. Run physical/emulator lifecycle stress and capture logcat tombstones before considering an SDK upgrade or native patch. Do not silently mask connection errors with destructive database replacement or resets.
+
+## 2026-10-15 — Native acceptance toolchain
+
+`src/features/shell/AppDock.tsx` was still accessing the raw `useSQLiteContext` hook, bypassing the shared per-handle serial gate. It now uses `useEonwardDatabase`. The `scripts/check-database-access.mjs` CI guard rejects future occurrences outside the one canonical storage hook. Keep the code guard simple; it does not prove native garbage-collection safety.
+
+The original dynamic QA app config (`app.config.js`) already separates production and QA bundle identifiers. Instead of duplicating it, `eas.json` now adds a credentials-free `e2e-test` profile and `scripts/check-qa-config.mjs` verifies those IDs in App checks. Android/iOS Maestro smoke definitions are in `.eas/workflows/native-smoke.yml`; the opt-in emulator-only Android lifecycle script is `scripts/android-sqlite-stress.sh`. See [NATIVE_ACCEPTANCE.md](NATIVE_ACCEPTANCE.md).
+
+These are **test assets**, not recorded test outcomes. An EAS login/link is required to run the native workflow; there is no app signing, Play/App Store upload or native runtime assertion from the JS export checks. For Expo SQLite Android teardown / double-close reports, see Expo issue #48999; our P0 #2 remains open.
