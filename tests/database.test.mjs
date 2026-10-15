@@ -340,6 +340,10 @@ test('offline planning lifecycle preserves identity, recurrence, completion hist
     await assert.rejects(() => saveBlock(source.db, { goalId: step, date: '2026-10-14',
       start: '16:40', end: '17:00', kind: 'box', intention: '', flexible: false }), /open goal/);
     await assert.rejects(() => beginFocusSession(source.db, completedBox), /unavailable/);
+    await assert.rejects(() => saveBlock(source.db, {
+      goalId: fixedGoal, date: '2026-10-14', start: '16:00', end: '16:25',
+      kind: 'box', intention: 'Trying to repurpose completed time', flexible: false,
+    }, completedBox), /Reopen the completed goal/);
     await setGoalCompleted(source.db, step, true); // Double delivery is idempotent.
     assert.equal(await completedGoalsSince(source.db, '2000-01-01T00:00:00.000Z'), 1);
     assert.equal((await listBoardGoals(source.db, board)).find((goal) => goal.id === step).completed, true);
