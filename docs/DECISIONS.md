@@ -145,3 +145,11 @@ Record significant decisions and reversals here. A future change should cite its
 - Budget rollups re-read persisted Focus records whenever the parent weekly history reloads. Session `startedAtMs` differentiates replacement of a running session with another session on the same Timebox.
 - Portable restore is a separate data entrypoint that must not bypass domain scheduling duration rules. Enforce input bounds in `parseBackup` for legacy and current backup formats before any database mutation.
 - Deliberately defer a monotonic cross-restart Focus clock solution pending OS/device research, and do not claim overnight attribution is exact; physical background behavior, native reporting and backup recipient reliability remain release gates.
+
+## 2026-10-15 — Make cross-device merge and time guarantees explicit
+
+- Keep the SQLite local record as authoritative on matching backup IDs; expose counts of incoming *missing*, *identical* and *different* records before restore. A user confirms any divergent local-ID content instead of discovering silent skips afterwards. Inspect candidate IDs only, in bounded query batches; recheck preview counts before inserting inside an exclusive transaction.
+- Scheduling a new OS Focus reminder must not cancel an existing reminder *before* the replacement schedule succeeds. Android exact-alarm special access is independent of Notification permission and may be denied by default. No background notification is guaranteed; the SQLite Focus timer remains the source of truth.
+- Existing Eonward reservations are fixed UTC instants displayed in the device's current timezone. Historical Focus rollups are grouped by **session end**; changing either semantic requires a deliberate data-model migration and revised reporting, not a UI-only switch.
+- A three-layer 24h strip is explicitly a *summary*. Show its maximum concurrency when over three so it cannot hide that it is lossy; use the full overlap-lane timeline for detail.
+- Preserve Android OS auto-backup defaults until privacy versus recoverability is decided with device QA; don't turn it off during a no-data-loss hardening pass.

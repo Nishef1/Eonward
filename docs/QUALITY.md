@@ -86,3 +86,14 @@ This document describes whole-gate validation. Sampled current evidence is in RO
 - [ ] Native Quick Focus under artificially slow database transactions: timer should begin at creation time and not consume minutes waiting for a lock.
 - [ ] Native Undo while Focus active/paused on the moved block and after it stops, across both OS implementations.
 - [ ] Native same-source drag revision conflict, overnight/week transition and actual cloud/file share recipients.
+
+## Latest edge-case correction verification (2026-10-15)
+
+- [x] Restore preview enumerates absent, identical and conflicting records for user confirmation and validates the expected summary again at the SQLite transaction boundary.
+- [x] Preview queries use up to 150 imported IDs per SQL group; real SQLite test crosses the batch boundary with 152 boards.
+- [x] Focus alert replacement is scheduled before older reminders are removed; Android permission denial produces a distinct, actionable warning rather than corrupting Focus state.
+- [x] A five-event synthetic interval fixture proves the three-lane mini-ribbon signals a peak of four concurrent reservations (and treats adjacent intervals as nonoverlap).
+- [x] Historical Timebox reuse requires explicit confirmation that new Focus does not move the old calendar reservation.
+- [ ] Android exact-alarm/notification/suspend/restart matrix with local OS logs; no source-only proof.
+- [ ] Large 10-MB backup benchmark and QA-only restore with diverged local IDs, process kill and disk-low simulation.
+- [ ] Travel and midnight UI acceptance in at least two real IANA timezones; do not assert exact per-day active Focus without per-segment storage.

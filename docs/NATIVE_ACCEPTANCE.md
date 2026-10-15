@@ -58,3 +58,14 @@ Release remains **blocked** until P0 SQLite native stability, Android/iOS on-dev
 - [ ] With Review open, replace Focus on the same Timebox. The Focus log and Time Architecture's measured totals must reflect the ended session.
 - [ ] Attempt a crafted-but-well-formed 25-hour block backup in QA: import should fail with no partial row changes.
 - [ ] Test manual device clock jumps and slow OS time sync mid-Focus; this remains unresolved until on-device semantics are defined.
+
+## October 15 edge-case native test matrix (not executed)
+
+1. **Divergent restore:** On the QA app only, import a v2 fixture; change the title of one matching local goal, then import its earlier file. Preview must report one same-ID difference. Confirming must preserve the local title, insert only missing IDs, and never replace a live Focus session. Modify another matching row between preview and confirmation; expect a fresh-preview error.
+2. **High-volume restore:** Create a valid JSON file near the 10-MB limit containing many goals, boards and Timeboxes; measure device RAM, transaction time and UI blocking on an entry-level Android device. Kill the process while the exclusive transaction is running, restart and run SQLite quick/FK checks. Ensure no partial merge.
+3. **Android alarms:** Android 14/15 QA app with notifications granted and Special app access → Alarms & reminders denied; verify Focus remains active and a clear OS-setting notice appears. Then allow exact alarms, replace/stop/pause/restart Focus and examine scheduled notifications for 0 or 1 current reminder and delivery outcomes. Reboot, force-stop and battery-restrict separately.
+4. **Clock changes:** With running and paused Focus, manually move device clock forward/backward while in foreground and after background/reboot. Compare displayed remaining time with a trusted external monotonic clock. **Do not claim this passes** until native acceptance or design change exists.
+5. **Time zones / DST:** Create a 09:00 reservation in one zone and change device zone to another. Existing absolute instant remains fixed; local display changes. Validate 23/25-hour transition list and daylight fall-back ambiguity.
+6. **Focus midnight / weekly cutover:** Keep Focus active across midnight, end it after date change and verify history is credited to its end day (as expressly disclosed in Review), while recorded focused minutes do not get duplicated.
+7. **Timeline overflow:** Create four to twelve simultaneous reservations. Three-layer ribbon must disclose peak density and the full timeline must show all overlapping items without invisible title hit targets.
+8. **Native OS backup:** Compare Android device-to-device/cloud restore with Eonward's in-app file import, ensuring users understand that account-managed device backups are separate. Do not delete personal app data.

@@ -27,6 +27,31 @@ This file is the single source of truth for **planned vs completed** work. It is
 | M5 — Mobile integration | Notifications, widgets, localization, backup | Native picker/backup/reminders implemented; widgets/localization remain open | Physical-device and Apple acceptance |
 | M6 — Quality & release | Performance, accessibility, testing, release build | Isolated Android release QA APK built; iOS JS export passes | Store signing, native iOS, physical-device and accessibility gates |
 
+## End-to-end edge-case execution — Oct 15, 2026
+
+**User-approved scope: all listed edge cases.** The following are *source fixes* in this slice, not claims of full Android/iOS acceptance.
+
+- [x] **Divergent backup preview**: Settings now reports genuinely missing, identical and same-ID-but-different records; restored existing records retain local values, and the user must explicitly confirm the merge. `restoreBackup` re-checks preview counts/tables inside the same exclusive transaction before any insert, aborting if the expected state changed.
+- [x] **Bounded merge preview**: Only the incoming IDs are queried in batches of 150 (including composite board-membership keys), avoiding full-table reads for a small incoming backup. An existing SQLite integration scenario verifies a 152-board merge across the batch boundary.
+- [x] **Background Focus reminders**: Reconciliation first schedules the *replacement* reminder before cancelling previously scheduled reminders; failure to schedule no longer discards an older OS reminder beforehand. Android's notification permission and exact-alarm special access are described separately. Android 14+ may deny exact alarms by default; native delivery remains unverified. See [Android official policy](https://developer.android.com/about/versions/14/changes/schedule-exact-alarms).
+- [x] **Overlapping Timeline mini-ribbon**: A domain peak-overlap sweep identifies 4+ concurrent plans; the three-layer summary now warns of overflow and directs the user to the full lane-aware timeline instead of silently presenting three layers as complete. Adjacent non-overlaps are not counted as simultaneous.
+- [x] **Past Timebox → new Focus**: Explicit confirmation says the new timer starts now for the original duration but does **not** move an expired historical reservation. If another Focus is active, its replacement still requires a separate confirmation.
+- [x] **Reporting & travel clarity**: Settings documents that reservations are UTC instants displayed in device-local time. Weekly Review states that a session spanning midnight is **credited to its end day**, including paused sessions; it is not an exact attribution of each day's elapsed work.
+
+**Remaining platform or product-dependent gates, intentionally OPEN:**
+
+- [ ] Clock tampering/reboot/suspend: a durable monotonic cross-restart clock has not been implemented, because native elapsed-time semantics, boot detection, date-change behavior, and persisted paused segments need proven Android/iOS API behavior. `Date.now` remains vulnerable to arbitrary manual jumps. A warning alone is not a verified timer fix.
+- [ ] Exact-alarm permission and reboot: Test Android 14/15 with separate Notifications permission, Special app access → Alarms & reminders, denied/granted/revoked, force stop, restart and battery optimization. Eonward cannot guarantee OS delivery. Source now retains old reminder until new schedule succeeds.
+- [ ] OS-managed backup: Expo Android defaults to `allowBackup: true`; Android may back up app SQLite independently of user-exported readable JSON (Apple's device backup is also OS-managed). **Do not turn off native auto backup without a privacy vs recovery product decision and native migration acceptance**; existing UI explains the possibility.
+- [ ] Actual restore of a large 10-MB snapshot on weak Android hardware: benchmark CPU, UI responsiveness, corruption rollback, cancellation and process interruption, not only the 152-row SQLite CI sample. Batching currently optimizes *preview*, not native insert throughput.
+- [ ] Review cross-midnight accuracy: current historical `focused_ms` aggregates paused/running segments but does not persist exact intervals per day. Precise split requires a schema migration, backup v3, and multi-zone semantics; don't invent per-day times from session start/end.
+- [ ] Timezone “floating” scheduling mode: existing stable UTC instant is explicit; switching reservations to local 09:00 across travel would require a new timezone-anchor field and migration, not a cosmetic clock conversion.
+- [ ] Concurrent navigation refresh and deeply overlapping Native gesture layouts: current React focus/revision guards and source overlap count reduce risk but don't replace EAS Maestro/device recordings.
+- [ ] Real-world privacy of plaintext exported JSON and OS cloud backup status: verify with an isolated QA installation; never test destructive restore on the only copy of a user's plans.
+- [ ] Android Native expo-sqlite P0 [#2](https://github.com/Nishef1/Eonward/issues/2) and visual/gesture Native acceptance [#3](https://github.com/Nishef1/Eonward/issues/3) remain release blockers.
+
+**Self-critique:** Don't equate prepared test cases and passing TypeScript/SQLite simulations with real native reboot, wall-clock tampering, animation responsiveness, notification delivery or store readiness. Avoid adding more general-purpose state, sync or AI features until the native acceptance matrix is proven.
+
 ## Additional edge-case sweep — recovery, OS boundaries and UX truth (2026-10-15)
 
 The prior cross-feature audit covered many happy paths. This pass checks *format fidelity*, large-but-valid identifiers and OS/user transitions that normal JS bundle tests cannot certify.

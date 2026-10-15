@@ -104,3 +104,10 @@ The CI source contract `scripts/check-design-ssot.mjs` blocks repeated Palette d
 - [ ] Light/dark contrast of warnings and destructive links in Android TalkBack and iOS VoiceOver.
 - [ ] Navigation, Month grid and Focus dock at small screen width and landscape.
 - [ ] Manual screenshots/recordings and user review before calling the entire Studio design final.
+
+## Density and truthful timing updates (2026-10-15)
+
+- The 24h mini-ribbon has three visual lanes; when real peak concurrency exceeds three, show that peak explicitly and route the user to full Calendar. The interval sweep treats an exact end/start boundary as adjacent, not simultaneous.
+- Starting Focus from a Timebox whose scheduled end is in the past must explicitly say that only a new Focus timer begins now and the historical calendar block remains unmoved.
+- Travel across timezones alters display of stored instants; no hidden "floating 09:00" promise.
+- Weekly Review groups entire sessions by end day, and cannot truthfully allocate paused segments across midnight until explicit activity-segment history exists.
