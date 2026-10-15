@@ -347,10 +347,12 @@ export function CalendarScreen() {
           <View style={[styles.viewToggle, { backgroundColor: palette.inset }]}>
             {(['timeline', 'week', 'month', 'list'] as const).map((item) => (
               <Pressable key={item} accessibilityRole="button"
-                accessibilityState={{ selected: mode === item }}
+                accessibilityState={{ selected: displayMode === item, disabled: item === 'timeline' && localDayHours !== 24 }}
+                disabled={item === 'timeline' && localDayHours !== 24}
+                accessibilityHint={item === 'timeline' && localDayHours !== 24 ? 'Exact List view is used for a clock-change day' : undefined}
                 onPress={() => setMode(item)}
-                style={[styles.modeButton, mode === item && { backgroundColor: palette.surface, boxShadow: palette === colors.dark ? depth.dark.control : depth.light.control }]}>
-                <Text style={[styles.modeText, { color: mode === item ? foreground : palette.muted }]}>
+                style={[styles.modeButton, displayMode === item && { backgroundColor: palette.surface, boxShadow: palette === colors.dark ? depth.dark.control : depth.light.control }]}>
+                <Text style={[styles.modeText, { color: displayMode === item ? foreground : palette.muted }]}>
                   {item === 'timeline' ? 'Day' : item === 'week' ? 'Week' : item === 'month' ? 'Month' : 'List'}
                 </Text>
               </Pressable>
