@@ -21,6 +21,8 @@ import { RecoverySheet } from './RecoverySheet';
 import { applyReplan, canUndoReplan, undoReplan } from '../../storage/replan';
 import type { ReplanPreview } from '../../domain/replan';
 import { listFocusHistoryBetween } from '../../storage/focus';
+import { applyTimelineEdit } from '../../storage/timeline-edit';
+import type { TimelineEditPreview } from '../../domain/timeline-edit';
 import { WeekOverview } from './WeekOverview';
 import { MonthOverview } from './MonthOverview';
 import { useFocusSession } from '../focus/FocusProvider';
@@ -261,6 +263,12 @@ export function CalendarScreen() {
     return write(async () => { await applyReplan(db, preview, blocks); setRecoveryOpen(false); });
   }
   function undoPreview() { return write(async () => { await undoReplan(db); }); }
+  function commitTimelineEdit(preview: TimelineEditPreview, onSaved: () => void) {
+    return write(async () => {
+      await applyTimelineEdit(db, preview);
+      onSaved();
+    });
+  }
   const foreground = palette.foreground;
   return (
     <SafeAreaView edges={['top', 'left', 'right']}
@@ -393,6 +401,7 @@ export function CalendarScreen() {
           ) : null}
           <DayTimeline date={day} blocks={ordered} palette={palette}
             actualByBlock={actualByBlock} activeSession={focus.session}
+            busy={busy} onApplyTimeEdit={(preview, onSaved) => { void commitTimelineEdit(preview, onSaved); }}
             isDark={palette === colors.dark} onEdit={edit} onQuickAdd={(hour) => createAt(hour)}
             onOpenGoal={(id) => router.push({ pathname: '/', params: { goalId: id } })} />
         </View>
