@@ -73,3 +73,18 @@ Use `onAccent` for filled primary controls, not hard-coded white. Completion mus
 ## Evidence boundary
 
 The October 15 direction was grounded in a user-supplied reference collection and a three-screen scratch composition before production edits. Android release screenshots and sampled interactions are recorded in `ROADMAP.md` and `ANDROID_QA.md`. Aesthetic acceptance by the user, physical-device accessibility, and native iOS review must be stated separately.
+
+## 2026-10-15 — Direct manipulation of time, without loss of control
+
+- **Daily Timeline is the principal visual surface**, not a picture-only calendar. Precise wall-clock positions, overlap lanes, visible titles and Now line remain.
+- Three zoom levels (56/76/104dp per hour) must scale empty-hour tap geometry too, not only visible grid rules. A press on a visually selected hour opens the correct hour's native editor.
+- Visible, full-width blocks now use dedicated 48dp move and resize grips when physically tall enough. On compact or overlapping blocks, long-press opens the **same** accessible move/resize stepper; tapping still opens the full editor. Screen reader increment/decrement actions provide quarter-hour steps.
+- Move, resize and Ripple are **preview-first**: manual direct changes render a dashed Ghost at the proposed time on the real day timeline; Recovery shows paired before/after bars scaled to the range affected by the changes. No persistence before Confirm.
+- The existing goal remains linked to every schedule change. Manual editing changes only the timestamps, not the goal, title, completion, recurrence anchor, deadline or board membership. An active Focus block cannot be moved; a stale or newly colliding proposal is rejected transactionally.
+- Semantic colors replace arbitrary per-goal hashing on the daily timeline: planned reservation = deep teal `#3F6C65`; warm Timebox = `#956C3F`; completed = muted graphite `#66716E`. Text and accessibility labels express type, fixed/flexible and completed state independently of color. Contrast: small white text against these surfaces meets at least 4.5:1; the small Now label uses darker amber `#9B5F30`.
+- The day strip is a three-lane micro-overview, grouping simultaneous entries into distinct visible rows. Four large six-hour jump targets turn it into navigation rather than a decorative bar. The 23/25-hour DST exception deliberately omits this 24-hour simplification and retains exact List view.
+- Week and Month measure **unique occupied wall time** rather than inflating capacity by counting overlaps twice. Week explicitly retains a conflict warning and Calendar List preserves exact timestamps.
+- Short items cannot safely show two 48dp handles without obscuring neighbors; long-press and the full List/Editor are supported alternatives. Do not falsify visual heights to pretend 15-minute reservations last longer.
+- Reduced-motion mode avoids decorative animation dependencies. Confirm/cancel control state is explicit; never depend solely on a swipe gesture.
+
+**Evidence boundary:** TypeScript/JS exports and SQLite unit/integration tests have passed this source slice. Direct drag hit-testing, nested ScrollView negotiation, 130–200% font scaling, TalkBack/VoiceOver, keyboard, landscape and low-end device FPS still require rendered native interaction testing. No screenshot, prototype or build result should be called user aesthetic acceptance on its own.

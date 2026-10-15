@@ -27,6 +27,25 @@ This file is the single source of truth for **planned vs completed** work. It is
 | M5 — Mobile integration | Notifications, widgets, localization, backup | Native picker/backup/reminders implemented; widgets/localization remain open | Physical-device and Apple acceptance |
 | M6 — Quality & release | Performance, accessibility, testing, release build | Isolated Android release QA APK built; iOS JS export passes | Store signing, native iOS, physical-device and accessibility gates |
 
+## Premium daily time interaction: design correction pass (2026-10-15)
+
+- [x] Repair the zoom-dependent empty-hour hit target: its actual pressable height now follows the displayed zoom-level hour height.
+- [x] Add native React Native responder-based move and resize grips for long single-lane blocks, a long-press/stepper path for dense or short blocks, and screen-reader adjustable increment/decrement actions.
+- [x] Move and resize in 15-minute snapped increments; show a live dashed Ghost on the day timeline, with explicit Apply or Cancel. No change is persisted during a drag.
+- [x] Add a dedicated exclusive SQLite guarded write for direct timeline previews. Validate the original reservation, active Focus, completion, date, minimum duration and live overlap count. A confirmed manual edit invalidates stale Recovery Undo.
+- [x] Show Ripple before/after times as a pair of visual tracks on a time scale fitted to the affected range; preserve exact textual labels for assistive technologies.
+- [x] Replace arbitrary per-goal timeline tones with semantic Timebox/planned/completed colors and readable status labels.
+- [x] Make the compact 24-hour ribbon multi-lane and tappable for six-hour jumps. Keep the DST 23/25-hour fallback to exact List.
+- [x] Week and Month bars now represent unique occupied wall time, and weekly conflict text explicitly flags overlap.
+- [x] Restore a direct Open Goal link in the move/resize panel after changing long-press semantics. Expand Now/Zoom controls to 48dp and correct the Now pill's white-text contrast.
+- [x] Extend existing 20-test domain/SQLite policy with quarter-hour math, preview bounds and atomic stale-edit checks. CI confirms JavaScript bundle/type validity, not gesture success on a device.
+- [ ] Android native touch test for long drag grips vs parent scroll, short/dense item long-press, cancel, and Save after zoom; run at 56, 76, 104dp/hour, 100%, 130%, 200% fonts, both themes, TalkBack and landscape.
+- [ ] iOS Simulator/real-device review for responder negotiation, VoiceOver's increment/decrement actions, day ribbon safe area, low-end rendering and reduced-motion.
+- [ ] Visual user acceptance: live screenshots/videos of Plan, Boards, Calendar (empty/dense) and Review; no automatic claim that these changes make every screen finished.
+- [ ] The Android SQLite native lifecycle P0 [issue #2](https://github.com/Nishef1/Eonward/issues/2) remains open; successful CI does not clear release.
+
+**Self-critique:** Native long-block grips are not identical to a polished physics-based draggable calendar. The deliberate fallback for sub-hour and overlapping blocks is a stepper / exact editor so controls do not occlude data. Gesture latency, accessibility, hit-testing and user aesthetic preference have not been confirmed by on-device recordings.
+
 ## Native gate enablement and SQLite access audit (2026-10-15)
 
 **Implemented and verified in source/JS CI, not yet accepted on an Android/iOS device.**

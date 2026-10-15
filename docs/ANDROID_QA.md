@@ -19,6 +19,18 @@ Smaller-step pass: the previous percentage/content-sized editor moved its header
 - [ ] Recovery preview: try late/expired previews, blocked active Focus, fixed commitments, Undo immediately and Undo after five minutes. Verify no hidden mutations and app restart behavior.
 - [ ] Foreground after switching time zone without changing calendar date: week/month/day reservations and clock labels must be reread without restarting. Repeat with an editor draft and ensure saved data remains intact.
 
+## 2026-10-15 — Living Timeline and premium UX acceptance (unverified native)
+
+- [ ] On Day, verify + controls target the correct visible hour at zoom levels 1/2/3 (56/76/104dp per hour); after zoom, press the 00:00, 06:00, 12:00 and 18:00 ribbon targets and confirm scroll reaches the expected wall time.
+- [ ] Move a 90-minute single-lane block using its vertical grip, Resize from the lower grip and ensure each snaps to 15-minute increments. Preview must not persist until Apply. Cancel/restart must restore the original time.
+- [ ] Long-press a 15/25/30-minute or overlapping block; stepper must offer Move/Resize with accessible 48dp +/- controls, exact hours, cancel and Open Goal.
+- [ ] Try previewing past midnight, negative or 0 duration, DST day, completed goal and active Focus. The change must be disabled or safely rejected; older goal links/history must remain.
+- [ ] Create a conflict while a preview is open from another screen: saving stale preview must be rejected without overwriting newer reservations. Run full rollback and backup check afterwards.
+- [ ] Recovery Ripple sheet: compare before/after dual bars against exact times, test overlapping reservations and 15/30-minute extension with font size 200%, and VoiceOver/TalkBack narration.
+- [ ] Week and Month: make overlapping reservations and verify unique occupied time matches the 24h/weekly results while conflict warnings remain visible.
+- [ ] Check semantic colors and white text contrast under light/dark and accessibility contrast settings. Screen-reader announcements must communicate plan/timebox/fixed/flexible without depending on color.
+- [ ] Test reduced-motion mode, Gboard opened above the dock, keyboard back dismissal and long day scrolling on budget Android hardware.
+
 ## Self-critical usability and privacy checks (unverified on devices)
 
 - [ ] Keep Recovery open for over two minutes. Apply must be disabled, Refresh must recompute from current time and work after app background/foreground; Undo must disappear when its five-minute checkpoint expires.
