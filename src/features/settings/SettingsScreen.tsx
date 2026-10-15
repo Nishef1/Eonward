@@ -3,7 +3,7 @@ import { Alert, Linking, Platform, Pressable, ScrollView, StyleSheet, Text, useC
 import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useEonwardDatabase } from '../../storage/use-database';
-import { File, Paths } from 'expo-file-system';
+import { Directory, File, Paths } from 'expo-file-system';
 import * as Sharing from 'expo-sharing';
 import * as DocumentPicker from 'expo-document-picker';
 import Constants from 'expo-constants';
@@ -26,10 +26,26 @@ export function SettingsScreen() {
     catch (error) { Alert.alert('Could not finish', error instanceof Error ? error.message : 'Please try again.'); }
     finally { locked.current = false; setBusy(false); }
   }
+  function cleanupOldExports() {
+    // Keep newly shared files available to receiving apps, but do not accumulate plaintext copies forever.
+    try {
+      const directory = new Directory(Paths.cache);
+      const maxAge = 24 * 60 * 60 * 1000;
+      for (const item of directory.list()) {
+        if (!(item instanceof File) || !/^eonward-\d{4}-.*\.json$/.test(item.name)) continue;
+        const modified = item.lastModified;
+        if (modified !== null && Number.isFinite(modified) &&
+          Date.now() - modified > maxAge) {
+          try { item.delete(); } catch { /* OS may be sharing this file; retry on another export. */ }
+        }
+      }
+    } catch { /* Cache cleanup must never prevent exporting the only recoverable backup. */ }
+  }
   async function exportData() {
     if (!await Sharing.isAvailableAsync()) {
       throw new Error('Native sharing is unavailable. Export is not possible on this device.');
     }
+    cleanupOldExports();
     const backup = await exportBackup(db);
     // Do not silently accumulate plaintext backups in the permanent Documents directory.
     const file = new File(Paths.cache, `eonward-${new Date().toISOString().replace(/[:.]/g, '-')}.json`);
@@ -76,7 +92,7 @@ export function SettingsScreen() {
         <Text style={[styles.copy, { color: palette.muted }]}>Includes goals, notes, deadlines, repeats, boards, schedules, archive and recorded progress. Active focus timers are not copied.</Text>
         <Pressable accessibilityRole="button" disabled={busy} onPress={() => { void run(exportData); }} style={[styles.primary, { backgroundColor: palette.accent, opacity: busy ? .5 : 1 }]}><Text style={{ color: palette.onAccent, fontWeight: '700' }}>{busy ? 'Working…' : 'Export backup'}</Text></Pressable>
         <Pressable accessibilityRole="button" disabled={busy} onPress={() => { void run(pickBackup); }} style={[styles.secondary, { borderColor: palette.border }]}><Text style={{ color: palette.foreground, fontWeight: '700' }}>Restore from a file</Text></Pressable>
-        <Text style={[styles.caption, { color: palette.muted }]}>Exports are readable JSON. A temporary copy is placed in app cache for sharing, not permanent Documents. Confirm your chosen destination actually saved the file.</Text>
+        <Text style={[styles.caption, { color: palette.muted }]}>Exports are readable JSON. A temporary copy is placed in app cache for sharing, not permanent Documents. Old cached exports are removed on a later export when safe. Confirm your chosen destination actually saved the file.</Text>
       </View>
       {notice ? <Text accessibilityRole="alert" style={[styles.copy, { color: palette.accent }]}>{notice}</Text> : null}
       <View style={[styles.card, { backgroundColor: palette.surface, borderColor: palette.border }]}>
