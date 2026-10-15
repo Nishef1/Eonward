@@ -59,17 +59,22 @@ export async function applyReplan(db: SQLiteDatabase, preview: ReplanPreview, ex
   });
 }
 export async function canUndoReplan(db: SQLiteDatabase): Promise<boolean> {
-  const record = await db.getFirstAsync<{ created_at: string; after_json: string }>(
-    'SELECT created_at, after_json FROM replan_checkpoint WHERE id = 1');
+  const record = await db.getFirstAsync<{ created_at: string; before_json: string; after_json: string }>(
+    'SELECT created_at, before_json, after_json FROM replan_checkpoint WHERE id = 1');
   if (!record) return false;
   const age = Date.now() - Date.parse(record.created_at);
   if (!Number.isFinite(age) || age < 0 || age > UNDO_WINDOW_MS) return false;
   type Pending = { id: string; start: string; end: string; appliedAt: string;
     goalId: string; kind: string; intention: string };
-  let after: Pending[];
-  try { after = JSON.parse(record.after_json) as Pending[]; }
-  catch { return false; }
-  if (!Array.isArray(after) || !after.length || after.length > 900 ||
+  let before: { id: string; start: string; end: string }[], after: Pending[];
+  try {
+    before = JSON.parse(record.before_json) as typeof before;
+    after = JSON.parse(record.after_json) as Pending[];
+  } catch { return false; }
+  if (!Array.isArray(before) || !Array.isArray(after) || !after.length || after.length > 900 ||
+    before.length !== after.length ||
+    before.some((item, index) => !item || item.id !== after[index]?.id ||
+      typeof item.start !== 'string' || typeof item.end !== 'string') ||
     new Set(after.map((item) => item?.id)).size !== after.length ||
     after.some((item) => !item || !item.id || !item.appliedAt || !item.goalId ||
       !item.kind || typeof item.intention !== 'string')) return false;
@@ -81,6 +86,8 @@ export async function canUndoReplan(db: SQLiteDatabase): Promise<boolean> {
     JOIN goals g ON g.id = tb.goal_id AND g.completed = 0 AND g.archived_at IS NULL
     WHERE tb.id IN (${after.map(() => '?').join(', ')})`, after.map((item) => item.id));
   if (rows.length !== after.length) return false;
+  const active = await db.getFirstAsync<{ block_id: string }>('SELECT block_id FROM focus_session WHERE id = 1');
+  if (active && after.some((item) => item.id === active.block_id)) return false;
   const current = new Map(rows.map((row) => [row.id, row]));
   return after.every((item) => {
     const row = current.get(item.id);

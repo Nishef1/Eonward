@@ -219,6 +219,16 @@ test('offline planning lifecycle preserves identity, recurrence, completion hist
     assert.equal((await listDayBlocks(source.db, selectedDay)).find((b) =>
       b.id === proposal.moves[0].id).startAt, proposal.moves[0].toStart);
     assert.equal(await canUndoReplan(source.db), true);
+    // A running Focus on a moved block must suppress Undo before tapping it.
+    const movedId = proposal.moves[0].id;
+    source.sqlite.prepare(`INSERT INTO focus_session
+      (id, block_id, status, duration_ms, remaining_ms, deadline_ms, started_at_ms, elapsed_ms, updated_at_ms)
+      VALUES (1, ?, 'running', ?, ?, ?, ?, 0, ?)`)
+      .run(movedId, 900000, 900000, Date.now() + 900000, Date.now(), Date.now());
+    assert.equal(await canUndoReplan(source.db), false);
+    await assert.rejects(() => undoReplan(source.db), /End Focus before undoing/);
+    source.sqlite.prepare('DELETE FROM focus_session WHERE id = 1').run();
+    assert.equal(await canUndoReplan(source.db), true);
     const firstMove = proposal.moves[0];
     const originalIntention = beforeRecovery.find((block) => block.id === firstMove.id).intention;
     const checkpoint = JSON.parse(source.sqlite.prepare('SELECT after_json FROM replan_checkpoint WHERE id = 1').get().after_json);
@@ -245,6 +255,12 @@ test('offline planning lifecycle preserves identity, recurrence, completion hist
     await assert.rejects(() => applyTimelineEdit(source.db, directPreview), /Reservation changed/);
     source.sqlite.prepare('UPDATE time_blocks SET intention = ? WHERE id = ?')
       .run(sourceBlock.intention, sourceBlock.id);
+    // A conflicting revision with unchanged visible fields must still invalidate the drag.
+    source.sqlite.prepare('UPDATE time_blocks SET updated_at = ? WHERE id = ?')
+      .run('2099-01-01T00:00:00.000Z', sourceBlock.id);
+    await assert.rejects(() => applyTimelineEdit(source.db, directPreview), /Reservation changed/);
+    source.sqlite.prepare('UPDATE time_blocks SET updated_at = ? WHERE id = ?')
+      .run(sourceBlock.updatedAt, sourceBlock.id);
     await applyTimelineEdit(source.db, directPreview);
     assert.equal((await listDayBlocks(source.db, selectedDay)).find((block) => block.id === sourceBlock.id).startAt,
       directPreview.toStart);
