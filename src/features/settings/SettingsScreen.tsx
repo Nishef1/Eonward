@@ -9,6 +9,7 @@ import * as DocumentPicker from 'expo-document-picker';
 import Constants from 'expo-constants';
 import { MAX_BACKUP_BYTES, parseBackup } from '../../domain/backup';
 import { exportBackup, restoreBackup } from '../../storage/backup';
+import { checkLocalHealth, type LocalHealth } from '../../storage/health';
 import { colors } from '../../theme/tokens';
 import ChevronLeft from 'lucide-react-native/icons/chevron-left';
 
@@ -16,6 +17,7 @@ export function SettingsScreen() {
   const db = useEonwardDatabase(), router = useRouter();
   const palette = useColorScheme() === 'dark' ? colors.dark : colors.light;
   const [busy, setBusy] = useState(false), [notice, setNotice] = useState<string | null>(null);
+  const [health, setHealth] = useState<LocalHealth | null>(null);
   const locked = useRef(false);
   async function run(action: () => Promise<void>) {
     if (locked.current) return;
@@ -25,12 +27,28 @@ export function SettingsScreen() {
     finally { locked.current = false; setBusy(false); }
   }
   async function exportData() {
+    if (!await Sharing.isAvailableAsync()) {
+      throw new Error('Native sharing is unavailable. Export is not possible on this device.');
+    }
     const backup = await exportBackup(db);
-    const file = new File(Paths.document, `eonward-${new Date().toISOString().replace(/[:.]/g, '-')}.json`);
+    // Do not silently accumulate plaintext backups in the permanent Documents directory.
+    const file = new File(Paths.cache, `eonward-${new Date().toISOString().replace(/[:.]/g, '-')}.json`);
     file.write(JSON.stringify(backup, null, 2));
-    setNotice('Backup created on this device. Use the share sheet to save a copy somewhere you can recover it.');
-    if (await Sharing.isAvailableAsync()) await Sharing.shareAsync(file.uri, { mimeType: 'application/json', UTI: 'public.json', dialogTitle: 'Save your Eonward backup' });
-    else setNotice('Sharing is unavailable on this device. The backup remains in app storage; it has not been saved outside the app.');
+    try {
+      await Sharing.shareAsync(file.uri, { mimeType: 'application/json', UTI: 'public.json',
+        dialogTitle: 'Save your Eonward backup' });
+      setNotice('Share sheet closed. Confirm that you saved a copy in your chosen destination. A temporary copy may remain in the app cache.');
+    } catch (error) {
+      // Keep the temporary file for native sharing diagnostics; cache is not a durable backup.
+      throw error;
+    }
+  }
+  async function inspectHealth() {
+    const result = await checkLocalHealth(db);
+    setHealth(result);
+    setNotice(result.structureOkay && result.foreignKeysOkay
+      ? 'Local SQLite structure and relationships passed the read-only checks. This does not guarantee future app stability; keep an external backup.'
+      : 'Possible local database inconsistency detected. Do not clear app storage; export a backup and contact support with the issue counts below.');
   }
   async function pickBackup() {
     const picked = await DocumentPicker.getDocumentAsync({ type: ['application/json', 'text/plain', 'application/octet-stream'], copyToCacheDirectory: true });
@@ -58,9 +76,23 @@ export function SettingsScreen() {
         <Text style={[styles.copy, { color: palette.muted }]}>Includes goals, notes, deadlines, repeats, boards, schedules, archive and recorded progress. Active focus timers are not copied.</Text>
         <Pressable accessibilityRole="button" disabled={busy} onPress={() => { void run(exportData); }} style={[styles.primary, { backgroundColor: palette.accent, opacity: busy ? .5 : 1 }]}><Text style={{ color: palette.onAccent, fontWeight: '700' }}>{busy ? 'Working…' : 'Export backup'}</Text></Pressable>
         <Pressable accessibilityRole="button" disabled={busy} onPress={() => { void run(pickBackup); }} style={[styles.secondary, { borderColor: palette.border }]}><Text style={{ color: palette.foreground, fontWeight: '700' }}>Restore from a file</Text></Pressable>
-        <Text style={[styles.caption, { color: palette.muted }]}>Backup files contain your personal notes as readable JSON. Choose where to keep or share them.</Text>
+        <Text style={[styles.caption, { color: palette.muted }]}>Exports are readable JSON. A temporary copy is placed in app cache for sharing, not permanent Documents. Confirm your chosen destination actually saved the file.</Text>
       </View>
       {notice ? <Text accessibilityRole="alert" style={[styles.copy, { color: palette.accent }]}>{notice}</Text> : null}
+      <View style={[styles.card, { backgroundColor: palette.surface, borderColor: palette.border }]}>
+        <Text style={[styles.heading, { color: palette.foreground }]}>Local data check</Text>
+        <Text style={[styles.copy, { color: palette.muted }]}>
+          Check the local database structure and linked records without changing or uploading anything. This is not a native crash test or a backup.
+        </Text>
+        <Pressable accessibilityRole="button" disabled={busy} onPress={() => { void run(inspectHealth); }}
+          style={[styles.secondary, { borderColor: palette.border, opacity: busy ? 0.5 : 1 }]}>
+          <Text style={{ color: palette.foreground, fontWeight: '700' }}>{busy ? 'Checking…' : 'Check local data'}</Text>
+        </Pressable>
+        {health ? <Text accessibilityRole="summary" style={[styles.caption, { color: palette.muted }]}>
+          Structure: {health.structureOkay ? 'no issues found' : `${health.structuralProblems} issue(s)`} ·
+          Relationships: {health.foreignKeysOkay ? 'no issues found' : `${health.orphanRelations} issue(s)`}
+        </Text> : null}
+      </View>
       <View style={[styles.card, { backgroundColor: palette.surface, borderColor: palette.border }]}>
         <Text style={[styles.heading, { color: palette.foreground }]}>Focus alerts</Text>
         <Text style={[styles.copy, { color: palette.muted }]}>Notification access is controlled by {Platform.OS === 'ios' ? 'iOS' : 'Android'}. Focus remains usable when alerts are off.{Platform.OS === 'android' ? ' Battery restrictions can delay alerts. Force stop in system settings silences alerts until you reopen Eonward.' : ''}</Text>

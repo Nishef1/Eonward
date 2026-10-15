@@ -15,6 +15,7 @@ import { setWeeklyCapacity, listWeeklyCapacity } from '../src/storage/capacity.t
 import { parseBackup } from '../src/domain/backup.ts';
 import { createGuidedPlan } from '../src/storage/guided-plans.ts';
 import { serializeDatabase } from '../src/storage/serialized.ts';
+import { checkLocalHealth } from '../src/storage/health.ts';
 
 function realDatabase() {
   const sqlite = new DatabaseSync(':memory:');
@@ -147,6 +148,8 @@ test('offline planning lifecycle preserves identity, recurrence, completion hist
   const source = realDatabase(), target = realDatabase();
   try {
     await migrateDatabase(source.db); await migrateDatabase(target.db);
+    assert.deepEqual(await checkLocalHealth(source.db), { structureOkay: true, foreignKeysOkay: true,
+      structuralProblems: 0, orphanRelations: 0 });
     const createdPath = await createGuidedPlan(source.db, 'project', 'Build something useful', new Date(2026, 9, 14, 12));
     const pathRoot = await getGoal(source.db, createdPath);
     assert.equal(pathRoot.title, 'Build something useful');
