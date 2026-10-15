@@ -27,6 +27,21 @@ This file is the single source of truth for **planned vs completed** work. It is
 | M5 — Mobile integration | Notifications, widgets, localization, backup | Native picker/backup/reminders implemented; widgets/localization remain open | Physical-device and Apple acceptance |
 | M6 — Quality & release | Performance, accessibility, testing, release build | Isolated Android release QA APK built; iOS JS export passes | Store signing, native iOS, physical-device and accessibility gates |
 
+## Systems-level self-audit — data and lifecycle coherence (2026-10-15)
+
+**Scope:** Capture/Plan → Calendar/Timebox → Focus → Review → Backup. Rather than create a global client-state library or a second event store, repair the three actually inconsistent hand-offs.
+
+- [x] **Ordinary Timebox editor:** pass its originally loaded block into `saveBlock` and verify ID, goal, time range, type, flexibility, intention, and `updated_at` inside an exclusive transaction. The previously added Drag preview already guarded stale edits; normal edit now has the same safety promise.
+- [x] **Completed goals:** never create or move a Timebox onto a completed/archived goal. Historical reservations remain readable, and Focus history remains durable; avoid letting another writer schedule a task that is already done.
+- [x] **Recovery/Undo:** any explicit Timebox save or delete invalidates a prior replan checkpoint in that very same transaction; manually edited reservations must not leave a misleading or unsafe Undo promise.
+- [x] **Focus → Review:** Review now refetches weekly history when the shared active Focus block identity changes, including ending a timer while Review itself is open. No second provider or mirrored Focus state.
+- [x] **DST:** on 23/25-hour days disable the misleading 24-hour Day timeline, render List explicitly, and include UTC offsets on saved instants to distinguish duplicated local clock times. Keep the selected mode control aligned with the actual rendered view.
+- [x] Extend existing real SQLite assertions for stale editor writes and completed-goal scheduling. Do not inflate the fixed 20-test budget with speculative suites.
+
+**Open system-level risks:** Android SQLite native SIGSEGV (#2), gesture/rendered acceptance (#3), native iOS, accessible fonts, real-data restore and independent release signing. Dense board/calendar lists could merit FlatList/SectionList only after profiling on constrained devices. The current offline, single-user architecture does not justify cloud sync, an AI scheduler, complex global state management or a second theme layer.
+
+**Self-critique:** The new `TimeBlock.updatedAt` is deliberately optional for synthetic/local read models, but authoritative SQLite-loaded blocks contain it. The production editor passes the original snapshot; direct domain callers not passing an expectation are still responsible for their own stale-write policy. Native screenshot, screen-reader and device stress acceptance remain unverified, and source CI passing is not store-readiness proof.
+
 ## SSOT and StyleSheet review (2026-10-15)
 
 **Code-level findings resolved:**

@@ -64,3 +64,14 @@ This document describes whole-gate validation. Sampled current evidence is in RO
 - [x] Shared `Palette` type and semantic schedule/warning/error tokens, including static text contrast checks.
 - [ ] Check at 100/130/200% OS font scale, TalkBack/VoiceOver, tiny screens, dense overlaps and dark/light on actual native builds.
 - [ ] Confirm touch interactions in native runtime; TypeScript and JavaScript export acceptance cannot certify gestures or screenshots.
+
+## Broad cross-feature invariants (source implemented; device acceptance open)
+
+- [x] UI ordinary Timebox edit receives the original persisted snapshot, and the SQLite write rejects stale state before any mutation.
+- [x] A manual calendar write removes the previous Recovery checkpoint in the same transaction.
+- [x] Completing a goal prevents new reservations for it while preserving existing recorded Focus history.
+- [x] Ending or replacing a Focus session triggers Review reload even when Review stays visible.
+- [x] DST clock-transition dates render offset-labeled exact List instead of falsely displaying 24 elapsed hours.
+- [ ] Verify two-screen edit conflict and recovery of an unsaved draft in Android/iOS native builds.
+- [ ] Verify Review updates after stopping Focus from the global dock, including background/foreground and denied notification permission.
+- [ ] Compare clock-transition presentation in spring/fall IANA zones and accessibility readout on Android/iOS.

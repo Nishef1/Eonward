@@ -128,3 +128,11 @@ Record significant decisions and reversals here. A future change should cite its
 - Consolidate time accounting into shared `analyzeRangeLoad` / `analyzeDayLoad` with explicit reserved-versus-occupied semantics. Show uniquely occupied time consistently across summaries; display overlaps separately.
 - Centralize meaningful semantic time/status and themed error/warning colors in `src/theme/tokens.ts`. A `Palette` type defined in thirteen screens was a real structural duplicate, now replaced by one exported type. Keep per-screen StyleSheets for genuinely different layout concerns.
 - Use one small CI source guard to prevent reintroducing this specific drift, and tests on clipped overlap and readable status colors. Native contrast/large-font QA is not subsumed by source tests.
+
+## 2026-10-15 — Fix real state boundary violations, not all duplicate state
+
+- Preserve SQLite goals/time blocks/focus history as durable SSOT, short-lived form drafts as local UI state, and FocusProvider as the one live session presenter. Do not add a global cache/store until an actual invalidation contract justifies it.
+- Guard the ordinary Timebox editor against stale edits with snapshot checks inside a single exclusive transaction, matching the safer Drag path. End-to-end browser/OS tests must prove the error state lets a user reopen the latest item.
+- Use the Focus session identity change to invalidate Review's read-only report, avoiding both a parallel Focus store and every-second report queries.
+- Show exact clock offsets in DST lists rather than drawing a structurally wrong 24-hour day for a 23- or 25-hour local civil date. Native timezone acceptance remains necessary.
+- Any manual calendar mutation invalidates ephemeral Recovery Undo; safety beats an undo that might reverse something other than what the user last approved.

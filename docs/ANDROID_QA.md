@@ -2,6 +2,14 @@
 
 For the new isolated APK/iOS Simulator Maestro smoke paths, manual EAS setup, crash-buffer evidence and device gates, see [NATIVE_ACCEPTANCE.md](NATIVE_ACCEPTANCE.md). The automation files are prepared but native jobs have **not** been run as part of the existing JavaScript CI.
 
+## System coherence acceptance — pending native QA
+
+- [ ] Open a Timebox editor, change that reservation through another path, then try saving the stale editor: expect a non-destructive error and no overwritten user data.
+- [ ] On a completed goal, scheduling a new Timebox must fail without mutating the calendar; previously completed Focus history must remain intact.
+- [ ] Apply Recovery and then manually create/edit/delete a reservation: the old Undo must disappear. Repeat with a concurrent active Focus session.
+- [ ] Keep Review open while stopping Focus from the persistent dock: the weekly stats and history must refresh without route navigation.
+- [ ] On a 23-hour spring-forward and 25-hour fall-back date, selecting Day must use exact List with UTC offsets. No 24-hour absolute-time canvas should appear.
+
 **Status: sampled standalone release QA on Android 35, 2026-10-15; full device acceptance remains open.** Current evidence is summarized in ROADMAP.md. Plan/Horizons/details/Calendar/Boards/Review renders, light/dark, 130% Plan text, full Gboard capture and dirty draft close were sampled. Native restoration and one-minute background notification delivery were exercised. None certifies the entire matrix below.
 
 These **manual checks** are the remaining acceptance matrix, not additional automated test cases. A sampled subflow does not check off its whole matrix row. Keep synthetic screenshot evidence outside Git and record a reproducible failure when a check fails.
