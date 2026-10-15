@@ -36,3 +36,6 @@ Thumbs.db
 
 # generated Expo types
 expo-env.d.ts
+
+# Private emulator logcat snapshots and QA package dumps
+.qa-evidence/
