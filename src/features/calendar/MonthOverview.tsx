@@ -1,5 +1,5 @@
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { localDayBounds, localDayKey, monthGridDays, type TimeBlock } from '../../domain/timeblocks';
+import { analyzeDayLoad, localDayBounds, localDayKey, monthGridDays, type TimeBlock } from '../../domain/timeblocks';
 import { colors, radius, spacing } from '../../theme/tokens';
 
 type Palette = typeof colors.light | typeof colors.dark;
@@ -21,7 +21,7 @@ export function MonthOverview({ month, blocks, todayKey, selectedKey, palette, o
   const days = monthGridDays(month);
   const metrics = days.map((day) => {
     const key = localDayKey(day);
-    const hours = blocks.reduce((sum, block) => sum + minutesInsideDay(block, day), 0) / 60;
+    const hours = analyzeDayLoad(blocks, day).occupiedMinutes / 60;
     const count = blocks.filter((block) => minutesInsideDay(block, day) > 0).length;
     return { day, key, hours, count, active: day.getMonth() === month.getMonth() };
   });
@@ -35,7 +35,7 @@ export function MonthOverview({ month, blocks, todayKey, selectedKey, palette, o
           {new Intl.DateTimeFormat('en-US', { month: 'long', year: 'numeric' }).format(month)}
         </Text>
         <Text style={[styles.description, { color: palette.muted }]}>
-          Tap any date to open the full timeline. More planned time means a stronger bar.
+          Each date shows occupied wall time. Open a date to see exact reservations, overlapping blocks and Focus.
         </Text>
       </View>
       <View style={[styles.calendar, { backgroundColor: palette.surface, borderColor: palette.border }]}>
@@ -78,7 +78,7 @@ export function MonthOverview({ month, blocks, todayKey, selectedKey, palette, o
       </View>
       <View style={styles.statRow}>
         <View style={[styles.stat, { backgroundColor: palette.surface, borderColor: palette.border }]}>
-          <Text style={[styles.statCaption, { color: palette.muted }]}>PLANNED TIME</Text>
+          <Text style={[styles.statCaption, { color: palette.muted }]}>TIME OCCUPIED</Text>
           <Text style={[styles.statValue, { color: palette.foreground }]}>
             {monthHours >= 1 ? monthHours.toFixed(1) + 'h' : Math.round(monthHours * 60) + 'm'}
           </Text>
@@ -89,7 +89,7 @@ export function MonthOverview({ month, blocks, todayKey, selectedKey, palette, o
         </View>
       </View>
       <Text style={[styles.note, { color: palette.muted }]}>
-        Planned time may contain overlapping blocks. Recorded focus time is tracked separately in Review.
+        Overlapping reservations are counted once in occupied time. Recorded Focus is independent and appears in Review.
       </Text>
     </ScrollView>
   );

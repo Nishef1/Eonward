@@ -1,5 +1,5 @@
 import { ScrollView, Pressable, StyleSheet, Text, View } from 'react-native';
-import { localDayBounds, localDayKey, type TimeBlock } from '../../domain/timeblocks';
+import { analyzeDayLoad, localDayBounds, localDayKey, type TimeBlock } from '../../domain/timeblocks';
 import { colors, radius, spacing } from '../../theme/tokens';
 
 type Palette = typeof colors.light | typeof colors.dark;
@@ -23,8 +23,8 @@ export function WeekOverview({ days, blocks, selectedDay, palette, onSelectDay }
     const entries = blocks.filter((block) =>
       Date.parse(block.startAt) < toMs && Date.parse(block.endAt) > fromMs,
     ).sort((a, b) => a.startAt.localeCompare(b.startAt));
-    const planned = entries.reduce((sum, item) =>
-      sum + Math.max(0, Math.min(toMs, Date.parse(item.endAt)) - Math.max(fromMs, Date.parse(item.startAt))), 0);
+    const load = analyzeDayLoad(entries, day);
+    const planned = load.occupiedMinutes * 60000;
     let collisions = 0;
     for (let i = 0; i < entries.length; i++) {
       for (let j = i + 1; j < entries.length; j++) {
@@ -32,7 +32,7 @@ export function WeekOverview({ days, blocks, selectedDay, palette, onSelectDay }
             Date.parse(entries[j].startAt) < Date.parse(entries[i].endAt)) collisions++;
       }
     }
-    return { day, entries, planned, collisions };
+    return { day, entries, planned, collisions, overlapMinutes: load.overlapMinutes };
   });
   const max = Math.max(60 * 60 * 1000, ...summaries.map((d) => d.planned));
   const weeklyTotal = summaries.reduce((sum, d) => sum + d.planned, 0);
@@ -45,7 +45,7 @@ export function WeekOverview({ days, blocks, selectedDay, palette, onSelectDay }
         </View>
         <Text style={[styles.weekTotal, { color: palette.accent }]}>{hourText(weeklyTotal)}</Text>
       </View>
-      {summaries.map(({ day, entries, planned, collisions }) => {
+      {summaries.map(({ day, entries, planned, collisions, overlapMinutes }) => {
         const selected = localDayKey(day) === selectedDay;
         return (
           <Pressable key={localDayKey(day)} accessibilityRole="button"
@@ -81,13 +81,13 @@ export function WeekOverview({ days, blocks, selectedDay, palette, onSelectDay }
               }]} /> : null}
             </View>
             {collisions > 0 ? (
-              <Text style={styles.conflict}>↗ {collisions} overlapping {collisions === 1 ? 'pair' : 'pairs'} · Review this day</Text>
+              <Text style={styles.conflict}>◇ {hourText(overlapMinutes * 60000)} overlaps · {collisions} conflicting pair{collisions === 1 ? '' : 's'}</Text>
             ) : null}
           </Pressable>
         );
       })}
       <Text style={[styles.footer, { color: palette.muted }]}>
-        Tap a day to edit its plan. Bars show total planned time; overlapping hours are counted separately.
+        Tap a day to inspect its timeline. Bars show uniquely occupied time, so overlapping blocks are never counted twice.
       </Text>
     </ScrollView>
   );

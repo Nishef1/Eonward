@@ -11,15 +11,11 @@ export const TIMELINE_HOUR_HEIGHT = 76;
 const ZOOM_LEVELS = [56, 76, 104] as const;
 const GUTTER = 62;
 const HOURS = Array.from({ length: 25 }, (_, i) => i);
-const PALETTE = ['#426C64', '#486C89', '#685F90', '#816078', '#856846', '#4C7278'];
-
+/** Timebox is warm, planned time is teal, completed items are neutral.
+ * Status labels supplement the colors rather than relying on color alone. */
 function blockTone(block: TimeBlock): string {
-  if (block.kind === 'box') return '#956C3F';
-  let hash = 0;
-  for (let i = 0; i < block.goalId.length; i++) {
-    hash = (hash * 31 + block.goalId.charCodeAt(i)) | 0;
-  }
-  return PALETTE[Math.abs(hash % PALETTE.length)];
+  if (block.goalCompleted) return '#66716E';
+  return block.kind === 'box' ? '#956C3F' : '#3F6C65';
 }
 function clockLabel(iso: string) {
   return localClock(new Date(iso));
@@ -280,7 +276,7 @@ export function DayTimeline({ date, blocks, palette, isDark, onEdit, onQuickAdd,
                 const progress = plannedMs > 0 ? Math.min(1, focusedMs / plannedMs) : 0;
                 return (
                   <Pressable key={block.id} accessibilityRole="button"
-                    accessibilityLabel={`${block.goalTitle}, ${visibleRange(block)} on this day. Edit time.`}
+                    accessibilityLabel={`${block.goalTitle}, ${visibleRange(block)}, ${block.kind === 'box' ? 'Timebox' : 'time reservation'}, ${block.flexible ? 'flexible' : 'fixed'}, ${block.goalCompleted ? 'completed' : 'open'}. Tap to edit, hold to adjust.`}
                     onPress={() => onEdit(block)}
                     onLongPress={() => setDraft({ id: block.id, mode: 'move', delta: 0 })}
                     hitSlop={compact ? 5 : 0}
@@ -299,7 +295,7 @@ export function DayTimeline({ date, blocks, palette, isDark, onEdit, onQuickAdd,
                       <>
                         <Text numberOfLines={1} style={styles.eventTime}>
                           {visibleRange(block)}
-                          {block.kind === 'box' ? '  ·  BOX' : ''}{block.flexible ? ' · FLEX' : ''}
+                          {block.kind === 'box' ? ' · TIMEBOX' : ' · PLANNED'}{block.flexible ? ' · FLEXIBLE' : ' · FIXED'}
                         </Text>
                         <Text numberOfLines={height < 75 ? 1 : 2}
                           style={[styles.eventTitle, block.goalCompleted && styles.doneTitle]}>
@@ -424,8 +420,8 @@ const styles = StyleSheet.create({
   adjustApply: { minHeight: 48, minWidth: 61, paddingHorizontal: 6, borderRadius: 11,
     alignItems: 'center', justifyContent: 'center' },
   adjustFooter: { fontSize: 11, lineHeight: 16 },
-  eventTime: { color: 'rgba(255,255,255,0.85)', fontSize: 10, fontWeight: '700', fontVariant: ['tabular-nums'] },
-  eventTitle: { color: '#FFFFFF', fontSize: 13, fontWeight: '700', marginTop: 3 },
+  eventTime: { color: 'rgba(255,255,255,0.85)', fontSize: 11, fontWeight: '700', fontVariant: ['tabular-nums'] },
+  eventTitle: { color: '#FFFFFF', fontSize: 14, fontWeight: '700', marginTop: 3 },
   doneTitle: { textDecorationLine: 'line-through' },
   eventIntention: { color: 'rgba(255,255,255,0.83)', fontSize: 11, marginTop: 7 },
   microTitle: { color: '#FFFFFF', fontSize: 10, fontWeight: '700' },

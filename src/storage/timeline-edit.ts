@@ -23,6 +23,13 @@ export async function applyTimelineEdit(db: SQLiteDatabase, preview: TimelineEdi
     if (!row || row.completed) throw new Error('Reservation changed. Review a new preview.');
     const focus = await tx.getFirstAsync('SELECT id FROM focus_session WHERE id = 1 AND block_id = ?', [preview.blockId]);
     if (focus) throw new Error('End the active Focus session before changing its reservation.');
+    const currentConflicts = await tx.getFirstAsync<{ total: number }>(`
+      SELECT COUNT(*) AS total FROM time_blocks tb
+      JOIN goals g ON g.id = tb.goal_id AND g.archived_at IS NULL
+      WHERE tb.id <> ? AND tb.start_at < ? AND tb.end_at > ?
+    `, [preview.blockId, preview.toEnd, preview.toStart]);
+    if (currentConflicts?.total !== preview.conflicts)
+      throw new Error('The calendar changed. Recheck the new overlap preview.');
     const result = await tx.runAsync(`
       UPDATE time_blocks SET start_at = ?, end_at = ?, updated_at = ?
       WHERE id = ? AND start_at = ? AND end_at = ?
