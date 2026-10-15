@@ -55,21 +55,22 @@ export function reconcileFocusNotification(db: SQLiteDatabase): Promise<string |
     const needsReminder = session?.status === 'running' && session.deadlineMs > Date.now();
     const expectedBlock = needsReminder ? session.blockId : null;
     const expectedDeadline = needsReminder ? String(session.deadlineMs) : null;
-    const matching = pending.find((item) =>
+    // Permissions can be revoked while the app is backgrounded, even if an
+    // older reminder was already queued. Validate before trusting a match.
+    const permissions = needsReminder ? await Notifications.getPermissionsAsync() : null;
+    const allowed = !!permissions && permitted(permissions);
+    const matching = allowed && needsReminder ? pending.find((item) =>
       item.content.data?.focusBlockId === expectedBlock &&
       item.content.data?.deadlineMs === expectedDeadline,
-    );
+    ) : undefined;
     for (const item of pending) {
       if (item.identifier !== matching?.identifier || !needsReminder) {
         await Notifications.cancelScheduledNotificationAsync(item.identifier);
       }
     }
-    if (!needsReminder || matching) return null;
-
-    const permissions = await Notifications.getPermissionsAsync();
-    if (!permitted(permissions)) {
-      return 'Background Focus alerts are off. Enable notifications in system settings.';
-    }
+    if (!needsReminder) return null;
+    if (!allowed) return 'Background Focus alerts are off. Enable notifications in system settings.';
+    if (matching) return null;
     await Notifications.scheduleNotificationAsync({
       content: {
         title: 'Focus time is up',
