@@ -6,8 +6,14 @@
     "version": "0.1.0",
     "orientation": "portrait",
     "userInterfaceStyle": "automatic",
+    "plugins": [
+      "expo-notifications"
+    ],
     "android": {
-      "package": "com.nishef.eonward"
+      "package": "com.nishef.eonward",
+      "permissions": [
+        "SCHEDULE_EXACT_ALARM"
+      ]
     },
     "ios": {
       "bundleIdentifier": "com.nishef.eonward"

@@ -17,7 +17,7 @@ export function AppDock() {
   const router = useRouter();
   const pathname = usePathname();
   const palette = useColorScheme() === 'dark' ? colors.dark : colors.light;
-  const { session, busy, error, pause, resume, finish, refresh } = useFocusSession();
+  const { session, busy, error, notificationNotice, pause, resume, finish, refresh } = useFocusSession();
   const [clock, setClock] = useState(() => Date.now());
   const [expanded, setExpanded] = useState(false);
   useEffect(() => {
@@ -72,7 +72,8 @@ export function AppDock() {
                 {finished ? "Time's up · " : session.status === 'paused' ? 'Paused · ' : 'Focusing · '}{session.goalTitle}
               </Text>
               <Text numberOfLines={1} style={[styles.miniCaption, { color: palette.muted }]}>
-                {finished ? 'Review your progress' : session.status === 'paused' ? 'Tap to resume or end' : 'Tap to pause or end'}
+                {notificationNotice && session.status === 'running' && !finished ? 'Background alert unavailable' :
+                  finished ? 'Review your progress' : session.status === 'paused' ? 'Tap to resume or end' : 'Tap to pause or end'}
               </Text>
             </View>
             <Text style={[styles.miniClock, { color: finished ? '#BE8353' : palette.accent }]}>
@@ -117,6 +118,9 @@ export function AppDock() {
                   session?.status === 'paused' ? 'Time is paused. Resume when you are ready.' :
                     'A focused window for this goal. The countdown stays accurate when you switch pages or return to the app.'}
               </Text>
+              {notificationNotice && !finished && session?.status === 'running' ? (
+                <Text style={[styles.warning, { color: '#BC8653' }]}>{notificationNotice}</Text>
+              ) : null}
               <View style={styles.controls}>
                 {!finished ? (
                   <Pressable disabled={busy} accessibilityRole="button"
@@ -165,6 +169,7 @@ const styles = StyleSheet.create({
   goalTitle: { fontSize: 20, fontWeight: '700', lineHeight: 27 },
   clock: { fontSize: 58, fontWeight: '800', textAlign: 'center', marginTop: 24, fontVariant: ['tabular-nums'], letterSpacing: -1.4 },
   explainer: { fontSize: 13, lineHeight: 21, textAlign: 'center', marginVertical: 21 },
+  warning: { fontSize: 12, lineHeight: 18, textAlign: 'center', marginBottom: 13 },
   controls: { flexDirection: 'row', gap: 10 },
   primary: { flex: 1, minHeight: 55, borderRadius: radius.lg, alignItems: 'center', justifyContent: 'center' },
   primaryText: { color: '#FFFFFF', fontSize: 15, fontWeight: '700' },
