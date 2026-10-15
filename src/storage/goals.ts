@@ -378,3 +378,17 @@ export async function listAllGoals(db: SQLiteDatabase): Promise<Goal[]> {
 }
 
 
+
+/** Current hierarchy for a focus goal. Never duplicate goal records or infer a path from titles. */
+export async function getGoalPath(db: SQLiteDatabase, goalId: string): Promise<string[]> {
+  const path = await db.getAllAsync<{ title: string }>(`
+    WITH RECURSIVE ancestors(id, title, parent_id, depth) AS (
+      SELECT id, title, parent_id, 0 FROM goals WHERE id = ?
+      UNION ALL
+      SELECT parent.id, parent.title, parent.parent_id, child.depth + 1
+      FROM goals parent JOIN ancestors child ON child.parent_id = parent.id
+      WHERE child.depth < 40
+    )
+    SELECT title FROM ancestors ORDER BY depth DESC`, [goalId]);
+  return path.map((node) => node.title);
+}
