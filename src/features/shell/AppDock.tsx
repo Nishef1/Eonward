@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { usePathname, useRouter } from 'expo-router';
-import { AppState, Alert, Modal, Pressable, StyleSheet, Text, useColorScheme, View } from 'react-native';
+import { AppState, Alert, Linking, Modal, Pressable, StyleSheet, Text, useColorScheme, View } from 'react-native';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import { getFocusRemainingMs, formatFocusTime } from '../../domain/focus';
 import { useFocusSession } from '../focus/FocusProvider';
@@ -17,7 +17,7 @@ export function AppDock() {
   const router = useRouter();
   const pathname = usePathname();
   const palette = useColorScheme() === 'dark' ? colors.dark : colors.light;
-  const { session, busy, error, pause, resume, finish, refresh } = useFocusSession();
+  const { session, busy, error, notificationNotice, pause, resume, finish, refresh } = useFocusSession();
   const [clock, setClock] = useState(() => Date.now());
   const [expanded, setExpanded] = useState(false);
   useEffect(() => {
@@ -72,7 +72,8 @@ export function AppDock() {
                 {finished ? "Time's up · " : session.status === 'paused' ? 'Paused · ' : 'Focusing · '}{session.goalTitle}
               </Text>
               <Text numberOfLines={1} style={[styles.miniCaption, { color: palette.muted }]}>
-                {finished ? 'Review your progress' : session.status === 'paused' ? 'Tap to resume or end' : 'Tap to pause or end'}
+                {notificationNotice && session.status === 'running' && !finished ? 'Background alert unavailable' :
+                  finished ? 'Review your progress' : session.status === 'paused' ? 'Tap to resume or end' : 'Tap to pause or end'}
               </Text>
             </View>
             <Text style={[styles.miniClock, { color: finished ? '#BE8353' : palette.accent }]}>
@@ -117,6 +118,17 @@ export function AppDock() {
                   session?.status === 'paused' ? 'Time is paused. Resume when you are ready.' :
                     'A focused window for this goal. The countdown stays accurate when you switch pages or return to the app.'}
               </Text>
+              {notificationNotice && !finished && session?.status === 'running' ? (
+                <View style={styles.noticeSection}>
+                  <Text style={[styles.warning, { color: '#BC8653' }]}>{notificationNotice}</Text>
+                  <Pressable accessibilityRole="button" accessibilityLabel="Open system app settings"
+                    onPress={() => { void Linking.openSettings().catch(() =>
+                      Alert.alert('Settings unavailable', 'Open Android Settings → Apps → Eonward manually.')); }}
+                    style={[styles.settingsButton, { borderColor: palette.border }]}>
+                    <Text style={[styles.settingsText, { color: palette.accent }]}>Open app settings</Text>
+                  </Pressable>
+                </View>
+              ) : null}
               <View style={styles.controls}>
                 {!finished ? (
                   <Pressable disabled={busy} accessibilityRole="button"
@@ -165,6 +177,11 @@ const styles = StyleSheet.create({
   goalTitle: { fontSize: 20, fontWeight: '700', lineHeight: 27 },
   clock: { fontSize: 58, fontWeight: '800', textAlign: 'center', marginTop: 24, fontVariant: ['tabular-nums'], letterSpacing: -1.4 },
   explainer: { fontSize: 13, lineHeight: 21, textAlign: 'center', marginVertical: 21 },
+  noticeSection: { alignItems: 'center', marginBottom: 13, gap: 4 },
+  warning: { fontSize: 12, lineHeight: 18, textAlign: 'center' },
+  settingsButton: { minHeight: 44, minWidth: 140, borderWidth: 1, borderRadius: radius.full,
+    paddingHorizontal: 14, justifyContent: 'center', alignItems: 'center' },
+  settingsText: { fontSize: 12, fontWeight: '700' },
   controls: { flexDirection: 'row', gap: 10 },
   primary: { flex: 1, minHeight: 55, borderRadius: radius.lg, alignItems: 'center', justifyContent: 'center' },
   primaryText: { color: '#FFFFFF', fontSize: 15, fontWeight: '700' },

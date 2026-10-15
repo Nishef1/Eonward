@@ -38,3 +38,6 @@ Legend:
 - Pending: monthly calendar, native reminders, recurring schedule, drag-to-move/resize and multi-day blocks beyond one midnight.
 
 - Month overview: 5–6 week grid with daily activity, previous/next month navigation and drill-down into Daily Timeline.
+
+### Local Focus reminders
+- One native local notification at the persisted session deadline, when permitted; cancels/reschedules across Pause, Resume, Replace and Stop. Deliberately generic lock-screen text. Android exact-alarm access may be denied and must be tested; timer is still usable without it.

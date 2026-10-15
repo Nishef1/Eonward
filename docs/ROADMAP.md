@@ -394,3 +394,15 @@ The initial Create Goal form was appearing partially scrolled in a screenshot; i
 - [x] Refresh Insights seven-day window after local midnight and after returning from the background.
 - [ ] **Not done:** Android notification scheduling: Expo SDK 57 requires a locked `expo-notifications` install and platform permissions. Do not claim background expiry alerts from JavaScript countdowns.
 - [ ] **Not done:** hands-on Android interaction/regression pass and notification/exact-alarm grant/deny scenarios. CI only proves test, type and bundle integrity.
+
+## Native Focus expiry reminders — source implementation (SDK 57)
+
+- [x] Lock the SDK-compatible `expo-notifications` dependency with npm in isolated CI rather than editing the lockfile by hand.
+- [x] Configure an Android Focus channel and a user-controlled `SCHEDULE_EXACT_ALARM` manifest permission.
+- [x] Request visible notification permission only when the user initiates Focus. A refusal **never** stops the timer.
+- [x] Schedule one device-owned local reminder for a running session; deduplicate across reloads and force-close recovery.
+- [x] Cancel stale reminders on Pause, Stop, Replace, deletion and expiry; reschedule after Resume using the persisted deadline.
+- [x] Keep the lock-screen message generic so private goal titles are never displayed in reminder previews.
+- [x] Surface notification/alarms configuration problems as explicit non-fatal warnings in the Focus UI.
+- [ ] Android 13/14/15 physical-device acceptance: test notification denial, special alarm access denied/granted, notification delivery after app force-stop/idle, resume and replacement. **Exact delivery is not guaranteed solely by a successful JS bundle.**
+- [ ] Play policy review for exact-alarm permission before store release. If approval is not appropriate, implement an inexact fallback and update the UX.

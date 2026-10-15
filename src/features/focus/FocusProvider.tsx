@@ -3,12 +3,14 @@ import { AppState } from 'react-native';
 import { useSQLiteContext } from 'expo-sqlite';
 import { getFocusSession, beginFocusSession, pauseFocusSession, resumeFocusSession, stopFocusSession } from '../../storage/focus';
 import type { FocusSession } from '../../domain/focus';
+import { askForFocusNotificationPermission, reconcileFocusNotification } from './notifications';
 
 interface FocusContextValue {
   session: FocusSession | null;
   loading: boolean;
   busy: boolean;
   error: string | null;
+  notificationNotice: string | null;
   refresh: () => Promise<void>;
   begin: (blockId: string, replace?: boolean) => Promise<void>;
   pause: () => Promise<void>;
@@ -23,6 +25,7 @@ export function FocusProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [notificationNotice, setNotificationNotice] = useState<string | null>(null);
   const blocked = useRef(false);
   const mounted = useRef(true);
   const refreshSequence = useRef(0);
@@ -35,6 +38,15 @@ export function FocusProvider({ children }: { children: ReactNode }) {
         setSession(record);
         setLoading(false);
         setError(null);
+        // Native reminders survive app restarts. Reconcile against SQLite,
+        // including deleted/paused/expired sessions.
+        void reconcileFocusNotification(db).then((notice) => {
+          if (mounted.current && sequence === refreshSequence.current) setNotificationNotice(notice);
+        }).catch(() => {
+          if (mounted.current && sequence === refreshSequence.current) {
+            setNotificationNotice('Focus still runs, but its background alert could not be scheduled. Check notification and alarm permissions.');
+          }
+        });
       }
     } catch (reason) {
       if (mounted.current && sequence === refreshSequence.current) {
@@ -68,14 +80,19 @@ export function FocusProvider({ children }: { children: ReactNode }) {
   }, [refresh]);
 
   const begin = useCallback((blockId: string, replace = false) =>
-    perform(() => beginFocusSession(db, blockId, replace)), [db, perform]);
+    perform(async () => {
+      // Permission prompts happen only after a Start action; denial is not fatal.
+      try { await askForFocusNotificationPermission(); }
+      catch { setNotificationNotice('Focus will run without a background alert.'); }
+      return beginFocusSession(db, blockId, replace);
+    }), [db, perform]);
   const pause = useCallback(() => perform(() => pauseFocusSession(db)), [db, perform]);
   const resume = useCallback(() => perform(() => resumeFocusSession(db)), [db, perform]);
   const finish = useCallback(() => perform(() => stopFocusSession(db)), [db, perform]);
 
   const value = useMemo<FocusContextValue>(() => ({
-    session, loading, busy, error, refresh, begin, pause, resume, finish,
-  }), [session, loading, busy, error, refresh, begin, pause, resume, finish]);
+    session, loading, busy, error, notificationNotice, refresh, begin, pause, resume, finish,
+  }), [session, loading, busy, error, notificationNotice, refresh, begin, pause, resume, finish]);
 
   return <FocusContext.Provider value={value}>{children}</FocusContext.Provider>;
 }
