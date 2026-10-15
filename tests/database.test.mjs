@@ -226,9 +226,11 @@ test('offline planning lifecycle preserves identity, recurrence, completion hist
     await assert.rejects(() => undoReplan(source.db), /Calendar changed since replanning/);
     assert.equal(source.sqlite.prepare('SELECT intention FROM time_blocks WHERE id = ?')
       .get(firstMove.id).intention, 'Edited after replanning');
+    assert.equal(await canUndoReplan(source.db), false);
     // Restore only this controlled test mutation so that the original safe Undo can complete.
     source.sqlite.prepare('UPDATE time_blocks SET intention = ?, updated_at = ? WHERE id = ?')
       .run(originalIntention, applied.appliedAt, firstMove.id);
+    assert.equal(await canUndoReplan(source.db), true);
     await undoReplan(source.db);
     assert.equal(await canUndoReplan(source.db), false);
     assert.deepEqual((await listDayBlocks(source.db, selectedDay)).map((b) => [b.id, b.startAt, b.endAt]).sort(),
