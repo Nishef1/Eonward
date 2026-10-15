@@ -17,6 +17,15 @@ Smaller-step pass: the previous percentage/content-sized editor moved its header
 - [ ] Recovery preview: try late/expired previews, blocked active Focus, fixed commitments, Undo immediately and Undo after five minutes. Verify no hidden mutations and app restart behavior.
 - [ ] Foreground after switching time zone without changing calendar date: week/month/day reservations and clock labels must be reread without restarting. Repeat with an editor draft and ensure saved data remains intact.
 
+## Self-critical usability and privacy checks (unverified on devices)
+
+- [ ] Keep Recovery open for over two minutes. Apply must be disabled, Refresh must recompute from current time and work after app background/foreground; Undo must disappear when its five-minute checkpoint expires.
+- [ ] Empty Day/Week/Year horizon: Guided Plans entry visible and keyboard-safe; creating a starter still produces a single parent + four Inbox steps without duplicated records.
+- [ ] Weekly allocation: half-hour targets format as 30m, over/under-reserved statements refer to the user's target, and tapping Plan time opens the exact linked goal.
+- [ ] Settings health probe: verify no data modifications, clear no-issues/error semantics, offline operation and no false inference about crash safety.
+- [ ] Export to Files and third-party share targets (including slow receiving apps); check cancellation and cache eviction. Confirm there is no persistent new plaintext JSON in Documents, and 24h-old cached copies are eventually pruned.
+- [ ] Calendar overnight Timebox: linked Focus label must not imply every minute was performed within the currently selected local day.
+
 ## SQLite native stress gate (P0 · [#2](https://github.com/Nishef1/Eonward/issues/2))
 
 - [ ] Use Android 35 and 36/16 hardware or emulator with saved populated v8 data; leave a dirty editor open, then change font size, theme and rotation repeatedly while backgrounding/foregrounding. Record all `exsqlite3_step`, `pthread_mutex_lock` and Java/Kotlin SQLite failures with logcat/tombstone.

@@ -27,6 +27,24 @@ This file is the single source of truth for **planned vs completed** work. It is
 | M5 — Mobile integration | Notifications, widgets, localization, backup | Native picker/backup/reminders implemented; widgets/localization remain open | Physical-device and Apple acceptance |
 | M6 — Quality & release | Performance, accessibility, testing, release build | Isolated Android release QA APK built; iOS JS export passes | Store signing, native iOS, physical-device and accessibility gates |
 
+## Self-critical reliability and usability pass (2026-10-15)
+
+**This pass intentionally improves previous work instead of adding a parallel subsystem.**
+
+- [x] Recovery previously kept a frozen preview open beyond its two-minute validity window. Added explicit Refresh and disabled Apply after expiry, with foreground awareness.
+- [x] The Calendar Undo action previously stayed visible after its underlying five-minute checkpoint expired. It now rechecks availability while present and hides the expired affordance.
+- [x] Guided Plans were hidden behind a workspace menu: provide a direct, accessible starter from an empty planning horizon.
+- [x] Weekly time budgets previously reported numbers without an interpretive next action. Show exact difference versus the user's own target and link directly to Calendar without assigning a moralized score.
+- [x] Existing focus time totals could imply all recorded minutes occurred on the selected civil day when a session crossed midnight. Label displayed totals as linked Focus and distinguish sessions ending here from active time; full paused-segment day allocation is deferred.
+- [x] Recovery snapshot equality previously compared locale-aware JS ID sort against SQLite binary ordering. Compare canonical binary-sorted snapshots, including backup-imported IDs.
+- [x] Add an on-demand, non-destructive, local SQLite `quick_check` plus `foreign_key_check` to Settings. Automated testing confirms an orphan can be detected even when structural quick check reports `ok`.
+- [x] Backup exports no longer leave plaintext JSON in the permanent Documents directory; stage in app cache and prune only older temporary exports on subsequent sharing to avoid disrupting external receivers.
+- [ ] Native sharing acceptance: test Save to Files, cloud-drive recipient, cancellation, slow external import, and cleanup of cache exports after 24 hours. A closed share sheet is not proof an external copy was saved.
+- [ ] P0 Android SQLite crash remains unresolved. A passing on-demand health check is not a native lifecycle stress test.
+- [ ] End-to-end Android/iOS native accessibility and screen orientation checks remain open.
+
+**Self-criticism:** The extra on-screen budget guidance is deliberately deterministic and descriptive. It does not claim to predict energy, psychological productivity or task urgency. Cached plaintext JSON is still readable until the OS clears it or a later export cleans up; Eonward does not implement end-to-end encrypted backup or secure deletion.
+
 ## Cohesive planning follow-up — source and CI slice (2026-10-15)
 
 **Completed in source / CI checks (not phone acceptance):**

@@ -102,3 +102,14 @@ Record significant decisions and reversals here. A future change should cite its
 - Public Expo issue #48999 and #48995 resemble, but do not prove the cause of, Eonward's earlier Android `exsqlite3_step/pthread_mutex_lock` SIGSEGV. Keep issue #2 open pending native replication.
 - A lightweight per-handle JavaScript queue protects native statement lifecycles for all screen and Focus consumers, including exclusive transaction duration, without replacing the Expo SQLite provider or adding a second connection.
 - The source mitigation deliberately does not claim to cure native shared-object GC/teardown races. Do not wholesale upgrade to Expo SDK 58 or invent a Kotlin patch without platform compatibility and physical-device verification.
+
+## 2026-10-15 — Self-critique of the previous feature pass
+
+- Existing Recovery used a time-frozen proposal that became unapplyable after 120 seconds without an obvious repair path. Offer explicit refresh and disable stale Apply instead of silently changing the proposed schedule.
+- Keep Undo availability aligned with its five-minute checkpoint; hide the affordance rather than promise reversal that SQLite will reject.
+- A goal starter behind a buried tool menu is not genuinely discoverable for first-time users. Introduce a secondary CTA in the existing empty state without adding intrusive onboarding overlays.
+- Weekly time-budget guidance must be based on the user's own declared target, not a fabricated productivity score. "Unreserved" does not automatically mean "needs to be filled."
+- Make the day’s Focus wording honest for overnight sessions: linked completed sessions are grouped by end time, not perfectly reconstructed into day slices because pause/resume segment history is not stored.
+- Keep the canonical recovery comparison independent of locale collation so imported IDs behave as consistently as generated UUIDs.
+- Place export staging in cache rather than Documents, retaining files long enough for native sharing recipients and pruning older copies on subsequent exports. This reduces unnecessary persistence but does not amount to encryption or secure erasure. Require actual recipient QA.
+- Expose manual SQLite structure and foreign-key checks as a helpful integrity diagnostic, **never** as a claim that the Android native SIGSEGV has been fixed.
