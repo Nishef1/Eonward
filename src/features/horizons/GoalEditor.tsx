@@ -4,7 +4,7 @@ import { SafeAreaProvider, SafeAreaView, useSafeAreaInsets } from 'react-native-
 import { dateFromPeriodKey, HORIZONS, HORIZON_TITLES, parseDateInput, periodKey, periodLabel, shiftPeriod, type Horizon } from '../../domain/horizons';
 import type { Goal, GoalInput } from '../../domain/goals';
 import { REPEAT_LABELS, REPEAT_RULES, type RepeatRule } from '../../domain/planning';
-import { colors, radius, spacing } from '../../theme/tokens';
+import { colors, radius, spacing, type Palette } from '../../theme/tokens';
 import { DateTimeField } from '../shared/DateTimeField';
 import { useReducedMotion } from '../../theme/useReducedMotion';
 import ChevronLeft from 'lucide-react-native/icons/chevron-left';
@@ -17,7 +17,7 @@ import Inbox from 'lucide-react-native/icons/inbox';
 import Layers3 from 'lucide-react-native/icons/layers';
 import X from 'lucide-react-native/icons/x';
 
-type Palette = typeof colors.light | typeof colors.dark;
+
 
 interface GoalEditorProps {
   visible: boolean;

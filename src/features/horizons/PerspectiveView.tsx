@@ -2,13 +2,13 @@ import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-nati
 import { HORIZON_TITLES, type Horizon } from '../../domain/horizons';
 import type { Goal } from '../../domain/goals';
 import type { PerspectiveSection } from '../../domain/perspective';
-import { colors, depth, radius } from '../../theme/tokens';
+import { colors, depth, radius, type Palette } from '../../theme/tokens';
 import Check from 'lucide-react-native/icons/check';
 import ChevronRight from 'lucide-react-native/icons/chevron-right';
 import Circle from 'lucide-react-native/icons/circle';
 import Plus from 'lucide-react-native/icons/plus';
 
-type Palette = typeof colors.light | typeof colors.dark;
+
 
 interface Props {
   sections: readonly PerspectiveSection[];

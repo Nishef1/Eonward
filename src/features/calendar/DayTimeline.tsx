@@ -1,11 +1,11 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Alert, AppState, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { blockClockRangeForDay, layoutBlocks, localClock, localDayBounds, localDayKey, type TimeBlock } from '../../domain/timeblocks';
-import { colors, radius, semantic } from '../../theme/tokens';
+import { colors, radius, semantic, type Palette } from '../../theme/tokens';
 import { getFocusElapsedMs, type FocusSession } from '../../domain/focus';
 import { pixelsToQuarterHours, previewTimelineEdit, type TimelineEditMode, type TimelineEditPreview } from '../../domain/timeline-edit';
 
-type Palette = typeof colors.light | typeof colors.dark;
+
 
 const ZOOM_LEVELS = [56, 76, 104] as const;
 const GUTTER = 62;

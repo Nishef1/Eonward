@@ -1,9 +1,9 @@
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
 import { HORIZON_TITLES } from '../../domain/horizons';
 import type { Goal } from '../../domain/goals';
-import { colors, radius, spacing } from '../../theme/tokens';
+import { colors, radius, spacing, type Palette } from '../../theme/tokens';
 
-type Palette = typeof colors.light | typeof colors.dark;
+
 
 interface ArchiveViewProps {
   items: Goal[];

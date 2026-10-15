@@ -3,7 +3,7 @@ import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-nati
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import { HORIZON_TITLES } from '../../domain/horizons';
 import type { Goal } from '../../domain/goals';
-import { colors, radius, spacing } from '../../theme/tokens';
+import { colors, radius, spacing, type Palette } from '../../theme/tokens';
 import { useReducedMotion } from '../../theme/useReducedMotion';
 import CalendarDays from 'lucide-react-native/icons/calendar-days';
 import Check from 'lucide-react-native/icons/check';
@@ -15,7 +15,7 @@ import Play from 'lucide-react-native/icons/play';
 import Plus from 'lucide-react-native/icons/plus';
 import X from 'lucide-react-native/icons/x';
 
-type Palette = typeof colors.light | typeof colors.dark;
+
 
 interface GoalDetailsProps {
   goal: Goal | null;

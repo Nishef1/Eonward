@@ -3,13 +3,13 @@ import { Alert, KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, St
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import type { Goal } from '../../domain/goals';
 import { localClock, localDayKey, timeRangeFromInput, type BlockInput, type BlockKind, type TimeBlock } from '../../domain/timeblocks';
-import { colors, radius, spacing } from '../../theme/tokens';
+import { colors, radius, spacing, type Palette } from '../../theme/tokens';
 import { DateTimeField } from '../shared/DateTimeField';
 import { useReducedMotion } from '../../theme/useReducedMotion';
 import Check from 'lucide-react-native/icons/check';
 import X from 'lucide-react-native/icons/x';
 
-type Palette = typeof colors.light | typeof colors.dark;
+
 
 interface Props {
   visible: boolean;

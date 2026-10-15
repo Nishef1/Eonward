@@ -9,7 +9,7 @@ import {
 } from '../../domain/timeblocks';
 import { createGoal, getGoal, listAllGoals } from '../../storage/goals';
 import { listRangeBlocks, removeBlock, saveBlock } from '../../storage/timeblocks';
-import { colors, depth, radius, spacing } from '../../theme/tokens';
+import { colors, depth, radius, spacing, type Palette } from '../../theme/tokens';
 import ChevronLeft from 'lucide-react-native/icons/chevron-left';
 import ChevronRight from 'lucide-react-native/icons/chevron-right';
 import ListPlus from 'lucide-react-native/icons/list-plus';
@@ -30,7 +30,7 @@ import { TimeBlockEditor } from './TimeBlockEditor';
 import { GoalEditor } from '../horizons/GoalEditor';
 import { DateTimeField } from '../shared/DateTimeField';
 
-type Palette = typeof colors.light | typeof colors.dark;
+
 const WEEKDAYS = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
 function dateHeading(date: Date): string {
   return new Intl.DateTimeFormat('en-US', { weekday: 'long', month: 'long', day: 'numeric',

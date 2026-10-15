@@ -1,8 +1,8 @@
 import { ScrollView, Pressable, StyleSheet, Text, View } from 'react-native';
 import { analyzeDayLoad, blockOverlapsRange, localDayBounds, localDayKey, type TimeBlock } from '../../domain/timeblocks';
-import { colors, radius, spacing, semantic } from '../../theme/tokens';
+import { colors, radius, spacing, semantic, type Palette } from '../../theme/tokens';
 
-type Palette = typeof colors.light | typeof colors.dark;
+
 interface Props {
   days: Date[];
   blocks: TimeBlock[];

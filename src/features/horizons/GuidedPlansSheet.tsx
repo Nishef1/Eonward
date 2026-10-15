@@ -2,10 +2,10 @@ import { useEffect, useState } from 'react';
 import { KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import { GUIDED_PLANS, type GuidedPlan } from '../../domain/guided-plans';
-import { colors } from '../../theme/tokens';
+import { colors, type Palette } from '../../theme/tokens';
 import { useReducedMotion } from '../../theme/useReducedMotion';
 
-type Palette = typeof colors.light | typeof colors.dark;
+
 interface Props {
   visible: boolean; palette: Palette; busy: boolean;
   onClose: () => void; onCreate: (templateId: string, title: string) => void;

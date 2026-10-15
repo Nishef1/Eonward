@@ -7,9 +7,9 @@ import type { Goal } from '../../domain/goals';
 import { startOfWeek } from '../../domain/horizons';
 import { listAllGoals } from '../../storage/goals';
 import { listWeeklyCapacity, setWeeklyCapacity, type WeeklyCapacity } from '../../storage/capacity';
-import { colors, semantic } from '../../theme/tokens';
+import { colors, semantic, type Palette } from '../../theme/tokens';
 
-type Palette = typeof colors.light | typeof colors.dark;
+
 const format = (minutes: number) => {
   const rounded = Math.max(0, Math.round(minutes));
   return rounded >= 60

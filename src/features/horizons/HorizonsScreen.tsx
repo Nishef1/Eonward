@@ -7,7 +7,7 @@ import { dateFromPeriodKey, HORIZONS, HORIZON_TITLES, periodKey, periodLabel, sh
 import { availableGoalParents, type Goal, type GoalInput } from '../../domain/goals';
 import { buildPerspectiveSections } from '../../domain/perspective';
 import { archiveGoal, createGoal, editGoal, getGoal, listAllGoals, listArchivedGoals, listChildGoals, listGoalAncestors, listGoals, listInboxGoals, listPerspectiveGoals, moveGoal, planGoal, restoreGoal, setGoalCompleted } from '../../storage/goals';
-import { colors, depth, radius, spacing } from '../../theme/tokens';
+import { colors, depth, radius, spacing, type Palette } from '../../theme/tokens';
 import Archive from 'lucide-react-native/icons/archive';
 import Check from 'lucide-react-native/icons/check';
 import ChevronDown from 'lucide-react-native/icons/chevron-down';
@@ -31,7 +31,7 @@ import { ArchiveView } from './ArchiveView';
 import { useFocusSession } from '../focus/FocusProvider';
 import { useReducedMotion } from '../../theme/useReducedMotion';
 
-type Palette = typeof colors.light | typeof colors.dark;
+
 
 function GoalCard({
   goal, palette, onOpen, onToggle, onOrganize, disabled,

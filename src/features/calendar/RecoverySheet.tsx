@@ -1,13 +1,13 @@
 import { useEffect, useMemo, useState } from 'react';
 import { AppState, Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
-import { colors } from '../../theme/tokens';
+import { colors, type Palette } from '../../theme/tokens';
 import { localClock, type TimeBlock } from '../../domain/timeblocks';
 import { previewReplan, type ReplanPreview } from '../../domain/replan';
 import { useReducedMotion } from '../../theme/useReducedMotion';
 import RefreshCw from 'lucide-react-native/icons/refresh-cw';
 
-type Palette = typeof colors.light | typeof colors.dark;
+
 interface Props {
   visible: boolean; day: Date; blocks: TimeBlock[]; palette: Palette; busy: boolean; activeBlockId: string | null;
   onClose: () => void; onApply: (preview: ReplanPreview) => void;
