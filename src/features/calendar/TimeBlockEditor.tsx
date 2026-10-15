@@ -70,7 +70,8 @@ export function TimeBlockEditor({ visible, date, goals, initial, suggestedGoalId
     ]);
   }
   const filtered = useMemo(() => goals.filter((goal) =>
-    goal.title.toLowerCase().includes(search.toLowerCase().trim())).slice(0, 25), [goals, search]);
+    (!goal.completed || goal.id === initial?.goalId) &&
+    goal.title.toLowerCase().includes(search.toLowerCase().trim())).slice(0, 25), [goals, search, initial?.goalId]);
   const goal = goals.find((g) => g.id === goalId);
   let validation: string | null = null;
   try { timeRangeFromInput({ date: dayText, start, end, endsNextDay }); }
@@ -85,7 +86,7 @@ export function TimeBlockEditor({ visible, date, goals, initial, suggestedGoalId
       endsNextDay !== (localDayKey(new Date(initial.startAt)) !== localDayKey(new Date(initial.endAt))) || goalId !== initial.goalId ||
       kind !== initial.kind || intention.trim() !== initial.intention || flexible !== initial.flexible;
   }
-  const valid = !!goalId && !validation && !saving && !editingActive && changed;
+  const valid = !!goalId && !goal?.completed && !validation && !saving && !editingActive && changed;
 
   return (
     <Modal visible={visible} animationType={reducedMotion ? 'none' : 'slide'} transparent statusBarTranslucent navigationBarTranslucent onRequestClose={requestCancel}>
@@ -192,12 +193,15 @@ export function TimeBlockEditor({ visible, date, goals, initial, suggestedGoalId
                 placeholderTextColor={palette.muted} accessibilityLabel="Time block intention"
                 style={[styles.input, styles.notes, { backgroundColor: palette.surface, borderColor: palette.border, color: palette.foreground }]} />
               {validation ? <Text style={[styles.validation, { color: palette === colors.dark ? semantic.dark.danger : semantic.light.danger }]}>{validation}</Text> : null}
+              {goal?.completed ? <Text style={[styles.validation, { color: palette.muted }]}>
+                This goal is complete. Reopen it in Plan before scheduling new time.
+              </Text> : null}
               {editingActive ? <Text style={styles.validation}>
                 End the active Focus session before editing this Timebox.
               </Text> : null}
             </ScrollView>
             <SafeAreaView edges={['bottom']} style={[styles.footer, { borderTopColor: palette.border, backgroundColor: palette.background }]}>
-              {initial?.kind === 'box' && kind === 'box' && !editingActive ? (
+              {initial?.kind === 'box' && kind === 'box' && !editingActive && !goal?.completed ? (
                 <Pressable accessibilityRole="button" disabled={saving || changed}
                   accessibilityState={{ disabled: saving || changed }}
                   onPress={() => { if (!saving && !changed) onStartFocus(initial); }}

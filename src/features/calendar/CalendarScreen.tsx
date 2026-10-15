@@ -142,12 +142,12 @@ export function CalendarScreen() {
       usedGoalParam.current = goalId;
       // Consume this deep-link parameter so opening the same goal again works.
       router.setParams({ goalId: undefined });
-      if (goal) {
+      if (goal && !goal.completed) {
         setEditingBlock(null);
         setChosenGoal(goal.id);
         setSuggestedHour(null);
         setEditorOpen(true);
-      } else Alert.alert('Goal unavailable', 'Only active goals can be scheduled.');
+      } else Alert.alert('Goal unavailable', 'Only open goals can be scheduled. Reopen a completed goal in Plan first.');
     }).catch(() => {
       if (active) Alert.alert('Could not open goal', 'Try opening Calendar again.');
     });
@@ -180,7 +180,7 @@ export function CalendarScreen() {
     }
   }
   function createAt(hour: number | null = null) {
-    if (!goals.length) {
+    if (!goals.some((goal) => !goal.completed)) {
       setSuggestedHour(hour);
       setNewGoalOpen(true);
       return;
