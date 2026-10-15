@@ -20,7 +20,8 @@ async function prepareChannel(): Promise<void> {
   await Notifications.setNotificationChannelAsync(CHANNEL, {
     name: 'Focus completion',
     importance: Notifications.AndroidImportance.HIGH,
-    sound: 'default',
+    // Omitting sound selects Android's default notification sound. A string
+    // here is interpreted as a custom raw resource filename by the channel API.
   });
 }
 function permitted(permissions: Notifications.NotificationPermissionsStatus): boolean {
