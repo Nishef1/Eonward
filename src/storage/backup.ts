@@ -37,16 +37,27 @@ async function countMerge(
     summary.incoming += incoming.length;
     if (!incoming.length) continue;
     const columns = BACKUP_COLUMNS[table];
-    const saved = await db.getAllAsync<BackupRow>(
-      `SELECT ${columns.join(', ')} FROM ${table}`);
-    const existing = new Map(saved.map((row) => [rowIdentity(table, row), row]));
-    for (const row of incoming) {
-      const local = existing.get(rowIdentity(table, row));
-      if (!local) summary.missing++;
-      else if (sameRow(table, local, row)) summary.identical++;
-      else {
-        summary.different++;
-        if (!summary.differentTables.includes(table)) summary.differentTables.push(table);
+    // Bound memory and SQL variables: inspect only imported IDs, rather than
+    // loading every local goal/Timebox for a small incoming backup.
+    for (let offset = 0; offset < incoming.length; offset += 150) {
+      const batch = incoming.slice(offset, offset + 150);
+      const clause = table === 'board_goals'
+        ? batch.map(() => '(board_id = ? AND goal_id = ?)').join(' OR ')
+        : `${table === 'time_budgets' ? 'goal_id' : 'id'} IN (${batch.map(() => '?').join(', ')})`;
+      const params = table === 'board_goals'
+        ? batch.flatMap((row) => [row.board_id, row.goal_id])
+        : batch.map((row) => table === 'time_budgets' ? row.goal_id : row.id);
+      const saved = await db.getAllAsync<BackupRow>(
+        `SELECT ${columns.join(', ')} FROM ${table} WHERE ${clause}`, params);
+      const existing = new Map(saved.map((row) => [rowIdentity(table, row), row]));
+      for (const row of batch) {
+        const local = existing.get(rowIdentity(table, row));
+        if (!local) summary.missing++;
+        else if (sameRow(table, local, row)) summary.identical++;
+        else {
+          summary.different++;
+          if (!summary.differentTables.includes(table)) summary.differentTables.push(table);
+        }
       }
     }
   }
