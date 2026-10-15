@@ -14,6 +14,7 @@ import { saveBlock, listDayBlocks } from '../src/storage/timeblocks.ts';
 import { setWeeklyCapacity, listWeeklyCapacity } from '../src/storage/capacity.ts';
 import { parseBackup } from '../src/domain/backup.ts';
 import { createGuidedPlan } from '../src/storage/guided-plans.ts';
+import { serializeDatabase } from '../src/storage/serialized.ts';
 
 function realDatabase() {
   const sqlite = new DatabaseSync(':memory:');
@@ -58,10 +59,27 @@ test('native links reject malformed and oversized input before tolerant URI deco
   assert.equal(safeNativePath('/?goalId=%25literal'), '/?goalId=%25literal');
 });
 
-test('newer database is rejected rather than overwritten', async () => {
+test('newer database is rejected and SQLite gate serializes native calls', async () => {
   const fake = fakeDatabase(9);
   await assert.rejects(() => migrateDatabase(fake.db), /newer Eonward database/);
   assert.equal(fake.transactionCalls, 0);
+  let inFlight = 0, maximum = 0, calls = 0;
+  const handle = {
+    getAllAsync: async () => {
+      calls++;
+      inFlight++;
+      maximum = Math.max(inFlight, maximum);
+      await Promise.resolve();
+      await Promise.resolve();
+      inFlight--;
+      return [];
+    },
+  };
+  const guarded = serializeDatabase(handle);
+  assert.equal(serializeDatabase(handle), guarded);
+  await Promise.all(Array.from({ length: 40 }, () => guarded.getAllAsync('SELECT 1')));
+  assert.equal(calls, 40);
+  assert.equal(maximum, 1);
 });
 
 test('real SQLite migrates populated v5 data to v8 without losing goals, boards or timer state', async () => {
