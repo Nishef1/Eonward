@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { Alert, AppState, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { blockClockRangeForDay, layoutBlocks, localClock, localDayKey, type TimeBlock } from '../../domain/timeblocks';
 import { colors, radius } from '../../theme/tokens';
+import { getFocusElapsedMs, type FocusSession } from '../../domain/focus';
 
 type Palette = typeof colors.light | typeof colors.dark;
 
@@ -34,8 +35,10 @@ interface Props {
   onEdit: (block: TimeBlock) => void;
   onQuickAdd: (hour: number) => void;
   onOpenGoal: (goalId: string) => void;
+  actualByBlock: Record<string, number>;
+  activeSession: FocusSession | null;
 }
-export function DayTimeline({ date, blocks, palette, isDark, onEdit, onQuickAdd, onOpenGoal }: Props) {
+export function DayTimeline({ date, blocks, palette, isDark, onEdit, onQuickAdd, onOpenGoal, actualByBlock, activeSession }: Props) {
   const ref = useRef<ScrollView>(null);
   const didScroll = useRef<string | null>(null);
   const [now, setNow] = useState(() => new Date());
@@ -69,6 +72,9 @@ export function DayTimeline({ date, blocks, palette, isDark, onEdit, onQuickAdd,
     setNow(new Date());
   }
 
+  const recordedMs = Object.values(actualByBlock).reduce((sum, value) => sum + value, 0) +
+    (activeSession && blocks.some((b) => b.id === activeSession.blockId)
+      ? getFocusElapsedMs(activeSession, now.getTime()) : 0);
   const shade = isDark ? 'rgba(130,180,159,0.055)' : 'rgba(88,122,109,0.055)';
   const gridLine = isDark ? 'rgba(174,191,179,0.12)' : 'rgba(100,121,111,0.13)';
   return (
@@ -77,7 +83,8 @@ export function DayTimeline({ date, blocks, palette, isDark, onEdit, onQuickAdd,
         <Pressable accessibilityRole="button" accessibilityLabel="How to use the timeline"
           onPress={() => Alert.alert('Your timeline', 'Tap an empty hour to reserve time. Tap a block to edit it, or hold it to open the goal. Use + and − to change the scale.')}
           style={[styles.toolbarCopy, { minHeight: 48, justifyContent: 'center' }]}>
-          <Text style={[styles.heading, { color: palette.foreground }]}>Timeline ⓘ</Text>
+          <Text style={[styles.heading, { color: palette.foreground }]}>Living timeline ⓘ</Text>
+          <Text style={{ color: palette.muted, fontSize: 11 }}>{Math.floor(recordedMs / 60000)}m recorded Focus</Text>
         </Pressable>
         <View style={[styles.zoom, { backgroundColor: palette.surface, borderColor: palette.border }]}>
           <Pressable accessibilityRole="button" accessibilityLabel="Zoom out of day timeline"
@@ -155,6 +162,10 @@ export function DayTimeline({ date, blocks, palette, isDark, onEdit, onQuickAdd,
                 const compact = height < 52;
                 const veryCompact = height < 39;
                 const tone = blockTone(block);
+                const focusedMs = (actualByBlock[block.id] ?? 0) +
+                  (activeSession?.blockId === block.id ? getFocusElapsedMs(activeSession, now.getTime()) : 0);
+                const plannedMs = Date.parse(block.endAt) - Date.parse(block.startAt);
+                const progress = plannedMs > 0 ? Math.min(1, focusedMs / plannedMs) : 0;
                 return (
                   <Pressable key={block.id} accessibilityRole="button"
                     accessibilityLabel={`${block.goalTitle}, ${visibleRange(block)} on this day. Edit time.`}
@@ -176,12 +187,18 @@ export function DayTimeline({ date, blocks, palette, isDark, onEdit, onQuickAdd,
                       <>
                         <Text numberOfLines={1} style={styles.eventTime}>
                           {visibleRange(block)}
-                          {block.kind === 'box' ? '  ·  BOX' : ''}
+                          {block.kind === 'box' ? '  ·  BOX' : ''}{block.flexible ? ' · FLEX' : ''}
                         </Text>
                         <Text numberOfLines={height < 75 ? 1 : 2}
                           style={[styles.eventTitle, block.goalCompleted && styles.doneTitle]}>
                           {block.goalTitle}
                         </Text>
+                        {height > 70 && focusedMs > 0 ? (
+                          <View accessibilityLabel={`${Math.floor(focusedMs / 60000)} minutes Focus recorded`}
+                            style={styles.progressTrack}>
+                            <View style={[styles.progressFill, { width: `${progress * 100}%` }]} />
+                          </View>
+                        ) : null}
                         {height > 114 && block.intention ? (
                           <Text numberOfLines={2} style={styles.eventIntention}>{block.intention}</Text>
                         ) : null}
@@ -236,6 +253,8 @@ const styles = StyleSheet.create({
   doneTitle: { textDecorationLine: 'line-through' },
   eventIntention: { color: 'rgba(255,255,255,0.83)', fontSize: 11, marginTop: 7 },
   microTitle: { color: '#FFFFFF', fontSize: 10, fontWeight: '700' },
+  progressTrack: { backgroundColor: 'rgba(255,255,255,0.25)', height: 4, borderRadius: 4, marginTop: 7, overflow: 'hidden' },
+  progressFill: { height: 4, borderRadius: 4, backgroundColor: '#FFFFFF' },
   presentLine: { position: 'absolute', left: 0, right: 0, height: 22, flexDirection: 'row', alignItems: 'center', zIndex: 12, transform: [{ translateY: -11 }] },
   nowPill: { marginLeft: 5, width: 49, borderRadius: 7, height: 23, backgroundColor: '#BA7748', justifyContent: 'center', alignItems: 'center' },
   nowPillText: { fontSize: 10, fontWeight: '700', color: '#FFFFFF', fontVariant: ['tabular-nums'] },
