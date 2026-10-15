@@ -1,0 +1,14 @@
+# Requires the isolated Eonward QA native build (com.nishef.eonward.qa).
+appId: com.nishef.eonward.qa
+---
+- launchApp:
+    clearState: true
+- assertVisible: 'EONWARD'
+- tapOn: 'Calendar'
+- assertVisible: 'Calendar'
+- tapOn: 'Boards'
+- assertVisible: 'Boards'
+- tapOn: 'Review'
+- assertVisible: 'This week'
+- tapOn: 'Plan'
+- assertVisible: 'EONWARD'
