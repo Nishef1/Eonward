@@ -21,11 +21,29 @@ This file is the single source of truth for **planned vs completed** work. It is
 | --- | --- | --- | --- |
 | M0 — Foundation | Documentation, repository hygiene, Expo shell | Complete — emulator screenshot + CI | Clean install, typecheck, successful device startup |
 | M1 — Product UX | Information architecture, design tokens, prototypes | Studio direction implemented; Android renders sampled; user aesthetic acceptance open | Approved screen map and verified interactions |
-| M2 — Goals & horizons | Persistent data, hierarchy, seven horizons | SQLite v7; real SQLite integration and sampled native flows pass | Complete device acceptance matrix |
+| M2 — Goals & horizons | Persistent data, hierarchy, seven horizons | SQLite v8; real SQLite integration and sampled native flows pass | Complete device acceptance matrix |
 | M3 — Planning views | Boards, calendar, time blocks, fast capture | Implemented; native keyboard, time editing and cross-view Focus sampled | Full cross-view and device matrix |
 | M4 — Personal systems | Notes, repeating items, habits, templates, reviews | Plain notes, recurrence and weekly Review implemented; habits/templates deferred | Accepted offline workflow scope |
 | M5 — Mobile integration | Notifications, widgets, localization, backup | Native picker/backup/reminders implemented; widgets/localization remain open | Physical-device and Apple acceptance |
 | M6 — Quality & release | Performance, accessibility, testing, release build | Isolated Android release QA APK built; iOS JS export passes | Store signing, native iOS, physical-device and accessibility gates |
+
+## Adaptive daily planning — implementation slice (2026-10-15)
+
+The following items describe code merged into `main`, **not independently accepted device behavior**.
+
+- [x] Add schema v8 without discarding goals, boards, time blocks, Focus history or completion history. Old blocks remain protected; old Focus events remain unattributed.
+- [x] Mark each saved Calendar reservation protected or flexible in the native editor. Carry the flag through backup format v2 and accept validated legacy v1 backups as fixed, unattributed records.
+- [x] Implement Living Timeline measured Focus progress for attributed sessions and show fixed/flexible distinctions in Calendar.
+- [x] Add deterministic recovery for today's future flexible blocks, a 15-minute breathing buffer, and 15/30-minute extension previews. Show old/new times and require confirmation.
+- [x] Apply only if the preview still matches SQLite state; block active Focus edits; checkpoint and transactionally undo the last replan. No silent mutation of goal identity/deadline/horizon.
+- [x] Add weekly goal time budgets, including planned reservations versus measured Focus, and a small Goal Impact overview in Review.
+- [x] Extend existing 20 tests with real SQLite apply/undo, weekly budget and legacy-backup checks, plus deterministic scheduler constraints.
+- [ ] Validate complete Recovery UI on a real Android device/emulator (font scaling, keyboard, overlapping time blocks, Focus running/paused, canceled dialogs, app suspension, undo).
+- [ ] Validate iOS native runtime and VoiceOver; do not treat JavaScript export as iOS certification.
+- [ ] Validate daylight-saving transition days, timezone changes, overnight sessions and backup migration from native test data.
+- [ ] Resolve Expo patch-version compatibility drift before release, and retain the existing native SQLite configuration-change crash as a separate release blocker.
+
+**Product boundary:** No AI scheduler, automatic task deletion, invisible reshuffle, implicit promotion of existing events to flexible, or cross-midnight move is implemented. The current week budget is a target, not a hard restriction; overlapping planned reservations are not deduplicated. Older Focus entries without goal IDs cannot be retroactively assigned reliably.
 
 ## Current verification — Studio and native planning (2026-10-15)
 
@@ -53,7 +71,7 @@ This section is the current acceptance summary. Earlier dated slices below prese
 - [ ] Resolve remaining dependency advisories and store permission/privacy requirements. Current audit: 22 affected dependency entries from three root advisories; see ENGINEERING.md for reachability and mitigation boundaries.
 - [ ] Configure store signing and public release metadata when the core app is ready. Publisher/contact details remain deferred at the user's request. No store upload or publication has occurred.
 
-Next three actions: (1) user review of the Studio direction plus remaining native interaction/accessibility checks; (2) native iOS build and simulator/device acceptance with Apple tooling; (3) close physical-device, dependency, signing and store gates before declaring release readiness. Widgets, native localization/Jalali, share-to-capture, templates and calendar drag remain unimplemented roadmap work.
+Next three actions: (1) native Android QA for Recovery preview/apply/Undo and the SQLite configuration-change crash; (2) update Expo/Router patch versions with a new reproducible npm lock and complete native iOS acceptance; (3) close physical-device/accessibility, signing and store gates before release. Widgets, native localization/Jalali, share-to-capture, templates and calendar drag remain unimplemented roadmap work.
 
 ## M0 — Foundation
 

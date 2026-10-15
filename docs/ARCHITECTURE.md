@@ -1,6 +1,8 @@
 # Current architecture status (2026-10-15)
 
-The current database is schema **v7**. Earlier version-specific sections below describe historical slices, not the current capability boundary. See CAPABILITIES.md for the current inventory.
+The current database is schema **v8**. v8 adds opt-in flexible blocks, goal/block attribution for future Focus history, per-goal weekly time budgets and a one-step transactional replan checkpoint. Existing time blocks stay protected; old Focus events stay unattributed. Portable backup v2 includes durable new data and validates/normalizes strict v1 backups, while excluding the temporary checkpoint and running timer.
+
+The previous database was schema **v7**. Earlier version-specific sections below describe historical slices, not the current capability boundary. See CAPABILITIES.md for the current inventory.
 
 v7 adds explicit Inbox state (`in_inbox = 1`, empty planning key), optional civil `due_date`, repeat rule/anchor/source metadata, a unique recurrence-source index, and `goal_activity` completion/reopen transitions. Existing goals, boards, reservations and Focus history are preserved. Startup migration uses `withTransactionAsync` on the provider connection; ordinary multi-record writes use exclusive transactions.
 

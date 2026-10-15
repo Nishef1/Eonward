@@ -77,3 +77,12 @@ Record significant decisions and reversals here. A future change should cite its
 - Prefer maintained native DateTimePicker and SVG/Lucide components over text-parsing-only date entry or font glyph icons. Use SDK-compatible versions and import only required icons.
 - Use one root keyboard boundary plus separate modal boundaries. Hide root navigation during typing after full Gboard exposed an obscured quick-capture action.
 - Keep QA release identifiers separate from the primary app, preserving user data. Local standalone QA builds use a debug certificate; store signing and publication remain separate gates and actions.
+
+## 2026-10-15 — Living Timeline and recoverable plans
+
+- Adopt a user-controlled, deterministic replanner instead of an opaque or server-dependent AI scheduler. Reflow never silently changes fixed reservations, complete goals, past segments, recurring anchors or goal dates.
+- Make `time_blocks.flexible` opt-in, default false for migration and imported legacy backups. Preview changes separately; match the original SQLite day snapshot in an exclusive write transaction; preserve one local, guarded Undo checkpoint outside portable backups.
+- Restrict first-pass Recovery to the current civil day with 24 actual hours; reject unresolvable overtime and daylight-saving transition days rather than silently shift clock times. The user can manually edit unusual dates using existing native pickers.
+- Attribute new Focus history to both block and goal IDs; retain old history as unattributed. Do not infer identities from titles, which are mutable and non-unique.
+- Use an explicit per-goal weekly minutes budget. Count saved reservations as planned, history as recorded and descendants along today's hierarchy; keep these quantities distinct. Avoid introducing an AI service, account, or new dependency.
+- Export backup v2 while supporting strict v1 legacy import. Exclude active sessions and temporary Undo state. Device-level restore must be tested before calling migration release-safe.
