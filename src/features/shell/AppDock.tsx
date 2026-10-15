@@ -157,7 +157,7 @@ export function AppDock() {
               <Text style={[styles.explainer, { color: palette.muted }]}>
                 {finished ? 'Your timebox has ended. Decide whether to mark the goal complete in Plan.' :
                   session?.status === 'paused' ? 'Time is paused. Resume when you are ready.' :
-                    'A focused window for this goal. The countdown stays accurate when you return. Your device may delay background alerts.'}
+                    'Focus is saved across app restarts. Manual device-clock changes can affect timing; the OS may delay background alerts.'}
               </Text>
               {notificationNotice && !finished && session?.status === 'running' ? (
                 <View style={styles.noticeSection}>

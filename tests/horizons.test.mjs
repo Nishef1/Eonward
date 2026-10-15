@@ -213,6 +213,7 @@ test('overlapping time blocks split their timeline lanes, consecutive blocks reu
 test('focus time uses an absolute deadline and stays correct after delayed ticks or app suspension', () => {
   const session = { status: 'running', deadlineMs: 185000, remainingMs: 65000 };
   assert.equal(getFocusRemainingMs(session, 120000), 65000);
+  assert.equal(getFocusRemainingMs(session, 10000), 65000); // Manual clock rollback cannot add minutes.
   assert.equal(getFocusRemainingMs(session, 170001), 14999);
   assert.equal(getFocusRemainingMs(session, 190000), 0);
   assert.equal(getFocusRemainingMs({ ...session, status: 'paused', remainingMs: 32000 }, 300000), 32000);

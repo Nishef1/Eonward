@@ -34,8 +34,11 @@ export function getFocusRemainingMs(
   session: Pick<FocusSession, 'status' | 'deadlineMs' | 'remainingMs'>,
   nowMs: number,
 ): number {
-  if (session.status === 'paused') return Math.max(0, session.remainingMs);
-  return Math.max(0, session.deadlineMs - nowMs);
+  const savedRemaining = Math.max(0, session.remainingMs);
+  if (session.status === 'paused') return savedRemaining;
+  // A backward wall-clock correction must never inflate the countdown past the
+  // remaining amount persisted at the last start/resume boundary.
+  return Math.min(savedRemaining, Math.max(0, session.deadlineMs - nowMs));
 }
 
 /** Count only real active time across pause/resume, capped at the planned Timebox. */
