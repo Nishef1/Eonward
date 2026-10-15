@@ -21,7 +21,7 @@ export function SettingsScreen() {
   const locked = useRef(false);
   async function run(action: () => Promise<void>) {
     if (locked.current) return;
-    locked.current = true; setBusy(true); setNotice(null);
+    locked.current = true; setBusy(true); setNotice(null); setHealth(null);
     try { await action(); }
     catch (error) { Alert.alert('Could not finish', error instanceof Error ? error.message : 'Please try again.'); }
     finally { locked.current = false; setBusy(false); }
@@ -50,14 +50,9 @@ export function SettingsScreen() {
     // Do not silently accumulate plaintext backups in the permanent Documents directory.
     const file = new File(Paths.cache, `eonward-${new Date().toISOString().replace(/[:.]/g, '-')}.json`);
     file.write(JSON.stringify(backup, null, 2));
-    try {
-      await Sharing.shareAsync(file.uri, { mimeType: 'application/json', UTI: 'public.json',
-        dialogTitle: 'Save your Eonward backup' });
-      setNotice('Share sheet closed. Confirm that you saved a copy in your chosen destination. A temporary copy may remain in the app cache.');
-    } catch (error) {
-      // Keep the temporary file for native sharing diagnostics; cache is not a durable backup.
-      throw error;
-    }
+    await Sharing.shareAsync(file.uri, { mimeType: 'application/json', UTI: 'public.json',
+      dialogTitle: 'Save your Eonward backup' });
+    setNotice('Share sheet closed. Confirm you saved a copy in your chosen destination. A temporary file remains in app cache until a later cleanup.');
   }
   async function inspectHealth() {
     const result = await checkLocalHealth(db);

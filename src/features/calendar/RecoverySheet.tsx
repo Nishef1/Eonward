@@ -5,6 +5,7 @@ import { colors } from '../../theme/tokens';
 import { localClock, type TimeBlock } from '../../domain/timeblocks';
 import { previewReplan, type ReplanPreview } from '../../domain/replan';
 import { useReducedMotion } from '../../theme/useReducedMotion';
+import RefreshCw from 'lucide-react-native/icons/refresh-cw';
 
 type Palette = typeof colors.light | typeof colors.dark;
 interface Props {
@@ -94,11 +95,12 @@ export function RecoverySheet({ visible, day, blocks, palette, busy, activeBlock
                   <Pressable accessibilityRole="button" accessibilityLabel="Refresh recovery preview with current time"
                     disabled={busy} onPress={() => { setNow(new Date()); setClockMs(Date.now()); }}
                     style={styles.refresh}>
-                    <Text style={{ color: palette.accent, fontWeight: '700', fontSize: 12 }}>↻ Refresh</Text>
+                    <RefreshCw size={14} color={palette.accent} strokeWidth={1.8} />
+                    <Text style={{ color: palette.accent, fontWeight: '700', fontSize: 12 }}>Refresh</Text>
                   </Pressable>
                 </View>
                 {expired ? <Text style={[styles.caption, { color: palette.muted }]}>
-                  This preview is older than two minutes. Refresh before applying; past time stays protected.
+                  This preview is no longer current. Refresh before applying; past time stays protected.
                 </Text> : null}
                 {result.error ? <Text style={{ color: palette.foreground }}>{result.error}</Text>
                   : result.value?.moves.length ? result.value.moves.map((move) => <View key={move.id}
@@ -143,7 +145,7 @@ const styles = StyleSheet.create({
   title: { fontSize: 26, fontWeight: '700', letterSpacing: -0.7 },
   caption: { fontSize: 12, lineHeight: 20 },
   row: { flexDirection: 'row', gap: 10, flexWrap: 'wrap' },
-  refresh: { minHeight: 48, justifyContent: 'center', paddingHorizontal: 6 },
+  refresh: { minHeight: 48, justifyContent: 'center', alignItems: 'center', flexDirection: 'row', gap: 6, paddingHorizontal: 6 },
   chip: { borderWidth: 1, borderRadius: 14, minHeight: 48, paddingHorizontal: 15, justifyContent: 'center' },
   option: { minHeight: 48, borderWidth: 1, borderRadius: 12, padding: 10, flexDirection: 'row', alignItems: 'center', gap: 10 },
   preview: { borderRadius: 17, padding: 14, borderWidth: 1, gap: 12 },

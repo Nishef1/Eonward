@@ -81,6 +81,26 @@ test('newer database is rejected and SQLite gate serializes native calls', async
   await Promise.all(Array.from({ length: 40 }, () => guarded.getAllAsync('SELECT 1')));
   assert.equal(calls, 40);
   assert.equal(maximum, 1);
+  const eventLog = [];
+  const exclusiveDb = {
+    getAllAsync: async () => { eventLog.push('outside'); return []; },
+    withExclusiveTransactionAsync: async (callback) => {
+      eventLog.push('begin');
+      await callback({
+        getFirstAsync: async () => { eventLog.push('inside'); return null; },
+      });
+      eventLog.push('commit');
+    },
+  };
+  const safe = serializeDatabase(exclusiveDb);
+  await Promise.all([
+    safe.withExclusiveTransactionAsync(async (tx) => {
+      await tx.getFirstAsync('SELECT 1');
+      await Promise.resolve();
+    }),
+    safe.getAllAsync('SELECT 2'),
+  ]);
+  assert.deepEqual(eventLog, ['begin', 'inside', 'commit', 'outside']);
 });
 
 test('real SQLite migrates populated v5 data to v8 without losing goals, boards or timer state', async () => {
