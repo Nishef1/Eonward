@@ -71,7 +71,9 @@ export function reconcileFocusNotification(db: SQLiteDatabase): Promise<string |
     // Keep the last scheduled alarm until its replacement is safely created.
     // Android may refuse exact alarms; cancelling first could silently lose an
     // otherwise valid reminder if the new native schedule call fails.
-    const newIdentifier = await Notifications.scheduleNotificationAsync({
+    let newIdentifier: string;
+    try {
+      newIdentifier = await Notifications.scheduleNotificationAsync({
       content: {
         title: 'Focus time is up',
         body: 'Your timebox has ended. Return to Eonward to review your session.',
@@ -87,7 +89,19 @@ export function reconcileFocusNotification(db: SQLiteDatabase): Promise<string |
             date: new Date(session.deadlineMs), channelId: CHANNEL }
         : { type: Notifications.SchedulableTriggerInputTypes.DATE,
             date: new Date(session.deadlineMs) },
-    });
+      });
+    } catch (reason) {
+      // An old session's deadline is *never* an acceptable fallback for a
+      // replaced/paused/resumed Focus. Only an identical current reminder may
+      // survive failure to re-arm it.
+      for (const item of pending) {
+        if (item.content.data?.focusBlockId !== session.blockId ||
+          item.content.data?.deadlineMs !== String(session.deadlineMs)) {
+          await Notifications.cancelScheduledNotificationAsync(item.identifier);
+        }
+      }
+      throw reason;
+    }
     for (const item of pending) {
       if (item.identifier !== newIdentifier)
         await Notifications.cancelScheduledNotificationAsync(item.identifier);
