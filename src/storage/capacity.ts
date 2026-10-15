@@ -1,5 +1,5 @@
 import type { SQLiteDatabase } from 'expo-sqlite';
-import { localDayBounds, shiftLocalDay } from '../domain/timeblocks';
+import { localDayBounds, occupiedMilliseconds, shiftLocalDay } from '../domain/timeblocks';
 
 export interface WeeklyCapacity {
   goalId: string; title: string; weeklyMinutes: number; plannedMinutes: number; focusedMinutes: number;
@@ -43,9 +43,22 @@ export async function listWeeklyCapacity(db: SQLiteDatabase, monday: Date): Prom
   const output = new Map(budgets.map((b) => [b.goal_id, { goalId: b.goal_id, title: b.title,
     weeklyMinutes: b.weekly_minutes, plannedMinutes: 0, focusedMinutes: 0 }]));
   const fromMs = Date.parse(from), toMs = Date.parse(to);
+  const reservations = new Map<string, { start: number; end: number }[]>();
   for (const b of blocks) {
-    const minutes = Math.max(0, (Math.min(Date.parse(b.end_at), toMs) - Math.max(Date.parse(b.start_at), fromMs)) / 60000);
-    for (const id of idsFor(b.goal_id)) { const target = output.get(id); if (target) target.plannedMinutes += minutes; }
+    const slot = { start: Math.max(Date.parse(b.start_at), fromMs), end: Math.min(Date.parse(b.end_at), toMs) };
+    if (!Number.isFinite(slot.start) || !Number.isFinite(slot.end) || slot.end <= slot.start) continue;
+    for (const id of idsFor(b.goal_id)) {
+      if (!output.has(id)) continue;
+      const existing = reservations.get(id) ?? [];
+      existing.push(slot);
+      reservations.set(id, existing);
+    }
+  }
+  // Parent and descendant goals can own simultaneous Timeboxes; capacity is wall time,
+  // not the sum of overlapping reservations. Retain separate counts for different budgets.
+  for (const [id, slots] of reservations) {
+    const target = output.get(id);
+    if (target) target.plannedMinutes = occupiedMilliseconds(slots) / 60000;
   }
   for (const event of history) if (event.goal_id) for (const id of idsFor(event.goal_id)) {
     const target = output.get(id); if (target) target.focusedMinutes += event.focused_ms / 60000;

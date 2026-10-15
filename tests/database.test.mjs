@@ -223,6 +223,18 @@ test('offline planning lifecycle preserves identity, recurrence, completion hist
       beforeRecovery.map((b) => [b.id, b.startAt, b.endAt]).sort());
     await setWeeklyCapacity(source.db, parent, 240);
     assert.equal((await listWeeklyCapacity(source.db, new Date(2026, 9, 12, 12)))[0].weeklyMinutes, 240);
+    // Overlapping descendant reservations must count as occupied wall time, not summed durations.
+    await setWeeklyCapacity(source.db, flexibleGoal, 180);
+    const mergedCapacity = (await listWeeklyCapacity(source.db, new Date(2026, 9, 12, 12)))
+      .find((item) => item.goalId === flexibleGoal);
+    assert.equal(mergedCapacity.plannedMinutes, 60);
+    await saveBlock(source.db, { goalId: flexibleGoal, date: '2026-10-14',
+      start: '13:15', end: '13:45', kind: 'block', intention: 'Overlapping reservation', flexible: false });
+    const uniqueCapacity = (await listWeeklyCapacity(source.db, new Date(2026, 9, 12, 12)))
+      .find((item) => item.goalId === flexibleGoal);
+    assert.equal(uniqueCapacity.plannedMinutes, 75);
+    // An unrelated goal's reservation doesn't affect the allocated time for this goal.
+    assert.equal(uniqueCapacity.focusedMinutes, 0);
     const quick = await beginQuickFocus(source.db, step, 25);
     assert.equal(quick.durationMs, 25 * 60000);
     const blockCount = source.sqlite.prepare('SELECT count(*) AS n FROM time_blocks').get().n;

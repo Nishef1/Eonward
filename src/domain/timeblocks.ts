@@ -170,6 +170,19 @@ export function layoutBlocks(blocks: readonly TimeBlock[], hourHeight = 64, day?
   return result;
 }
 
+/** Sum the union of timestamp intervals, never double-counting overlapping commitments. */
+export function occupiedMilliseconds(intervals: readonly { start: number; end: number }[]): number {
+  const ordered = intervals.filter((slot) =>
+    Number.isFinite(slot.start) && Number.isFinite(slot.end) && slot.end > slot.start)
+    .sort((a, b) => a.start - b.start || a.end - b.end);
+  let occupied = 0, coveredUntil = -Infinity;
+  for (const slot of ordered) {
+    occupied += Math.max(0, slot.end - Math.max(slot.start, coveredUntil));
+    coveredUntil = Math.max(coveredUntil, slot.end);
+  }
+  return occupied;
+}
+
 /** Distinguish summed reservations from actual occupied wall time when events overlap. */
 export function analyzeDayLoad(blocks: readonly Pick<TimeBlock, 'startAt' | 'endAt'>[], day: Date) {
   const bounds = localDayBounds(day);
@@ -179,12 +192,8 @@ export function analyzeDayLoad(blocks: readonly Pick<TimeBlock, 'startAt' | 'end
     end: Math.min(to, Date.parse(block.endAt)),
   })).filter(({ start, end }) => Number.isFinite(start) && Number.isFinite(end) && end > start)
     .sort((a, b) => a.start - b.start || a.end - b.end);
-  let reservedMs = 0, occupiedMs = 0, coveredUntil = from;
-  for (const slot of slots) {
-    reservedMs += slot.end - slot.start;
-    occupiedMs += Math.max(0, slot.end - Math.max(slot.start, coveredUntil));
-    coveredUntil = Math.max(coveredUntil, slot.end);
-  }
+  const reservedMs = slots.reduce((total, slot) => total + slot.end - slot.start, 0);
+  const occupiedMs = occupiedMilliseconds(slots);
   return {
     reservedMinutes: Math.round(reservedMs / 60000),
     occupiedMinutes: Math.round(occupiedMs / 60000),
