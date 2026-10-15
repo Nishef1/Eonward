@@ -27,6 +27,34 @@ This file is the single source of truth for **planned vs completed** work. It is
 | M5 — Mobile integration | Notifications, widgets, localization, backup | Native picker/backup/reminders implemented; widgets/localization remain open | Physical-device and Apple acceptance |
 | M6 — Quality & release | Performance, accessibility, testing, release build | Isolated Android release QA APK built; iOS JS export passes | Store signing, native iOS, physical-device and accessibility gates |
 
+## Neglected contradiction audit — data lifecycle, time and truth in UI (2026-10-15)
+
+This sweep is intentionally **cross-boundary**, not another palette refactor. It verifies the lifecycle Capture → Calendar → Timebox → Focus → Review → Backup against source, active SQLite tests and Expo/React Native/SQLite specifications.
+
+### Source corrections (automated tests, not physical-device certification)
+
+- [x] **Undo eligibility contradiction:** `canUndoReplan` previously offered a valid-looking five-minute Undo even if a moved reservation was now active Focus. It now checks the active Focus block and malformed before/after checkpoint shape, as well as the already-established block revision, completion and archive eligibility. Actual Undo remains transactionally guarded.
+- [x] **Different editing safety by surface:** Drag/Resize preview now records the source block's `updated_at`, and its exclusive apply rejects a changed timestamp even when the visible content is identical. An in-progress UI drag remains pinned to that source revision instead of silently rebasing onto a new calendar state.
+- [x] **Review split-brain:** Changing a Focus session on the *same* Timebox changes its start time but not its block ID; Review now keys reloads to the new session start. Its independently loaded Time Architecture budgets now refresh when the parent weekly history changes.
+- [x] **Timer and preview time-of-check gap:** Quick Focus starts its absolute deadline inside the actual SQLite transaction rather than before waiting in the queue. Recovery validates the preview's two-minute freshness again *inside* the exclusive transaction. Existing test scenarios simulate the time advancing across this boundary.
+- [x] **Visual overlap misrepresentation:** Ghost Preview now uses the same lane placement as existing reservations instead of rendering full-width over conflicts.
+- [x] **Backup validation gap:** imported time blocks must obey the same 1-minute to 24-hour duration bounds as normal scheduling, not merely end-after-start. Existing tests reject both fabricated 25-hour and sub-minute entries prior to SQLite writes.
+- [x] **Misleading copy:** the editor no longer describes all ordinary reservations as both "protected" and freely movable; only explicit Flexible opt-in grants Recovery permission to move them.
+
+### Open blind spots, deliberately not marked fixed
+
+| Priority | Blind spot | Evidence necessary |
+| --- | --- | --- |
+| P0 | Native Android expo-sqlite lifetime crash | Reproduce, capture native stack and verify on Android OS/SDK matrix, including settings transitions and process restart — issue #2 |
+| P1 | Nested ScrollView drag/responder behavior, long-press and screen-reader adjustable grips | Native video, font 100/130/200%, portrait/landscape, VoiceOver/TalkBack — issue #3 |
+| P1 | Backup restore to populated/diverged device and plaintext cache/sharing recipient behavior | Destructive tests **only** on isolated QA, with externally verified saved copy, cancellation and v1/v2 roundtrip |
+| P1 | Wall-clock tampering/time synchronization during a running Focus timer | Native suspend/restart/manual clock-change experiments; current deadline-based model uses `Date.now`, not a durable monotonic clock |
+| P2 | Large-data responsiveness and expensive list/layout operations | Measure CPU/memory/scroll jank on midrange devices with realistic 100–1000-goal fixtures before adding cache or virtualization |
+| P2 | Analytics semantics across midnight / history imported from another timezone | Validate explicitly that completed sessions are grouped by **end date**, not sliced into exact local-day work segments |
+| P2 | Bounded 10-MB portable backup export | Stress legitimate large goals/notes and surface a clear capacity fallback before product scale increases |
+
+**CTO rule:** never confuse passing 20 automated *test cases* with completeness. Large lifecycle cases still contain many assertions but cannot certify native interactions, performance, real restore recipients, or all clock changes. Prefer adding a targeted test when a distinct invariant requires one rather than preserving an arbitrary case-count as a quality metric. Avoid a duplicate state manager or sweeping CSS rewrite; these fixes belong to the existing SQLite, domain and React Native boundaries.
+
 ## Systems-level self-audit — data and lifecycle coherence (2026-10-15)
 
 **Scope:** Capture/Plan → Calendar/Timebox → Focus → Review → Backup. Rather than create a global client-state library or a second event store, repair the three actually inconsistent hand-offs.

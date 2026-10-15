@@ -75,3 +75,14 @@ This document describes whole-gate validation. Sampled current evidence is in RO
 - [ ] Verify two-screen edit conflict and recovery of an unsaved draft in Android/iOS native builds.
 - [ ] Verify Review updates after stopping Focus from the global dock, including background/foreground and denied notification permission.
 - [ ] Compare clock-transition presentation in spring/fall IANA zones and accessibility readout on Android/iOS.
+
+## Cross-boundary blind spot tests (2026-10-15)
+
+- [x] `canUndoReplan` hides Undo while a moved block is live Focus and on structurally unusable checkpoints; SQL Undo remains the final atomic guard.
+- [x] Drag/Resize and Ripple reject stale `updated_at` snapshots even after an edit restores identical on-screen values.
+- [x] Recovery freshness rejects a preview that expires after a queue wait, before touching any reservation.
+- [x] Portable backup parser rejects a 25-hour or 30-second reservation.
+- [ ] Test replacing Focus on the same saved Timebox while Review stays focused: both headline and Time Architecture budget bars must update.
+- [ ] Native Quick Focus under artificially slow database transactions: timer should begin at creation time and not consume minutes waiting for a lock.
+- [ ] Native Undo while Focus active/paused on the moved block and after it stops, across both OS implementations.
+- [ ] Native same-source drag revision conflict, overnight/week transition and actual cloud/file share recipients.

@@ -136,3 +136,12 @@ Record significant decisions and reversals here. A future change should cite its
 - Use the Focus session identity change to invalidate Review's read-only report, avoiding both a parallel Focus store and every-second report queries.
 - Show exact clock offsets in DST lists rather than drawing a structurally wrong 24-hour day for a 23- or 25-hour local civil date. Native timezone acceptance remains necessary.
 - Any manual calendar mutation invalidates ephemeral Recovery Undo; safety beats an undo that might reverse something other than what the user last approved.
+
+## 2026-10-15 — Cross-boundary contradiction audit
+
+- Undo eligibility and implementation must enforce the same **meaningful** conditions: live Focus is an Undo blocker even when the checkpoint is younger than five minutes and its blocks match saved times. A malformed checkpoint should never advertise Undo.
+- A direct-move preview is anchored to the SQLite `updated_at` of the block on first user interaction; do not silently retarget to refreshed records. The transparent ghost obeys the same overlap-lane geometry as the committed layout.
+- Focus time is recorded when a transaction actually creates the running session, not when the action begins waiting behind unrelated serialized writes. Recovery checks freshness before and after acquiring the exclusive transaction. Fixed clocks are injectable for deterministic testing, without production time freezing.
+- Budget rollups re-read persisted Focus records whenever the parent weekly history reloads. Session `startedAtMs` differentiates replacement of a running session with another session on the same Timebox.
+- Portable restore is a separate data entrypoint that must not bypass domain scheduling duration rules. Enforce input bounds in `parseBackup` for legacy and current backup formats before any database mutation.
+- Deliberately defer a monotonic cross-restart Focus clock solution pending OS/device research, and do not claim overnight attribution is exact; physical background behavior, native reporting and backup recipient reliability remain release gates.

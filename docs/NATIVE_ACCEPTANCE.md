@@ -49,3 +49,12 @@ The current source-level SQLite queue is a mitigation. It cannot guarantee safet
 ## Release decision
 
 Release remains **blocked** until P0 SQLite native stability, Android/iOS on-device acceptance, backup restore, accessibility and signing/privacy checks have recorded evidence. Current code and JavaScript export checks are necessary but not sufficient. No app store submission, signing credentials, or production migration is performed by this document.
+
+## Under-tested contradiction matrix (source changes not a native pass)
+
+- [ ] Keep a Recovery checkpoint on a flexible Timebox, start Focus on that Timebox, revisit Calendar: Undo must be unavailable; after stopping Focus test whether it becomes available inside the checkpoint window.
+- [ ] Open a Move/Resize ghost, save the same reservation from another app route and return: ghost must show a stale-preview warning, not silently migrate to the edited reservation.
+- [ ] Begin Quick Focus while intentionally queuing a long SQLite operation: the stored `started_at_ms` and deadline must reflect the actual start, not the time the user first pressed Start.
+- [ ] With Review open, replace Focus on the same Timebox. The Focus log and Time Architecture's measured totals must reflect the ended session.
+- [ ] Attempt a crafted-but-well-formed 25-hour block backup in QA: import should fail with no partial row changes.
+- [ ] Test manual device clock jumps and slow OS time sync mid-Focus; this remains unresolved until on-device semantics are defined.
