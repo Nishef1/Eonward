@@ -402,6 +402,19 @@ test('offline planning lifecycle preserves identity, recurrence, completion hist
     await archiveGoal(source.db, parent); await restoreGoal(source.db, parent);
     const snapshot = await exportBackup(source.db), text = JSON.stringify(snapshot);
     assert.equal(snapshot.version, 2);
+    // The backup size contract applies to the serialized file itself, not
+    // a compact validation copy followed by a larger pretty-printed export.
+    assert.doesNotThrow(() => parseBackup(JSON.stringify(snapshot)));
+    const longMembership = structuredClone(snapshot);
+    const originalGoal = longMembership.tables.goals[0];
+    const originalBoard = longMembership.tables.boards[0];
+    const longGoalId = 'g'.repeat(120), longBoardId = 'b'.repeat(120);
+    longMembership.tables.goals.push({ ...originalGoal, id: longGoalId,
+      parent_id: null, recurrence_from_id: null });
+    longMembership.tables.boards.push({ ...originalBoard, id: longBoardId });
+    longMembership.tables.board_goals.push({ board_id: longBoardId,
+      goal_id: longGoalId, added_at: new Date().toISOString() });
+    assert.doesNotThrow(() => parseBackup(JSON.stringify(longMembership)));
     // Portable backups must not bypass the same 1-minute to 24-hour time bounds as the editor.
     const impossibleDuration = structuredClone(snapshot);
     impossibleDuration.tables.time_blocks[0].end_at =

@@ -81,7 +81,11 @@ export function parseBackup(text: string): Backup {
       }
       const id = table === 'board_goals' ? JSON.stringify([row.board_id, row.goal_id]) :
         table === 'time_budgets' ? row.goal_id : row.id;
-      if (!identifier(id) || ids.has(id)) fail(`duplicate or invalid ${table} ID.`);
+      // Board membership is a pair of individually valid IDs. Its JSON tuple
+      // can exceed the 200-character *single-ID* limit without either ID being invalid.
+      const validKey = table === 'board_goals'
+        ? identifier(row.board_id) && identifier(row.goal_id) : identifier(id);
+      if (!validKey || ids.has(id)) fail(`duplicate or invalid ${table} ID.`);
       ids.add(id);
     }
   }

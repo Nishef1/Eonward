@@ -49,7 +49,9 @@ export function SettingsScreen() {
     const backup = await exportBackup(db);
     // Do not silently accumulate plaintext backups in the permanent Documents directory.
     const file = new File(Paths.cache, `eonward-${new Date().toISOString().replace(/[:.]/g, '-')}.json`);
-    file.write(JSON.stringify(backup, null, 2));
+    // Serialize exactly as it was size-validated. Pretty-printing can inflate
+    // a valid near-limit backup beyond the importer 10 MB safety limit.
+    file.write(JSON.stringify(backup));
     await Sharing.shareAsync(file.uri, { mimeType: 'application/json', UTI: 'public.json',
       dialogTitle: 'Save your Eonward backup' });
     setNotice('Share sheet closed. Confirm you saved a copy in your chosen destination. A temporary file remains in app cache until a later cleanup.');
