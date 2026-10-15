@@ -217,6 +217,18 @@ test('offline planning lifecycle preserves identity, recurrence, completion hist
     assert.equal((await listDayBlocks(source.db, selectedDay)).find((b) =>
       b.id === proposal.moves[0].id).startAt, proposal.moves[0].toStart);
     assert.equal(await canUndoReplan(source.db), true);
+    const firstMove = proposal.moves[0];
+    const originalIntention = beforeRecovery.find((block) => block.id === firstMove.id).intention;
+    const checkpoint = JSON.parse(source.sqlite.prepare('SELECT after_json FROM replan_checkpoint WHERE id = 1').get().after_json);
+    const applied = checkpoint.find((item) => item.id === firstMove.id);
+    source.sqlite.prepare('UPDATE time_blocks SET intention = ?, updated_at = ? WHERE id = ?')
+      .run('Edited after replanning', '2099-01-01T00:00:00.000Z', firstMove.id);
+    await assert.rejects(() => undoReplan(source.db), /Calendar changed since replanning/);
+    assert.equal(source.sqlite.prepare('SELECT intention FROM time_blocks WHERE id = ?')
+      .get(firstMove.id).intention, 'Edited after replanning');
+    // Restore only this controlled test mutation so that the original safe Undo can complete.
+    source.sqlite.prepare('UPDATE time_blocks SET intention = ?, updated_at = ? WHERE id = ?')
+      .run(originalIntention, applied.appliedAt, firstMove.id);
     await undoReplan(source.db);
     assert.equal(await canUndoReplan(source.db), false);
     assert.deepEqual((await listDayBlocks(source.db, selectedDay)).map((b) => [b.id, b.startAt, b.endAt]).sort(),
@@ -289,7 +301,7 @@ test('offline planning lifecycle preserves identity, recurrence, completion hist
     await archiveGoal(source.db, parent); await restoreGoal(source.db, parent);
     const snapshot = await exportBackup(source.db), text = JSON.stringify(snapshot);
     assert.equal(snapshot.version, 2);
-    assert.equal(snapshot.tables.time_budgets.length, 1);
+    assert.equal(snapshot.tables.time_budgets.length, 2);
     assert.equal(snapshot.tables.focus_history.filter((row) => row.goal_id === step).length, 2);
     const legacy = structuredClone(snapshot);
     legacy.version = 1; legacy.schemaVersion = 7;
