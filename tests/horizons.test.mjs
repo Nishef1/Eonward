@@ -6,6 +6,7 @@ import { buildPerspectiveSections } from '../src/domain/perspective.ts';
 import { analyzeDayLoad, blockClockRangeForDay, layoutBlocks, localDayBounds, localDayKey, monthGridDays, timeRangeFromInput } from '../src/domain/timeblocks.ts';
 import { formatFocusTime, getFocusDurationMs, getFocusRemainingMs, getFocusElapsedMs } from '../src/domain/focus.ts';
 import { previewReplan } from '../src/domain/replan.ts';
+import { pixelsToQuarterHours, previewTimelineEdit } from '../src/domain/timeline-edit.ts';
 
 test('all seven horizon keys use independent periods', () => {
   const date = new Date(2026, 9, 14, 12);
@@ -107,6 +108,19 @@ test('time blocks validate local day and ordering without confusing calendar wit
   const bounds = localDayBounds(new Date(2026, 9, 14, 12));
   assert.equal(localDayKey(new Date(bounds.from)), date);
   assert.equal(localDayKey(new Date(bounds.to)), '2026-10-15');
+  const sample = { id: 'planned-1', goalId: 'sample', goalTitle: 'Design', goalCompleted: false,
+    flexible: false, kind: 'box', intention: '', startAt: first.startAt, endAt: first.endAt };
+  assert.equal(pixelsToQuarterHours(38, 76), 30);
+  assert.equal(pixelsToQuarterHours(-38, 76), -30);
+  assert.equal(pixelsToQuarterHours(0, 56), 0);
+  const moved = previewTimelineEdit(sample, [], new Date(2026, 9, 14, 12), 'move', 15);
+  assert.equal((Date.parse(moved.toStart) - Date.parse(sample.startAt)) / 60000, 15);
+  assert.equal((Date.parse(moved.toEnd) - Date.parse(sample.endAt)) / 60000, 15);
+  const resized = previewTimelineEdit(sample, [], new Date(2026, 9, 14, 12), 'resize', -15);
+  assert.equal(resized.toStart, sample.startAt);
+  assert.equal((Date.parse(resized.toEnd) - Date.parse(sample.endAt)) / 60000, -15);
+  assert.throws(() => previewTimelineEdit(sample, [], new Date(2026, 9, 14, 12), 'resize', -90), /15 minutes/);
+  assert.throws(() => previewTimelineEdit(sample, [], new Date(2026, 9, 14, 12), 'move', 11), /15-minute/);
   const month = monthGridDays(new Date(2026, 9, 14, 12));
   assert.equal(month.length, 35);
   assert.equal(localDayKey(month[0]), '2026-09-28');

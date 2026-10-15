@@ -16,6 +16,8 @@ import { parseBackup } from '../src/domain/backup.ts';
 import { createGuidedPlan } from '../src/storage/guided-plans.ts';
 import { serializeDatabase } from '../src/storage/serialized.ts';
 import { checkLocalHealth } from '../src/storage/health.ts';
+import { previewTimelineEdit } from '../src/domain/timeline-edit.ts';
+import { applyTimelineEdit } from '../src/storage/timeline-edit.ts';
 
 function realDatabase() {
   const sqlite = new DatabaseSync(':memory:');
@@ -233,6 +235,19 @@ test('offline planning lifecycle preserves identity, recurrence, completion hist
     assert.equal(await canUndoReplan(source.db), true);
     await undoReplan(source.db);
     assert.equal(await canUndoReplan(source.db), false);
+    // A manual timeline drag is an explicit, isolated move with atomic stale-preview checks.
+    const sourceBlock = beforeRecovery.find((block) => block.goalId === flexibleGoal);
+    const directPreview = previewTimelineEdit(sourceBlock, beforeRecovery, selectedDay, 'move', 15);
+    await applyTimelineEdit(source.db, directPreview);
+    assert.equal((await listDayBlocks(source.db, selectedDay)).find((block) => block.id === sourceBlock.id).startAt,
+      directPreview.toStart);
+    await assert.rejects(() => applyTimelineEdit(source.db, directPreview), /changed/);
+    const afterDirect = (await listDayBlocks(source.db, selectedDay)).find((block) => block.id === sourceBlock.id);
+    const restoreDirect = previewTimelineEdit(afterDirect, await listDayBlocks(source.db, selectedDay),
+      selectedDay, 'move', -15);
+    await applyTimelineEdit(source.db, restoreDirect);
+    assert.equal((await listDayBlocks(source.db, selectedDay)).find((block) => block.id === sourceBlock.id).startAt,
+      sourceBlock.startAt);
     assert.deepEqual((await listDayBlocks(source.db, selectedDay)).map((b) => [b.id, b.startAt, b.endAt]).sort(),
       beforeRecovery.map((b) => [b.id, b.startAt, b.endAt]).sort());
     await setWeeklyCapacity(source.db, parent, 240);
