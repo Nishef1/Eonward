@@ -75,8 +75,11 @@ export function DayTimeline({ date, blocks, palette, onEdit, onQuickAdd, onOpenG
   useEffect(() => { setDraft(null); }, [dateKey]);
   const ghost = useMemo(() => {
     if (!candidate.preview || !editing || draft?.delta === 0) return null;
-    return layoutBlocks([{ ...editing, startAt: candidate.preview.toStart, endAt: candidate.preview.toEnd }], hourHeight, date)[0] ?? null;
-  }, [candidate.preview?.toStart, candidate.preview?.toEnd, editing, hourHeight, dateKey]);
+    const proposed = { ...editing, startAt: candidate.preview.toStart, endAt: candidate.preview.toEnd };
+    // The proposed placement must reflect existing collisions, not show a misleading full-width block.
+    return layoutBlocks([...blocks.filter((block) => block.id !== editing.id), proposed],
+      hourHeight, date).find((item) => item.block.id === editing.id) ?? null;
+  }, [candidate.preview?.toStart, candidate.preview?.toEnd, editing, blocks, hourHeight, dateKey]);
   function beginDrag(block: TimeBlock, mode: TimelineEditMode, pageY: number) {
     dragOriginY.current = pageY;
     setDraft({ id: block.id, mode, delta: 0 });
@@ -375,6 +378,7 @@ export function DayTimeline({ date, blocks, palette, onEdit, onQuickAdd, onOpenG
                 accessibilityElementsHidden importantForAccessibility="no-hide-descendants"
                 style={[styles.ghost, {
                   top: ghost.top + 1, height: Math.max(30, ghost.height - 3),
+                  left: `${100 * ghost.lane / ghost.lanes}%`, width: `${100 / ghost.lanes}%`,
                   borderColor: palette.accent,
                   backgroundColor: palette.accentSoft,
                 }]}>
@@ -439,7 +443,7 @@ const styles = StyleSheet.create({
   resizeGrip: { position: 'absolute', bottom: 0, right: 0, width: 46, height: 48,
     justifyContent: 'center', alignItems: 'center', backgroundColor: 'rgba(0,0,0,0.15)', borderRadius: 11 },
   dragGlyph: { fontSize: 20, color: '#FFFFFF', fontWeight: '800' },
-  ghost: { position: 'absolute', left: 0, right: 0, borderWidth: 2, borderStyle: 'dashed', borderRadius: 12,
+  ghost: { position: 'absolute', borderWidth: 2, borderStyle: 'dashed', borderRadius: 12,
     zIndex: 10, justifyContent: 'center', padding: 10, opacity: 0.92 },
   ghostTitle: { fontSize: 13, fontWeight: '800' },
   ghostClock: { fontSize: 12, fontWeight: '600', marginTop: 4 },
