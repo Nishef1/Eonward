@@ -183,21 +183,31 @@ export function occupiedMilliseconds(intervals: readonly { start: number; end: n
   return occupied;
 }
 
-/** Distinguish summed reservations from actual occupied wall time when events overlap. */
-export function analyzeDayLoad(blocks: readonly Pick<TimeBlock, 'startAt' | 'endAt'>[], day: Date) {
-  const bounds = localDayBounds(day);
-  const from = Date.parse(bounds.from), to = Date.parse(bounds.to);
+/** SSOT for clipped time accounting across Day, Week, Month and budget summaries.
+ * "reserved" sums blocks; "occupied" unions intervals, excluding double-counted overlaps. */
+export function analyzeRangeLoad(
+  blocks: readonly Pick<TimeBlock, 'startAt' | 'endAt'>[],
+  from: number,
+  to: number,
+) {
+  if (!Number.isFinite(from) || !Number.isFinite(to) || to <= from) {
+    throw new Error('Choose a valid time range.');
+  }
   const slots = blocks.map((block) => ({
     start: Math.max(from, Date.parse(block.startAt)),
     end: Math.min(to, Date.parse(block.endAt)),
-  })).filter(({ start, end }) => Number.isFinite(start) && Number.isFinite(end) && end > start)
-    .sort((a, b) => a.start - b.start || a.end - b.end);
+  })).filter(({ start, end }) => Number.isFinite(start) && Number.isFinite(end) && end > start);
   const reservedMs = slots.reduce((total, slot) => total + slot.end - slot.start, 0);
   const occupiedMs = occupiedMilliseconds(slots);
   return {
     reservedMinutes: Math.round(reservedMs / 60000),
     occupiedMinutes: Math.round(occupiedMs / 60000),
-    overlapMinutes: Math.max(0, Math.round((reservedMs - occupiedMs) / 60000)),
-    dayMinutes: Math.round((to - from) / 60000),
+    overlapMinutes: Math.round((reservedMs - occupiedMs) / 60000),
   };
+}
+
+export function analyzeDayLoad(blocks: readonly Pick<TimeBlock, 'startAt' | 'endAt'>[], day: Date) {
+  const bounds = localDayBounds(day);
+  const from = Date.parse(bounds.from), to = Date.parse(bounds.to);
+  return { ...analyzeRangeLoad(blocks, from, to), dayMinutes: Math.round((to - from) / 60000) };
 }

@@ -5,7 +5,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useEonwardDatabase } from '../../storage/use-database';
 import type { Goal, GoalInput } from '../../domain/goals';
 import {
-  analyzeDayLoad, localDayBounds, localDayKey, monthGridDays, parseLocalDay, shiftLocalDay, type BlockInput, type TimeBlock,
+  analyzeDayLoad, analyzeRangeLoad, localDayBounds, localDayKey, monthGridDays, parseLocalDay, shiftLocalDay, type BlockInput, type TimeBlock,
 } from '../../domain/timeblocks';
 import { createGoal, getGoal, listAllGoals } from '../../storage/goals';
 import { listDayBlocks, listRangeBlocks, removeBlock, saveBlock } from '../../storage/timeblocks';
@@ -154,17 +154,14 @@ export function CalendarScreen() {
   const dayBounds = localDayBounds(day);
   const localDayHours = (Date.parse(dayBounds.to) - Date.parse(dayBounds.from)) / 3_600_000;
   const dayLoad = useMemo(() => analyzeDayLoad(blocks, day), [blocks, key]);
-  const totalMinutes = dayLoad.reservedMinutes;
   const weekFromMs = Date.parse(localDayBounds(week[0]).from);
   const weekToMs = Date.parse(localDayBounds(week[6]).to);
-  const weekTotalMinutes = weekBlocks.reduce((sum, block) => sum + Math.max(0,
-    Math.min(Date.parse(block.endAt), weekToMs) - Math.max(Date.parse(block.startAt), weekFromMs),
-  ) / 60000, 0);
   const monthFromMs = new Date(day.getFullYear(), day.getMonth(), 1).getTime();
   const monthToMs = new Date(day.getFullYear(), day.getMonth() + 1, 1).getTime();
-  const monthTotalMinutes = monthBlocks.reduce((sum, block) => sum + Math.max(0,
-    Math.min(Date.parse(block.endAt), monthToMs) - Math.max(Date.parse(block.startAt), monthFromMs),
-  ) / 60000, 0);
+  // All calendar headers use the same occupied-wall-time accounting as their cards.
+  const weekLoad = analyzeRangeLoad(weekBlocks, weekFromMs, weekToMs);
+  const monthLoad = analyzeRangeLoad(monthBlocks, monthFromMs, monthToMs);
+  const activeLoad = mode === 'month' ? monthLoad : mode === 'week' ? weekLoad : dayLoad;
   const monthBlockCount = monthBlocks.filter((block) =>
     Date.parse(block.startAt) < monthToMs && Date.parse(block.endAt) > monthFromMs).length;
   const weekBlockCount = weekBlocks.filter((block) =>
@@ -338,15 +335,14 @@ export function CalendarScreen() {
         </View> : null}
         <View style={[styles.summaryRow, { borderColor: palette.border }]}>
           <View style={styles.summaryStats}>
-            <Text style={[styles.summaryValue, { color: foreground }]}>{durationLabel(mode === 'month' ? monthTotalMinutes
-                : mode === 'week' ? weekTotalMinutes : totalMinutes)}
-              <Text style={[styles.summaryLabel, { color: palette.muted }]}> planned</Text>
+            <Text style={[styles.summaryValue, { color: foreground }]}>{durationLabel(activeLoad.occupiedMinutes)}
+              <Text style={[styles.summaryLabel, { color: palette.muted }]}> occupied</Text>
             </Text>
             <Text style={[styles.summarySecond, { color: palette.muted }]}>
               {mode === 'month' ? monthBlockCount : mode === 'week' ? weekBlockCount : blocks.length} {
                 (mode === 'month' ? monthBlockCount : mode === 'week' ? weekBlockCount : blocks.length) === 1 ? 'block' : 'blocks'
-              } · {mode === 'month' ? 'this month' : mode === 'week' ? 'this week' :
-                dayLoad.overlapMinutes ? durationLabel(dayLoad.overlapMinutes) + ' overlapping' :
+              } · {activeLoad.overlapMinutes ? durationLabel(activeLoad.overlapMinutes) + ' overlapping' :
+                mode === 'month' ? 'this month' : mode === 'week' ? 'this week' :
                   completedGoals + ' linked goals done'}
             </Text>
           </View>
@@ -402,7 +398,7 @@ export function CalendarScreen() {
           <DayTimeline date={day} blocks={ordered} palette={palette}
             actualByBlock={actualByBlock} activeSession={focus.session}
             busy={busy} onApplyTimeEdit={(preview, onSaved) => { void commitTimelineEdit(preview, onSaved); }}
-            isDark={palette === colors.dark} onEdit={edit} onQuickAdd={(hour) => createAt(hour)}
+            onEdit={edit} onQuickAdd={(hour) => createAt(hour)}
             onOpenGoal={(id) => router.push({ pathname: '/', params: { goalId: id } })} />
         </View>
       ) : mode === 'week' ? (

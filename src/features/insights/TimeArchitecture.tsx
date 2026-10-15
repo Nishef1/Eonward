@@ -7,7 +7,7 @@ import type { Goal } from '../../domain/goals';
 import { startOfWeek } from '../../domain/horizons';
 import { listAllGoals } from '../../storage/goals';
 import { listWeeklyCapacity, setWeeklyCapacity, type WeeklyCapacity } from '../../storage/capacity';
-import { colors } from '../../theme/tokens';
+import { colors, semantic } from '../../theme/tokens';
 
 type Palette = typeof colors.light | typeof colors.dark;
 const format = (minutes: number) => {
@@ -114,7 +114,7 @@ export function TimeArchitecture({ palette, history, refreshKey }: Props) {
         <View style={{ backgroundColor: palette.accent, width: `${Math.min(100, b.plannedMinutes / b.weeklyMinutes * 100)}%`, height: 7, borderRadius: 5 }} />
       </View>
       <View style={[styles.track, { backgroundColor: palette.inset }]}>
-        <View style={{ backgroundColor: '#B98A52', width: `${Math.min(100, b.focusedMinutes / b.weeklyMinutes * 100)}%`, height: 7, borderRadius: 5 }} />
+        <View style={{ backgroundColor: semantic.timeline.timebox, width: `${Math.min(100, b.focusedMinutes / b.weeklyMinutes * 100)}%`, height: 7, borderRadius: 5 }} />
       </View>
       <View style={styles.head}>
         <Text style={[styles.caption, { color: palette.muted }]}>Reserved {format(b.plannedMinutes)}</Text>

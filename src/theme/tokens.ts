@@ -47,3 +47,17 @@ export const depth = {
   },
   dark: { card: '0 1px 2px rgba(0, 0, 0, 0.12)', control: '0 1px 3px rgba(0, 0, 0, 0.25)' },
 } as const;
+
+// One semantic palette for schedule/status surfaces shared by all Calendar views.
+// Text labels always accompany these tones; colors alone never communicate status.
+export const semantic = {
+  timeline: {
+    planned: '#3F6C65',
+    timebox: '#956C3F',
+    completed: '#66716E',
+    now: '#9B5F30',
+    timeboxEdge: '#E6B579',
+  },
+  light: { warning: '#865A29', danger: '#A33C3C' },
+  dark: { warning: '#E6B579', danger: '#FF9B99' },
+} as const;

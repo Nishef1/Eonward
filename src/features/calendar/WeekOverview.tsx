@@ -1,6 +1,6 @@
 import { ScrollView, Pressable, StyleSheet, Text, View } from 'react-native';
 import { analyzeDayLoad, localDayBounds, localDayKey, type TimeBlock } from '../../domain/timeblocks';
-import { colors, radius, spacing } from '../../theme/tokens';
+import { colors, radius, spacing, semantic } from '../../theme/tokens';
 
 type Palette = typeof colors.light | typeof colors.dark;
 interface Props {
@@ -77,11 +77,11 @@ export function WeekOverview({ days, blocks, selectedDay, palette, onSelectDay }
             </View>
             <View style={[styles.rail, { backgroundColor: palette.background }]}>
               {planned > 0 ? <View style={[styles.progress, {
-                width: `${100 * planned / max}%` as const, backgroundColor: selected ? '#B58D60' : palette.accent,
+                width: `${100 * planned / max}%` as const, backgroundColor: selected ? semantic.timeline.timebox : palette.accent,
               }]} /> : null}
             </View>
             {collisions > 0 ? (
-              <Text style={styles.conflict}>◇ {hourText(overlapMinutes * 60000)} overlaps · {collisions} conflicting pair{collisions === 1 ? '' : 's'}</Text>
+              <Text style={[styles.conflict, { color: palette === colors.dark ? semantic.dark.warning : semantic.light.warning }]}>◇ {hourText(overlapMinutes * 60000)} overlaps · {collisions} conflicting pair{collisions === 1 ? '' : 's'}</Text>
             ) : null}
           </Pressable>
         );
@@ -111,6 +111,6 @@ const styles = StyleSheet.create({
   blocks: { fontSize: 11 },
   rail: { height: 5, borderRadius: 3, overflow: 'hidden' },
   progress: { height: 5, borderRadius: 3 },
-  conflict: { color: '#BD834B', fontSize: 11, fontWeight: '700' },
+  conflict: { fontSize: 12, fontWeight: '700' },
   footer: { fontSize: 11, lineHeight: 17, marginTop: 3 },
 });

@@ -1,21 +1,20 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Alert, AppState, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { blockClockRangeForDay, layoutBlocks, localClock, localDayBounds, localDayKey, type TimeBlock } from '../../domain/timeblocks';
-import { colors, radius } from '../../theme/tokens';
+import { colors, radius, semantic } from '../../theme/tokens';
 import { getFocusElapsedMs, type FocusSession } from '../../domain/focus';
 import { pixelsToQuarterHours, previewTimelineEdit, type TimelineEditMode, type TimelineEditPreview } from '../../domain/timeline-edit';
 
 type Palette = typeof colors.light | typeof colors.dark;
 
-export const TIMELINE_HOUR_HEIGHT = 76;
 const ZOOM_LEVELS = [56, 76, 104] as const;
 const GUTTER = 62;
 const HOURS = Array.from({ length: 25 }, (_, i) => i);
 /** Timebox is warm, planned time is teal, completed items are neutral.
  * Status labels supplement the colors rather than relying on color alone. */
 function blockTone(block: TimeBlock): string {
-  if (block.goalCompleted) return '#66716E';
-  return block.kind === 'box' ? '#956C3F' : '#3F6C65';
+  if (block.goalCompleted) return semantic.timeline.completed;
+  return block.kind === 'box' ? semantic.timeline.timebox : semantic.timeline.planned;
 }
 function clockLabel(iso: string) {
   return localClock(new Date(iso));
@@ -28,7 +27,6 @@ interface Props {
   date: Date;
   blocks: TimeBlock[];
   palette: Palette;
-  isDark: boolean;
   onEdit: (block: TimeBlock) => void;
   onQuickAdd: (hour: number) => void;
   onOpenGoal: (goalId: string) => void;
@@ -37,7 +35,7 @@ interface Props {
   busy: boolean;
   onApplyTimeEdit: (preview: TimelineEditPreview, onSaved: () => void) => void;
 }
-export function DayTimeline({ date, blocks, palette, isDark, onEdit, onQuickAdd, onOpenGoal, actualByBlock, activeSession, busy, onApplyTimeEdit }: Props) {
+export function DayTimeline({ date, blocks, palette, onEdit, onQuickAdd, onOpenGoal, actualByBlock, activeSession, busy, onApplyTimeEdit }: Props) {
   const ref = useRef<ScrollView>(null);
   const didScroll = useRef<string | null>(null);
   const [now, setNow] = useState(() => new Date());
@@ -123,7 +121,7 @@ export function DayTimeline({ date, blocks, palette, isDark, onEdit, onQuickAdd,
   const recordedMs = Object.values(actualByBlock).reduce((sum, value) => sum + value, 0) +
     (activeSession && blocks.some((b) => b.id === activeSession.blockId)
       ? getFocusElapsedMs(activeSession, now.getTime()) : 0);
-  const shade = isDark ? 'rgba(130,180,159,0.055)' : 'rgba(88,122,109,0.055)';
+  const shade = palette === colors.dark ? 'rgba(130,180,159,0.055)' : 'rgba(88,122,109,0.055)';
   const gridLine = isDark ? 'rgba(174,191,179,0.12)' : 'rgba(100,121,111,0.13)';
   return (
     <View style={styles.container}>
@@ -156,7 +154,7 @@ export function DayTimeline({ date, blocks, palette, isDark, onEdit, onQuickAdd,
         {isToday ? (
           <Pressable accessibilityRole="button" accessibilityLabel="Jump to the current time"
             onPress={jumpToNow} style={[styles.nowButton, { backgroundColor: palette.surface, borderColor: palette.border }]}>
-            <View style={[styles.nowDot, { backgroundColor: '#C5814D' }]} />
+            <View style={[styles.nowDot, { backgroundColor: semantic.timeline.now }]} />
             <Text style={[styles.nowText, { color: palette.foreground }]}>Now</Text>
           </Pressable>
         ) : null}
@@ -312,8 +310,8 @@ export function DayTimeline({ date, blocks, palette, isDark, onEdit, onQuickAdd,
                       top: top + 1, height: Math.max(21, height - 3),
                       left: `${100 * lane / lanes}%`, width: `${100 / lanes}%`,
                       backgroundColor: tone,
-                      borderLeftColor: block.kind === 'box' ? '#E6B579' : 'rgba(255,255,255,0.65)',
-                      opacity: block.goalCompleted ? 0.68 : 1,
+                      borderLeftColor: block.kind === 'box' ? semantic.timeline.timeboxEdge : 'rgba(255,255,255,0.65)',
+                      opacity: 1,
                     }]}>
                     {veryCompact ? (
                       <Text numberOfLines={1} style={styles.microTitle}>
@@ -412,7 +410,7 @@ const styles = StyleSheet.create({
   ribbonLabel: { fontSize: 9, fontWeight: '700', letterSpacing: 0.7 },
   ribbonTrack: { height: 25, borderRadius: 7, overflow: 'visible', position: 'relative' },
   ribbonBlock: { position: 'absolute', height: 6, borderRadius: 3, opacity: 0.95 },
-  ribbonNow: { position: 'absolute', top: -4, bottom: -4, width: 2, borderRadius: 2, backgroundColor: '#C18457' },
+  ribbonNow: { position: 'absolute', top: -4, bottom: -4, width: 2, borderRadius: 2, backgroundColor: semantic.timeline.now },
   ribbonJump: { position: 'absolute', width: '25%', top: -11, height: 48 },
   toolbar: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8, paddingVertical: 11, flexWrap: 'wrap' },
   toolbarCopy: { flex: 1, gap: 4 },
@@ -425,8 +423,8 @@ const styles = StyleSheet.create({
   nowDot: { height: 7, width: 7, borderRadius: 4 },
   nowText: { fontSize: 12, fontWeight: '700' },
   canvasFrame: { flex: 1, overflow: 'hidden', borderWidth: 1, borderRadius: radius.xl },
-  canvasScrollContent: { minHeight: TIMELINE_HOUR_HEIGHT * 24 + 10 },
-  canvas: { position: 'relative', height: TIMELINE_HOUR_HEIGHT * 24 + 10 },
+  canvasScrollContent: { flexGrow: 1 },
+  canvas: { position: 'relative' },
   workHours: { position: 'absolute', left: GUTTER, right: 0 },
   hourMark: { position: 'absolute', left: 0, right: 0, height: 18, flexDirection: 'row', alignItems: 'center' },
   hourLabel: { width: GUTTER - 8, paddingLeft: 11, fontSize: 10, textAlign: 'right', fontWeight: '600', fontVariant: ['tabular-nums'] },
@@ -467,7 +465,7 @@ const styles = StyleSheet.create({
   progressTrack: { backgroundColor: 'rgba(255,255,255,0.25)', height: 4, borderRadius: 4, marginTop: 7, overflow: 'hidden' },
   progressFill: { height: 4, borderRadius: 4, backgroundColor: '#FFFFFF' },
   presentLine: { position: 'absolute', left: 0, right: 0, height: 22, flexDirection: 'row', alignItems: 'center', zIndex: 12, transform: [{ translateY: -11 }] },
-  nowPill: { marginLeft: 5, width: 49, borderRadius: 7, height: 23, backgroundColor: '#9B5F30', justifyContent: 'center', alignItems: 'center' },
+  nowPill: { marginLeft: 5, width: 49, borderRadius: 7, height: 23, backgroundColor: semantic.timeline.now, justifyContent: 'center', alignItems: 'center' },
   nowPillText: { fontSize: 10, fontWeight: '700', color: '#FFFFFF', fontVariant: ['tabular-nums'] },
   nowLine: { flex: 1, height: 2, marginRight: 8, backgroundColor: '#C18457' },
 });
