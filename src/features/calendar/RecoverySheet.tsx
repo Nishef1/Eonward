@@ -106,7 +106,7 @@ export function RecoverySheet({ visible, day, blocks, palette, busy, activeBlock
               <View style={[styles.preview, { backgroundColor: palette.surface, borderColor: palette.border }]}>
                 <View style={[styles.row, { alignItems: 'center', justifyContent: 'space-between' }]}>
                   <Text style={[styles.kicker, { color: palette.muted }]}>
-                    {expired ? 'PREVIEW EXPIRED' : 'PREVIEW · NOTHING CHANGED YET'}
+                    {expired ? 'PREVIEW EXPIRED' : result.value?.moves.length ? 'PROPOSED CHANGES · NOT SAVED' : 'PREVIEW · NO CHANGE'}
                   </Text>
                   <Pressable accessibilityRole="button" accessibilityLabel="Refresh recovery preview with current time"
                     disabled={busy} onPress={() => { setNow(new Date()); setClockMs(Date.now()); }}

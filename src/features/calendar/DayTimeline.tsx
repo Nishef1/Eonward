@@ -179,6 +179,12 @@ export function DayTimeline({ date, blocks, palette, isDark, onEdit, onQuickAdd,
                 : candidate.error}
             </Text>
           </View>
+          {editing ? <Pressable accessibilityRole="button"
+            accessibilityLabel={`Open ${editing.goalTitle} in Plan`}
+            onPress={() => { setDraft(null); onOpenGoal(editing.goalId); }}
+            style={styles.adjustGoalLink}>
+            <Text style={{ color: palette.accent, fontSize: 12, fontWeight: '700' }}>Open goal ↗</Text>
+          </Pressable> : null}
           <Pressable accessibilityRole="button" accessibilityLabel="Cancel timeline time adjustment"
             onPress={() => setDraft(null)} style={styles.adjustClose}>
             <Text style={{ color: palette.foreground, fontSize: 20 }}>×</Text>
@@ -317,6 +323,10 @@ export function DayTimeline({ date, blocks, palette, isDark, onEdit, onQuickAdd,
                       <View accessibilityRole="adjustable"
                         accessibilityLabel={`Drag ${block.goalTitle} to move its time in 15-minute increments`}
                         onStartShouldSetResponder={() => true}
+                        accessibilityActions={[{ name: 'increment' }, { name: 'decrement' }]}
+                        onAccessibilityAction={(e) => setDraft({
+                          id: block.id, mode: 'move', delta: e.nativeEvent.actionName === 'increment' ? 15 : -15,
+                        })}
                         onResponderGrant={(e) => beginDrag(block, 'move', e.nativeEvent.pageY)}
                         onResponderMove={(e) => continueDrag(block, 'move', e.nativeEvent.pageY)}
                         style={styles.dragGrip}>
@@ -328,6 +338,10 @@ export function DayTimeline({ date, blocks, palette, isDark, onEdit, onQuickAdd,
                       <View accessibilityRole="adjustable"
                         accessibilityLabel={`Drag bottom of ${block.goalTitle} to resize its end`}
                         onStartShouldSetResponder={() => true}
+                        accessibilityActions={[{ name: 'increment' }, { name: 'decrement' }]}
+                        onAccessibilityAction={(e) => setDraft({
+                          id: block.id, mode: 'resize', delta: e.nativeEvent.actionName === 'increment' ? 15 : -15,
+                        })}
                         onResponderGrant={(e) => beginDrag(block, 'resize', e.nativeEvent.pageY)}
                         onResponderMove={(e) => continueDrag(block, 'resize', e.nativeEvent.pageY)}
                         style={styles.resizeGrip}>
@@ -376,14 +390,14 @@ const styles = StyleSheet.create({
   ribbonTrack: { height: 13, borderRadius: 6, overflow: 'visible', position: 'relative' },
   ribbonBlock: { position: 'absolute', top: 0, bottom: 0, borderRadius: 3, opacity: 0.86 },
   ribbonNow: { position: 'absolute', top: -4, bottom: -4, width: 2, borderRadius: 2, backgroundColor: '#C18457' },
-  toolbar: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8, paddingVertical: 11 },
+  toolbar: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8, paddingVertical: 11, flexWrap: 'wrap' },
   toolbarCopy: { flex: 1, gap: 4 },
   heading: { fontSize: 17, fontWeight: '700', letterSpacing: -0.4 },
-  zoom: { height: 39, flexDirection: 'row', alignItems: 'center', borderRadius: radius.full, borderWidth: 1 },
-  zoomButton: { minWidth: 30, height: 39, alignItems: 'center', justifyContent: 'center' },
+  zoom: { height: 48, flexDirection: 'row', alignItems: 'center', borderRadius: radius.full, borderWidth: 1 },
+  zoomButton: { minWidth: 48, height: 48, alignItems: 'center', justifyContent: 'center' },
   zoomGlyph: { fontSize: 18, fontWeight: '700' },
   zoomCenter: { fontSize: 10, fontWeight: '800', minWidth: 13, textAlign: 'center' },
-  nowButton: { height: 39, flexDirection: 'row', alignItems: 'center', gap: 7, borderWidth: 1, borderRadius: radius.full, paddingHorizontal: 13 },
+  nowButton: { minHeight: 48, flexDirection: 'row', alignItems: 'center', gap: 7, borderWidth: 1, borderRadius: radius.full, paddingHorizontal: 13 },
   nowDot: { height: 7, width: 7, borderRadius: 4 },
   nowText: { fontSize: 12, fontWeight: '700' },
   canvasFrame: { flex: 1, overflow: 'hidden', borderWidth: 1, borderRadius: radius.xl },
@@ -412,6 +426,7 @@ const styles = StyleSheet.create({
   adjustTitle: { fontSize: 13, fontWeight: '800' },
   adjustHint: { fontSize: 12, lineHeight: 18 },
   adjustClose: { minWidth: 48, minHeight: 48, justifyContent: 'center', alignItems: 'center' },
+  adjustGoalLink: { minHeight: 48, paddingHorizontal: 7, justifyContent: 'center', alignItems: 'center' },
   adjustActions: { flexDirection: 'row', gap: 4, alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap' },
   adjustMode: { minHeight: 48, minWidth: 56, paddingHorizontal: 7, alignItems: 'center', justifyContent: 'center', borderRadius: 11 },
   adjustStep: { minHeight: 48, minWidth: 48, paddingHorizontal: 5, borderRadius: 11,
