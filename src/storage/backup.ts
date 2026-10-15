@@ -109,6 +109,9 @@ export async function restoreBackup(db: SQLiteDatabase, text: string,
       tables[name] = await tx.getAllAsync<BackupRow>(`SELECT ${BACKUP_COLUMNS[name].join(', ')} FROM ${name}`);
     }
     parseBackup(JSON.stringify({ ...backup, tables }));
+    // Importing new reservations/goals invalidates any old Recovery Undo promise.
+    // Keep the invalidation inside the same atomic merge and preserve it for no-op imports.
+    if (added > 0) await tx.runAsync('DELETE FROM replan_checkpoint WHERE id = 1');
   });
   return added;
 }

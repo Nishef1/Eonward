@@ -433,10 +433,13 @@ test('offline planning lifecycle preserves identity, recurrence, completion hist
     for (const row of legacy.tables.time_blocks) delete row.flexible;
     for (const row of legacy.tables.focus_history) { delete row.goal_id; delete row.block_id; }
     assert.equal(parseBackup(JSON.stringify(legacy)).tables.time_blocks.every((row) => row.flexible === 0), true);
+    target.sqlite.prepare('INSERT INTO replan_checkpoint (id, before_json, after_json, created_at) VALUES (1, ?, ?, ?)')
+      .run('[]', '[]', new Date().toISOString());
     const firstMerge = await previewBackupMerge(target.db, text);
     assert.equal(firstMerge.missing, firstMerge.incoming);
     assert.equal(firstMerge.different, 0);
     assert.ok(await restoreBackup(target.db, text, firstMerge) > 0);
+    assert.equal(target.sqlite.prepare('SELECT id FROM replan_checkpoint WHERE id = 1').get(), undefined);
     const secondMerge = await previewBackupMerge(target.db, text);
     assert.equal(secondMerge.missing, 0);
     assert.equal(secondMerge.identical, secondMerge.incoming);
