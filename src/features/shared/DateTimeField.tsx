@@ -9,9 +9,10 @@ import Clock3 from 'lucide-react-native/icons/clock-3';
 import X from 'lucide-react-native/icons/x';
 
 /** Native civil-date/time selection. Never converts a planning date through UTC. */
-export function DateTimeField({ value, mode = 'date', label, placeholder = 'Choose a date', onChange, onClear }: {
+export function DateTimeField({ value, mode = 'date', label, placeholder = 'Choose a date', onChange, onClear, variant = 'field', displayValue }: {
   value: string; mode?: 'date' | 'time'; label: string; placeholder?: string;
   onChange: (value: string) => void; onClear?: () => void;
+  variant?: 'field' | 'inline'; displayValue?: string;
 }) {
   const dark = useColorScheme() === 'dark', palette = dark ? colors.dark : colors.light;
   const [open, setOpen] = useState(false);
@@ -19,8 +20,8 @@ export function DateTimeField({ value, mode = 'date', label, placeholder = 'Choo
   if (mode === 'time' && /^\d{2}:\d{2}$/.test(value)) selected.setHours(Number(value.slice(0, 2)), Number(value.slice(3)), 0, 0);
   const choose = (date: Date) => onChange(mode === 'date' ? periodKey('day', date)
     : `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`);
-  const display = !value ? placeholder : mode === 'time' ? value
-    : new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric', year: 'numeric' }).format(selected);
+  const display = displayValue ?? (!value ? placeholder : mode === 'time' ? value
+    : new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric', year: 'numeric' }).format(selected));
   return <View style={{ gap: 8 }}>
     <View style={{ flexDirection: 'row', gap: 6, alignItems: 'center' }}>
       <Pressable accessibilityRole="button" accessibilityLabel={`${label}: ${display}`} accessibilityHint="Opens the system picker"
@@ -28,10 +29,12 @@ export function DateTimeField({ value, mode = 'date', label, placeholder = 'Choo
           if (Platform.OS === 'android') DateTimePickerAndroid.open({ value: selected, mode, is24Hour: true,
             onChange: (event, date) => { if (event.type === 'set' && date) choose(date); } });
           else setOpen(!open);
-        }} style={{ flex: 1, minHeight: 52, borderWidth: 1, borderColor: palette.border, backgroundColor: palette.surface,
-          borderRadius: radius.md, padding: 13, flexDirection: 'row', alignItems: 'center', gap: 10 }}>
-        {mode === 'time' ? <Clock3 size={18} color={palette.muted} strokeWidth={1.6} /> : <CalendarDays size={18} color={palette.muted} strokeWidth={1.6} />}
-        <Text style={{ color: value ? palette.foreground : palette.muted, fontSize: 15, flex: 1 }}>{display}</Text><ChevronDown size={15} color={palette.muted} />
+        }} style={{ flex: 1, minHeight: 52, borderWidth: variant === 'inline' ? 0 : 1, borderColor: palette.border,
+          backgroundColor: variant === 'inline' ? 'transparent' : palette.surface,
+          borderRadius: radius.md, padding: variant === 'inline' ? 0 : 13, flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+        {variant !== 'inline' ? (mode === 'time' ? <Clock3 size={18} color={palette.muted} strokeWidth={1.6} /> : <CalendarDays size={18} color={palette.muted} strokeWidth={1.6} />) : null}
+        <Text style={{ color: value ? palette.foreground : palette.muted, fontSize: variant === 'inline' ? 18 : 15,
+          fontWeight: variant === 'inline' ? '600' : '400', flex: 1 }}>{display}</Text><ChevronDown size={15} color={palette.muted} />
       </Pressable>
       {value && onClear ? <Pressable accessibilityRole="button" accessibilityLabel={`Clear ${label}`} onPress={onClear}
         style={{ minHeight: 48, minWidth: 48, justifyContent: 'center', alignItems: 'center' }}>

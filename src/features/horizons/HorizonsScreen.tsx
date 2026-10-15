@@ -1,12 +1,12 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
-import { ActivityIndicator, Alert, AppState, FlatList, Modal, Pressable, StyleSheet, Text, TextInput, useColorScheme, View } from 'react-native';
+import { ActivityIndicator, Alert, AppState, FlatList, Keyboard, Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, useColorScheme, View } from 'react-native';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import { useSQLiteContext } from 'expo-sqlite';
 import { dateFromPeriodKey, HORIZONS, HORIZON_TITLES, periodKey, periodLabel, shiftPeriod, type Horizon } from '../../domain/horizons';
 import { availableGoalParents, type Goal, type GoalInput } from '../../domain/goals';
 import { buildPerspectiveSections } from '../../domain/perspective';
-import { archiveGoal, createGoal, editGoal, getGoal, listAllGoals, listArchivedGoals, listChildGoals, listGoalAncestors, listGoals, listInboxGoals, listPerspectiveGoals, moveGoal, restoreGoal, setGoalCompleted } from '../../storage/goals';
+import { archiveGoal, createGoal, editGoal, getGoal, listAllGoals, listArchivedGoals, listChildGoals, listGoalAncestors, listGoals, listInboxGoals, listPerspectiveGoals, moveGoal, planGoal, restoreGoal, setGoalCompleted } from '../../storage/goals';
 import { colors, depth, radius, spacing } from '../../theme/tokens';
 import Archive from 'lucide-react-native/icons/archive';
 import Check from 'lucide-react-native/icons/check';
@@ -138,6 +138,7 @@ export function HorizonsScreen() {
   const [ancestors, setAncestors] = useState<Goal[]>([]);
   const [editorVisible, setEditorVisible] = useState(false);
   const [editing, setEditing] = useState<Goal | null>(null);
+  const [editorDraftTitle, setEditorDraftTitle] = useState('');
   const [parent, setParent] = useState<Goal | null>(null);
   const [editorContext, setEditorContext] = useState<{ horizon: Horizon; anchor: Date }>(
     () => ({ horizon: 'week', anchor: new Date() }),
@@ -232,11 +233,12 @@ export function HorizonsScreen() {
     }
   }
 
-  async function openEditor(initial: Goal | null, selectedParent: Goal | null, targetHorizon: Horizon = horizon) {
+  async function openEditor(initial: Goal | null, selectedParent: Goal | null, targetHorizon: Horizon = horizon, draftTitle = '') {
     try {
       const options = await listAllGoals(db);
       setParentOptions(availableGoalParents(options, initial?.id ?? null));
       setEditing(initial);
+      setEditorDraftTitle(draftTitle);
       setParent(selectedParent);
       setEditorContext({ horizon: selectedParent ? 'day' : targetHorizon, anchor: new Date(anchor.getTime()) });
       detailRequest.current++;
@@ -248,7 +250,8 @@ export function HorizonsScreen() {
   }
 
   function openCreate() {
-    void openEditor(null, null, view === 'perspective' ? 'day' : horizon);
+    Keyboard.dismiss();
+    void openEditor(null, null, view === 'perspective' ? 'day' : horizon, quickTitle);
   }
 
   function openCreateForHorizon(target: Horizon) {
@@ -309,10 +312,14 @@ export function HorizonsScreen() {
 
   function focusSelected(minutes: number) {
     if (!details || focus.busy) return;
-    const goal = details;
+    startGoalFocus(details, minutes);
+  }
+
+  function startGoalFocus(goal: Goal, minutes: number) {
+    if (focus.busy) return;
     const start = (replace = false) => {
       void focus.beginQuick(goal.id, minutes, replace).then(() => {
-        closeDetails(); setRevision((n) => n + 1);
+        setOrganizing(null); closeDetails(); setRevision((n) => n + 1);
       }).catch((error: unknown) => Alert.alert('Could not start focus', error instanceof Error ? error.message : 'Please try again.'));
     };
     if (focus.session) Alert.alert('Switch your focus?', 'The current session will be recorded before this one starts.', [
@@ -348,6 +355,7 @@ export function HorizonsScreen() {
         await editGoal(db, editing.id, input);
       } else {
         await createGoal(db, input);
+        setQuickTitle((current) => current === editorDraftTitle ? '' : current);
       }
       // When a goal moves to a different period, show its destination
       // instead of leaving the user with an apparently missing goal.
@@ -401,9 +409,35 @@ export function HorizonsScreen() {
   }
 
   const organizeIndex = organizing ? goals.findIndex((item) => item.id === organizing.id) : -1;
-  const canMoveUp = organizeIndex > 0 && goals[organizeIndex - 1].completed === organizing?.completed;
-  const canMoveDown = organizeIndex >= 0 && organizeIndex < goals.length - 1
+  const canReorder = !searching && view === 'focus';
+  const canMoveUp = canReorder && organizeIndex > 0 && goals[organizeIndex - 1].completed === organizing?.completed;
+  const canMoveDown = canReorder && organizeIndex >= 0 && organizeIndex < goals.length - 1
     && goals[organizeIndex + 1].completed === organizing?.completed;
+
+  const today = new Date();
+  const tomorrow = shiftPeriod('day', today, 1);
+  const planningChoices = organizing && !organizing.completed ? [
+    { label: 'Today', horizon: 'day' as Horizon, periodKey: periodKey('day', today), inbox: false },
+    { label: 'Tomorrow', horizon: 'day' as Horizon, periodKey: periodKey('day', tomorrow), inbox: false },
+    ...(organizing.repeatRule === 'none' ? [
+      { label: 'This week', horizon: 'week' as Horizon, periodKey: periodKey('week', today), inbox: false },
+      { label: 'Inbox · no date', horizon: organizing.horizon, periodKey: '', inbox: true },
+    ] : []),
+  ].filter((choice) => choice.inbox !== organizing.inbox || (!choice.inbox
+    && (choice.horizon !== organizing.horizon || choice.periodKey !== organizing.periodKey))) : [];
+
+  function planSelected(destination: (typeof planningChoices)[number]) {
+    const goal = organizing;
+    if (!goal) return;
+    void perform(async () => {
+      await planGoal(db, goal.id, destination);
+      setOrganizing(null);
+      setSearching(false);
+      setView(destination.inbox ? 'inbox' : 'focus');
+      setHorizon(destination.horizon);
+      if (!destination.inbox) setAnchor(dateFromPeriodKey(destination.horizon, destination.periodKey, new Date()));
+    });
+  }
 
   function moveSelected(direction: -1 | 1) {
     const goal = organizing;
@@ -515,7 +549,7 @@ export function HorizonsScreen() {
             disabled={working}
             onOpen={() => void openDetails(item)}
             onToggle={() => void toggle(item)}
-            onOrganize={() => setOrganizing(item)}
+            onOrganize={() => { Keyboard.dismiss(); setOrganizing(item); }}
           />
         )}
         ListHeaderComponent={header}
@@ -601,11 +635,28 @@ export function HorizonsScreen() {
         <View style={styles.organizeOverlay}>
           <Pressable style={StyleSheet.absoluteFill} onPress={() => setOrganizing(null)}
             accessibilityLabel="Close organization menu" />
-          <SafeAreaView edges={['bottom']} style={[styles.organizePanel, { backgroundColor: palette.background }]}>
+          <SafeAreaView edges={['bottom']} style={[styles.organizePanel, { backgroundColor: palette.background, maxHeight: '90%' }]}>
+            <ScrollView contentContainerStyle={{ gap: 10 }}>
             <Text style={[styles.organizeTitle, { color: palette.foreground }]}>Organize goal</Text>
             <Text numberOfLines={2} style={[styles.organizeSubtitle, { color: palette.muted }]}>
               {organizing?.title}
             </Text>
+            {planningChoices.length ? <>
+              <Text style={{ color: palette.muted, fontSize: 13 }}>Move plan · deadlines and calendar times stay as set</Text>
+              <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
+                {planningChoices.map((choice) => <Pressable key={choice.label} accessibilityRole="button"
+                  accessibilityLabel={`Move plan to ${choice.label}`} disabled={working}
+                  onPress={() => planSelected(choice)} style={[styles.organizeAction, { flexBasis: '47%', flexGrow: 1,
+                    backgroundColor: palette.surface, borderColor: palette.border }]}>
+                  <Text style={[styles.organizeActionText, { color: palette.foreground }]}>{choice.label}</Text>
+                </Pressable>)}
+              </View>
+            </> : null}
+            {organizing && !organizing.completed ? <Pressable accessibilityRole="button" disabled={working || focus.busy}
+              onPress={() => { if (organizing) startGoalFocus(organizing, 25); }}
+              style={[styles.organizeAction, { backgroundColor: palette.accentSoft, borderColor: palette.border }]}>
+              <Clock3 size={20} color={palette.accent} /><Text style={[styles.organizeActionText, { color: palette.accent }]}>Focus · 25 min</Text>
+            </Pressable> : null}
             {canMoveUp ? (
               <Pressable accessibilityRole="button" onPress={() => moveSelected(-1)}
                 style={[styles.organizeAction, { backgroundColor: palette.surface, borderColor: palette.border }]}>
@@ -626,6 +677,7 @@ export function HorizonsScreen() {
               style={styles.organizeCancel}>
               <Text style={[styles.organizeCancelText, { color: palette.muted }]}>Cancel</Text>
             </Pressable>
+            </ScrollView>
           </SafeAreaView>
         </View>
         </SafeAreaProvider>
@@ -656,6 +708,7 @@ export function HorizonsScreen() {
       <GoalEditor
         visible={editorVisible}
         initial={editing}
+        draftTitle={editorDraftTitle}
         parent={parent}
         parentOptions={parentOptions}
         defaultInbox={view === 'inbox'}
@@ -677,8 +730,8 @@ const styles = StyleSheet.create({
   horizonOption: { minHeight: 54, borderWidth: 1, borderRadius: radius.md, flexDirection: 'row', gap: 10, alignItems: 'center', paddingHorizontal: 14, paddingVertical: 8 },
   organizeTitle: { fontSize: 21, fontWeight: '700', letterSpacing: -0.4 },
   organizeSubtitle: { fontSize: 13, lineHeight: 20, marginBottom: 12 },
-  organizeAction: { minHeight: 56, flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 18, borderRadius: radius.lg, borderWidth: 1 },
-  organizeActionText: { fontSize: 15, fontWeight: '600' },
+  organizeAction: { minHeight: 56, flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 18, paddingVertical: 12, borderRadius: radius.lg, borderWidth: 1 },
+  organizeActionText: { fontSize: 15, fontWeight: '600', flexShrink: 1 },
   organizeCancel: { minHeight: 48, alignItems: 'center', justifyContent: 'center', marginTop: 5 },
   organizeCancelText: { fontSize: 14, fontWeight: '600' },
   screen: { flex: 1 },

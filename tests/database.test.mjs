@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { DatabaseSync } from 'node:sqlite';
 import { migrateDatabase } from '../src/storage/database.ts';
-import { createGoal, editGoal, setGoalCompleted, getGoal, listInboxGoals, completedGoalsSince, archiveGoal, restoreGoal, reviewPastGoal } from '../src/storage/goals.ts';
+import { createGoal, editGoal, planGoal, setGoalCompleted, getGoal, listInboxGoals, completedGoalsSince, archiveGoal, restoreGoal, reviewPastGoal } from '../src/storage/goals.ts';
 import { exportBackup, restoreBackup } from '../src/storage/backup.ts';
 import { nextOccurrence } from '../src/domain/planning.ts';
 import { createBoard, addGoalToBoard, listBoardGoals } from '../src/storage/boards.ts';
@@ -131,6 +131,20 @@ test('offline planning lifecycle preserves identity, recurrence, completion hist
     const quick = await beginQuickFocus(source.db, step, 25);
     assert.equal(quick.durationMs, 25 * 60000);
     const blockCount = source.sqlite.prepare('SELECT count(*) AS n FROM time_blocks').get().n;
+    const beforePlan = await getGoal(source.db, step);
+    const reservations = source.sqlite.prepare('SELECT * FROM time_blocks WHERE goal_id = ?').all(step);
+    await planGoal(source.db, step, { horizon: 'day', periodKey: '2026-02-01' });
+    assert.deepEqual(await getGoal(source.db, step), { ...beforePlan, periodKey: '2026-02-01',
+      updatedAt: (await getGoal(source.db, step)).updatedAt });
+    assert.deepEqual(source.sqlite.prepare('SELECT * FROM time_blocks WHERE goal_id = ?').all(step), reservations);
+    assert.equal(source.sqlite.prepare('SELECT repeat_anchor FROM goals WHERE id = ?').get(step).repeat_anchor, '2026-01-31');
+    await assert.rejects(() => planGoal(source.db, step, { horizon: 'week', periodKey: '2026-W06' }), /daily planning date/);
+    await assert.rejects(() => planGoal(source.db, step, { horizon: 'day', periodKey: '', inbox: true }), /before repeating/);
+    await planGoal(source.db, inbox, { horizon: 'week', periodKey: '2026-W06' });
+    assert.equal((await listInboxGoals(source.db)).length, 0);
+    await planGoal(source.db, inbox, { horizon: 'week', periodKey: '', inbox: true });
+    assert.equal((await listInboxGoals(source.db))[0].id, inbox);
+    await assert.rejects(() => planGoal(source.db, inbox, { horizon: 'day', periodKey: '2026-02-30' }), /valid planning period/);
     await assert.rejects(() => beginQuickFocus(source.db, inbox, 15), /already active/);
     assert.equal(source.sqlite.prepare('SELECT count(*) AS n FROM time_blocks').get().n, blockCount);
     await pauseFocusSession(source.db);
@@ -141,16 +155,19 @@ test('offline planning lifecycle preserves identity, recurrence, completion hist
     await stopFocusSession(source.db);
     await beginQuickFocus(source.db, step, 50);
     await archiveGoal(source.db, parent);
+    await assert.rejects(() => planGoal(source.db, step, { horizon: 'day', periodKey: '2026-02-02' }), /open goal/);
     assert.equal(await getFocusSession(source.db), null);
     assert.equal((await listFocusHistory(source.db)).length, 3);
     await restoreGoal(source.db, parent);
     await setGoalCompleted(source.db, step, true);
+    await assert.rejects(() => planGoal(source.db, step, { horizon: 'day', periodKey: '2026-02-02' }), /open goal/);
     await setGoalCompleted(source.db, step, true); // Double delivery is idempotent.
     assert.equal(await completedGoalsSince(source.db, '2000-01-01T00:00:00.000Z'), 1);
     assert.equal((await listBoardGoals(source.db, board)).find((goal) => goal.id === step).completed, true);
     assert.equal(source.sqlite.prepare('SELECT count(*) AS n FROM goal_activity').get().n, 1);
     const next = source.sqlite.prepare('SELECT * FROM goals WHERE recurrence_from_id = ?').get(step);
-    assert.equal(next.period_key, '2026-02-28');
+    // Postponing the January occurrence into February keeps the original 31st anchor.
+    assert.equal(next.period_key, '2026-03-31');
     assert.equal(next.parent_id, parent); assert.equal(next.due_date, null);
     assert.equal(next.notes, 'Keep this note');
     assert.equal(nextOccurrence('2026-02-28', 'monthly', '2026-01-31'), '2026-03-31');

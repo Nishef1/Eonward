@@ -25,10 +25,11 @@ interface GoalEditorProps {
   onDismiss: () => void;
   onSave: (input: GoalInput) => Promise<void>;
   defaultInbox?: boolean;
+  draftTitle?: string;
 }
 
 export function GoalEditor({
-  visible, initial, parent, parentOptions, defaultHorizon, anchorDate, palette, saving, onDismiss, onSave, defaultInbox = false,
+  visible, initial, parent, parentOptions, defaultHorizon, anchorDate, palette, saving, onDismiss, onSave, defaultInbox = false, draftTitle = '',
 }: GoalEditorProps) {
   const reducedMotion = useReducedMotion();
   const [title, setTitle] = useState('');
@@ -53,7 +54,7 @@ export function GoalEditor({
     const initialDate = initial
       ? dateFromPeriodKey(initial.horizon, initial.periodKey, anchorDate)
       : new Date(anchorTime);
-    setTitle(initial?.title ?? '');
+    setTitle(initial?.title ?? draftTitle);
     setNotes(initial?.notes ?? '');
     setHorizon(initialHorizon);
     setDate(initialDate);
@@ -65,11 +66,11 @@ export function GoalEditor({
     setDueDate(initial?.dueDate ?? '');
     setRepeatRule(initial?.repeatRule ?? 'none');
     setExpanded(!!initial || !!parent);
-    originalDraft.current = JSON.stringify([initial?.title ?? '', initial?.notes ?? '', initialHorizon,
+    originalDraft.current = JSON.stringify([initial?.title ?? draftTitle, initial?.notes ?? '', initialHorizon,
       (initial?.inbox ?? defaultInbox) ? '' : periodKey(initialHorizon, initialDate),
       initial?.parentId ?? parent?.id ?? null, initial?.inbox ?? defaultInbox, initial?.dueDate ?? '', initial?.repeatRule ?? 'none']);
     scrollRef.current?.scrollTo({ y: 0, animated: false });
-  }, [visible, initial?.id, defaultHorizon, parent?.id, anchorTime, defaultInbox]);
+  }, [visible, initial?.id, defaultHorizon, parent?.id, anchorTime, defaultInbox, draftTitle]);
 
   const validDate = inbox || horizon !== 'day' || parseDateInput(dateText) !== null;
   const chosenDate = horizon === 'day' ? parseDateInput(dateText) ?? date : date;

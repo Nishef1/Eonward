@@ -22,11 +22,13 @@ import { MonthOverview } from './MonthOverview';
 import { useFocusSession } from '../focus/FocusProvider';
 import { TimeBlockEditor } from './TimeBlockEditor';
 import { GoalEditor } from '../horizons/GoalEditor';
+import { DateTimeField } from '../shared/DateTimeField';
 
 type Palette = typeof colors.light | typeof colors.dark;
 const WEEKDAYS = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
 function dateHeading(date: Date): string {
-  return new Intl.DateTimeFormat('en-US', { weekday: 'long', month: 'long', day: 'numeric' }).format(date);
+  return new Intl.DateTimeFormat('en-US', { weekday: 'long', month: 'long', day: 'numeric',
+    year: date.getFullYear() !== new Date().getFullYear() ? 'numeric' : undefined }).format(date);
 }
 function weekOf(day: Date): Date[] {
   const weekday = (day.getDay() + 6) % 7;
@@ -259,11 +261,10 @@ export function CalendarScreen() {
         </View>
         <View style={styles.dateTitleRow}>
           <View style={styles.dateTitleGroup}>
-            <Text numberOfLines={1} style={[styles.dateTitle, { color: foreground }]}>
-              {mode === 'month'
+            <DateTimeField value={key} label="Calendar date" variant="inline"
+              displayValue={mode === 'month'
                 ? new Intl.DateTimeFormat('en-US', { month: 'long', year: 'numeric' }).format(day)
-                : dateHeading(day)}
-            </Text>
+                : dateHeading(day)} onChange={(value) => { const selected = parseLocalDay(value); if (selected) setDay(selected); }} />
           </View>
           <View style={styles.weekArrows}>
             <Pressable style={styles.weekArrow} accessibilityRole="button" accessibilityLabel={mode === "month" ? "Previous month" : "Previous week"}
@@ -446,7 +447,6 @@ const styles = StyleSheet.create({
   create: { width: 48, height: 48, borderRadius: radius.md, justifyContent: 'center', alignItems: 'center' },
   dateTitleRow: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingTop: 2, paddingBottom: 2 },
   dateTitleGroup: { flex: 1, gap: 4 },
-  dateTitle: { fontSize: 16, fontWeight: '500', letterSpacing: -0.2 },
   weekArrows: { flexDirection: 'row', gap: 2 },
   weekArrow: { width: 48, height: 48, alignItems: 'center', justifyContent: 'center' },
   weekStrip: { flexDirection: 'row', marginBottom: 8 },

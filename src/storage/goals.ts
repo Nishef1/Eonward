@@ -160,6 +160,24 @@ export async function editGoal(db: SQLiteDatabase, id: string, input: GoalInput)
   });
 }
 
+/** Move only the planning container. Deadlines, reservations and recurrence anchors stay independent. */
+export async function planGoal(db: SQLiteDatabase, id: string,
+  destination: { horizon: Goal['horizon']; periodKey: string; inbox?: boolean }): Promise<void> {
+  await db.withExclusiveTransactionAsync(async (tx) => {
+    const goal = await tx.getFirstAsync<GoalRow>(
+      'SELECT * FROM goals WHERE id = ? AND completed = 0 AND archived_at IS NULL', [id]);
+    if (!goal) throw new Error('This open goal is no longer available.');
+    validatePlanning({ ...destination, repeatRule: goal.repeat_rule });
+    const key = destination.inbox ? '' : destination.periodKey;
+    const inbox = destination.inbox ? 1 : 0;
+    if (goal.horizon === destination.horizon && goal.period_key === key && goal.in_inbox === inbox) return;
+    await tx.runAsync(`UPDATE goals SET horizon = ?, period_key = ?, in_inbox = ?, reviewed_period = NULL,
+      sort_rank = (SELECT COALESCE(MAX(other.sort_rank), -1) + 1 FROM goals other
+        WHERE other.horizon = ? AND other.period_key = ? AND other.archived_at IS NULL), updated_at = ? WHERE id = ?`,
+      [destination.horizon, key, inbox, destination.horizon, key, new Date().toISOString(), id]);
+  });
+}
+
 export async function setGoalCompleted(db: SQLiteDatabase, id: string, completed: boolean): Promise<void> {
   await db.withExclusiveTransactionAsync(async (tx) => {
     const goal = await tx.getFirstAsync<GoalRow & { repeat_anchor: string | null }>(

@@ -35,7 +35,9 @@ Use `onAccent` for filled primary controls, not hard-coded white. Completion mus
 - Four labeled root destinations: Plan, Calendar, Boards, Review. Settings and Archive are workspace utilities.
 - Plan groups Your plan / Horizons / Inbox in one segmented selector. Only one mode is visible at a time.
 - The selected planning horizon opens a bottom sheet containing all seven canonical horizons. Previous/next and Now remain adjacent, with the selected period under the page title. Life has no meaningless previous/next controls.
-- Inline capture saves a title in the current context; Inbox is explicitly unscheduled. The adjacent planning-details action opens the existing editor.
+- Inline capture saves a title in the current context; Inbox is explicitly unscheduled. The adjacent planning-details action carries the typed title into the editor. Cancel preserves the inline draft; successful creation clears only that matching draft.
+- An open goal's organization sheet offers explicit Today, Tomorrow, This week and Inbox destinations, omitting its current destination. Repeating steps offer daily destinations only. After moving, show the destination. Keep deadline, calendar reservation and recurrence anchor independent of this planning move.
+- Positional Move up/down belongs to the actual period list, not global search results or a mixed-horizon Inbox. The organization sheet scrolls on constrained screens and with larger fonts.
 - Goal cards lead with the title and optionally show a compact connected-parent badge. Completion and organization have separate touch targets.
 - Horizons displays the seven time scales along a quiet rail. The rail connects time scales, not arbitrary goal entities. Actual parent relationships are shown only from stored relationships.
 - Empty states guide one useful action without fake progress, sample goals inserted into user data, or a second competing primary button.
@@ -44,6 +46,7 @@ Use `onAccent` for filled primary controls, not hard-coded white. Completion mus
 
 - Title and planning period precede supporting context. Ancestor links remain directly navigable.
 - Quick Focus offers 15/25/50 minutes on an existing open goal. Starting Focus creates a real Timebox and session. Completion remains an explicit, independent decision.
+- The organization sheet also offers a labeled 25-minute Focus shortcut. It uses the same existing-session replacement confirmation as detail.
 - Notes, deadlines, repeats and parent selection use progressive disclosure in the editor. Native date/time pickers preserve civil-date semantics.
 - Save stays above the bottom safe area. Dirty drafts require an explicit discard choice on close/back/backdrop.
 - Archive is reversible. Destructive or replacement decisions must explain the affected state before confirmation.
@@ -51,6 +54,7 @@ Use `onAccent` for filled primary controls, not hard-coded white. Completion mus
 ## Calendar, boards and review
 
 - Calendar uses the same segmented-control grammar for Day/Week/Month/List. Exact timestamps, overlap lanes and an accessible list remain available.
+- The calendar date heading opens the native date picker in every view, allowing a direct jump without repeated week/month paging. Today still returns to today's timeline.
 - Untimed daily goals are distinct from midnight events. Horizon, deadline and time reservation are separate concepts.
 - Boards reference existing goal identities. Board cards use a small folder emblem, readable title, description and real counts.
 - Review uses recorded Focus time and actual completion history. No create/edit-count productivity score or compulsory streak. Empty progress is an invitation, not a wall of zeroes.
