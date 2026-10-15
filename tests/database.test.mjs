@@ -312,7 +312,7 @@ test('offline planning lifecycle preserves identity, recurrence, completion hist
     const snapshot = await exportBackup(source.db), text = JSON.stringify(snapshot);
     assert.equal(snapshot.version, 2);
     assert.equal(snapshot.tables.time_budgets.length, 2);
-    assert.equal(snapshot.tables.focus_history.filter((row) => row.goal_id === step).length, 2);
+    assert.equal(snapshot.tables.focus_history.filter((row) => row.goal_id === step).length, 3);
     const legacy = structuredClone(snapshot);
     legacy.version = 1; legacy.schemaVersion = 7;
     delete legacy.tables.time_budgets;
