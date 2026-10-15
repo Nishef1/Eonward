@@ -247,8 +247,15 @@ test('offline planning lifecycle preserves identity, recurrence, completion hist
     const uniqueCapacity = (await listWeeklyCapacity(source.db, new Date(2026, 9, 12, 12)))
       .find((item) => item.goalId === flexibleGoal);
     assert.equal(uniqueCapacity.plannedMinutes, 75);
+    const nestedGoal = await createGoal(source.db, { title: 'Nested flexible work', notes: '',
+      horizon: 'day', periodKey: '2026-10-14', parentId: flexibleGoal });
+    await saveBlock(source.db, { goalId: nestedGoal, date: '2026-10-14',
+      start: '13:30', end: '14:15', kind: 'block', intention: '', flexible: false });
+    const ancestor = (await listWeeklyCapacity(source.db, new Date(2026, 9, 12, 12)))
+      .find((item) => item.goalId === flexibleGoal);
+    assert.equal(ancestor.plannedMinutes, 90); // Union across parent and descendant, not 120 minutes.
     // An unrelated goal's reservation doesn't affect the allocated time for this goal.
-    assert.equal(uniqueCapacity.focusedMinutes, 0);
+    assert.equal(ancestor.focusedMinutes, 0);
     const quick = await beginQuickFocus(source.db, step, 25);
     assert.equal(quick.durationMs, 25 * 60000);
     const blockCount = source.sqlite.prepare('SELECT count(*) AS n FROM time_blocks').get().n;
