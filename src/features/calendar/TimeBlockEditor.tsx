@@ -16,11 +16,12 @@ interface Props {
   suggestedStartHour: number | null;
   palette: Palette;
   saving: boolean;
+  activeBlockId: string | null;
   onCancel: () => void;
   onSave: (input: BlockInput) => Promise<void>;
   onStartFocus: (block: TimeBlock) => void;
 }
-export function TimeBlockEditor({ visible, date, goals, initial, suggestedGoalId, suggestedStartHour, palette, saving, onCancel, onSave, onStartFocus }: Props) {
+export function TimeBlockEditor({ visible, date, goals, initial, suggestedGoalId, suggestedStartHour, palette, saving, activeBlockId, onCancel, onSave, onStartFocus }: Props) {
   const [goalId, setGoalId] = useState<string | null>(null);
   const [showGoals, setShowGoals] = useState(false);
   const [search, setSearch] = useState('');
@@ -53,7 +54,17 @@ export function TimeBlockEditor({ visible, date, goals, initial, suggestedGoalId
   let validation: string | null = null;
   try { timeRangeFromInput({ date: dayText, start, end, endsNextDay }); }
   catch (error) { validation = error instanceof Error ? error.message : 'Invalid time.'; }
-  const valid = !!goalId && !validation && !saving;
+  const editingActive = !!initial && initial.id === activeBlockId;
+  let changed = !initial;
+  if (initial) {
+    let current: { startAt: string; endAt: string } | null = null;
+    try { current = timeRangeFromInput({ date: dayText, start, end, endsNextDay }); }
+    catch { /* Invalid unsaved form cannot match the saved Timebox. */ }
+    changed = !current || current.startAt !== initial.startAt ||
+      current.endAt !== initial.endAt || goalId !== initial.goalId ||
+      kind !== initial.kind || intention.trim() !== initial.intention;
+  }
+  const valid = !!goalId && !validation && !saving && !editingActive;
 
   return (
     <Modal visible={visible} animationType="slide" transparent statusBarTranslucent navigationBarTranslucent onRequestClose={onCancel}>
@@ -155,12 +166,22 @@ export function TimeBlockEditor({ visible, date, goals, initial, suggestedGoalId
                 placeholderTextColor={palette.muted} accessibilityLabel="Time block intention"
                 style={[styles.input, styles.notes, { backgroundColor: palette.surface, borderColor: palette.border, color: palette.foreground }]} />
               {validation ? <Text style={styles.validation}>{validation}</Text> : null}
+              {editingActive ? <Text style={styles.validation}>
+                End the active Focus session before editing this Timebox.
+              </Text> : null}
             </ScrollView>
             <SafeAreaView edges={['bottom']} style={[styles.footer, { borderTopColor: palette.border, backgroundColor: palette.background }]}>
-              {initial?.kind === 'box' && kind === 'box' ? (
-                <Pressable accessibilityRole="button" onPress={() => onStartFocus(initial)}
-                  style={[styles.focusAction, { backgroundColor: palette.surface, borderColor: palette.border }]}>
-                  <Text style={[styles.focusActionText, { color: palette.accent }]}>◷  Start saved timebox</Text>
+              {initial?.kind === 'box' && kind === 'box' && !editingActive ? (
+                <Pressable accessibilityRole="button" disabled={saving || changed}
+                  accessibilityState={{ disabled: saving || changed }}
+                  onPress={() => { if (!saving && !changed) onStartFocus(initial); }}
+                  style={[styles.focusAction, {
+                    backgroundColor: palette.surface, borderColor: palette.border,
+                    opacity: saving || changed ? 0.5 : 1,
+                  }]}>
+                  <Text style={[styles.focusActionText, { color: palette.accent }]}>
+                    {changed ? 'Save edits before starting Focus' : '◷  Start saved timebox'}
+                  </Text>
                 </Pressable>
               ) : null}
               <Pressable disabled={!valid} accessibilityRole="button" accessibilityState={{ disabled: !valid }}

@@ -410,7 +410,7 @@ export function CalendarScreen() {
       <TimeBlockEditor visible={editorOpen} date={day} goals={goals}
         initial={editingBlock} suggestedGoalId={chosenGoal}
         suggestedStartHour={suggestedHour}
-        palette={palette} saving={busy}
+        palette={palette} saving={busy} activeBlockId={focus.session?.blockId ?? null}
         onCancel={() => { if (!busy) { setEditorOpen(false); setEditingBlock(null); } }}
         onSave={save} onStartFocus={startFocus} />
     </SafeAreaView>

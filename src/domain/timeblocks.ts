@@ -82,6 +82,19 @@ export function timeRangeFromInput(input: Pick<BlockInput, 'date' | 'start' | 'e
   }
   return { startAt: start.toISOString(), endAt: end.toISOString() };
 }
+/** Local-time label for the portion of a block visible on a selected day. */
+export function blockClockRangeForDay(block: Pick<TimeBlock, 'startAt' | 'endAt'>, day: Date): string {
+  const { from, to } = localDayBounds(day);
+  const lower = Date.parse(from);
+  const upper = Date.parse(to);
+  const startMs = Date.parse(block.startAt);
+  const endMs = Date.parse(block.endAt);
+  if (!Number.isFinite(startMs) || !Number.isFinite(endMs) ||
+      startMs >= upper || endMs <= lower || endMs <= startMs) return '';
+  return (startMs < lower ? '00:00' : localClock(new Date(startMs))) +
+    ' – ' + (endMs >= upper ? '24:00' : localClock(new Date(endMs)));
+}
+
 export function localDayBounds(day: Date): { from: string; to: string } {
   const start = new Date(day.getFullYear(), day.getMonth(), day.getDate(), 0, 0);
   const next = new Date(day.getFullYear(), day.getMonth(), day.getDate() + 1, 0, 0);

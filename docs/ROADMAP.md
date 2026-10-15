@@ -384,3 +384,13 @@ The initial Create Goal form was appearing partially scrolled in a screenshot; i
 - [x] On 23/25-hour DST days, warn that the Timeline displays wall-clock geometry and link directly to List for unambiguous exact timestamps.
 - [x] Extend two existing calendar/domain tests without exceeding the 20-test policy.
 - [ ] Verify device focus/navigation/keyboard/notification behaviors: GitHub Actions cannot substitute for physical Android acceptance.
+
+## Source audit and correction — 2026-10-15
+
+- [x] Timebox editor does not silently start the *old* saved Timebox while unsaved edits are visible. Save before Start; disable editing the actively focusing Timebox with an explicit explanation.
+- [x] Continue an overnight block with only the **visible local-day segment** in the Day Timeline. The preceding day's end is labeled 24:00, not 00:00 of the next day.
+- [x] Add domain assertions for overnight segment labels without inflating the fixed 20-test suite.
+- [x] Show a recoverable retry prompt if Focus persistence cannot be read rather than quietly hiding the timer.
+- [x] Refresh Insights seven-day window after local midnight and after returning from the background.
+- [ ] **Not done:** Android notification scheduling: Expo SDK 57 requires a locked `expo-notifications` install and platform permissions. Do not claim background expiry alerts from JavaScript countdowns.
+- [ ] **Not done:** hands-on Android interaction/regression pass and notification/exact-alarm grant/deny scenarios. CI only proves test, type and bundle integrity.

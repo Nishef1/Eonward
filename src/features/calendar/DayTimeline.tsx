@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { AppState, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { layoutBlocks, localClock, localDayKey, type TimeBlock } from '../../domain/timeblocks';
+import { blockClockRangeForDay, layoutBlocks, localClock, localDayKey, type TimeBlock } from '../../domain/timeblocks';
 import { colors, radius } from '../../theme/tokens';
 
 type Palette = typeof colors.light | typeof colors.dark;
@@ -58,6 +58,7 @@ export function DayTimeline({ date, blocks, palette, isDark, onEdit, onQuickAdd,
     () => layoutBlocks(blocks, hourHeight, date),
     [blocks, dateKey, hourHeight],
   );
+  const visibleRange = (block: TimeBlock) => blockClockRangeForDay(block, date);
   const firstHour = positioned.length
     ? Math.max(0, Math.floor(Math.min(...positioned.map((item) => item.top / hourHeight)) - 1))
     : isToday ? Math.max(0, Math.floor(minOfDay(now) / 60) - 2) : 8;
@@ -157,7 +158,7 @@ export function DayTimeline({ date, blocks, palette, isDark, onEdit, onQuickAdd,
                 const tone = blockTone(block);
                 return (
                   <Pressable key={block.id} accessibilityRole="button"
-                    accessibilityLabel={`${block.goalTitle}, ${clockLabel(block.startAt)} to ${clockLabel(block.endAt)}. Edit time.`}
+                    accessibilityLabel={`${block.goalTitle}, ${visibleRange(block)} on this day. Edit time.`}
                     onPress={() => onEdit(block)}
                     onLongPress={() => onOpenGoal(block.goalId)}
                     hitSlop={compact ? 5 : 0}
@@ -170,12 +171,12 @@ export function DayTimeline({ date, blocks, palette, isDark, onEdit, onQuickAdd,
                     }]}>
                     {veryCompact ? (
                       <Text numberOfLines={1} style={styles.microTitle}>
-                        {clockLabel(block.startAt)} · {block.goalTitle}
+                        {visibleRange(block).split(' – ')[0]} · {block.goalTitle}
                       </Text>
                     ) : (
                       <>
                         <Text numberOfLines={1} style={styles.eventTime}>
-                          {clockLabel(block.startAt)} – {clockLabel(block.endAt)}
+                          {visibleRange(block)}
                           {block.kind === 'box' ? '  ·  BOX' : ''}
                         </Text>
                         <Text numberOfLines={height < 75 ? 1 : 2}

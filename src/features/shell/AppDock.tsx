@@ -17,7 +17,7 @@ export function AppDock() {
   const router = useRouter();
   const pathname = usePathname();
   const palette = useColorScheme() === 'dark' ? colors.dark : colors.light;
-  const { session, busy, pause, resume, finish, refresh } = useFocusSession();
+  const { session, busy, error, pause, resume, finish, refresh } = useFocusSession();
   const [clock, setClock] = useState(() => Date.now());
   const [expanded, setExpanded] = useState(false);
   useEffect(() => {
@@ -54,7 +54,16 @@ export function AppDock() {
   return (
     <>
       <SafeAreaView edges={['bottom']} style={[styles.dock, { backgroundColor: palette.background, borderTopColor: palette.border }]}>
-        {session ? (
+        {error ? (
+          <Pressable accessibilityRole="button" accessibilityLabel="Retry loading focus timer"
+            onPress={() => { void refresh().catch(() => {}); }}
+            style={[styles.loadError, { borderColor: palette.border, backgroundColor: palette.surface }]}>
+            <Text numberOfLines={1} style={[styles.loadErrorText, { color: palette.foreground }]}>
+              Focus unavailable · Tap to retry
+            </Text>
+          </Pressable>
+        ) : null}
+        {!error && session ? (
           <Pressable accessibilityRole="button" accessibilityLabel={`Open focus timer for ${session.goalTitle}`}
             onPress={() => setExpanded(true)}
             style={[styles.miniTimer, { backgroundColor: palette.surface, borderColor: palette.border }]}>
@@ -136,6 +145,9 @@ export function AppDock() {
 }
 const styles = StyleSheet.create({
   dock: { borderTopWidth: StyleSheet.hairlineWidth, paddingTop: 6 },
+  loadError: { marginHorizontal: 13, marginBottom: 6, borderRadius: radius.md, minHeight: 44,
+    paddingHorizontal: 13, borderWidth: 1, justifyContent: 'center' },
+  loadErrorText: { fontSize: 12, fontWeight: '600' },
   miniTimer: { minHeight: 58, marginHorizontal: 13, marginBottom: 6, paddingHorizontal: 14, borderRadius: radius.lg, borderWidth: 1, flexDirection: 'row', alignItems: 'center', gap: 10 },
   sessionCopy: { flex: 1, gap: 4 },
   miniTitle: { fontSize: 13, fontWeight: '700' },

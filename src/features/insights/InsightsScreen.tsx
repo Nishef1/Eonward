@@ -1,6 +1,6 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useFocusEffect, useRouter } from 'expo-router';
-import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, useColorScheme, View } from 'react-native';
+import { ActivityIndicator, AppState, Pressable, ScrollView, StyleSheet, Text, useColorScheme, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useSQLiteContext } from 'expo-sqlite';
 import type { FocusHistory, FocusSummary } from '../../domain/focus';
@@ -32,6 +32,18 @@ export function InsightsScreen() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [revision, setRevision] = useState(0);
+  const [todayKey, setTodayKey] = useState(() => localDayKey(new Date()));
+  useEffect(() => {
+    const update = () => setTodayKey(localDayKey(new Date()));
+    const interval = setInterval(update, 60_000);
+    const listener = AppState.addEventListener('change', (state) => {
+      if (state === 'active') {
+        update();
+        setRevision((count) => count + 1);
+      }
+    });
+    return () => { clearInterval(interval); listener.remove(); };
+  }, []);
 
   useFocusEffect(useCallback(() => {
     let live = true;
@@ -50,7 +62,7 @@ export function InsightsScreen() {
       if (live) setError(reason instanceof Error ? reason.message : 'Could not load focus history.');
     }).finally(() => { if (live) setLoading(false); });
     return () => { live = false; };
-  }, [db, revision]));
+  }, [db, revision, todayKey]));
 
   const today = new Date();
   const days = Array.from({ length: 7 }, (_, i) => shiftLocalDay(today, i - 6));

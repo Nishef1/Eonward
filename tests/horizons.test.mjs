@@ -3,7 +3,7 @@ import test from 'node:test';
 import { isoWeekKey, periodKey, shiftPeriod, startOfWeek, periodLabel, dateFromPeriodKey, parseDateInput } from '../src/domain/horizons.ts';
 import { normalizeGoalTitle, availableGoalParents } from '../src/domain/goals.ts';
 import { buildPerspectiveSections } from '../src/domain/perspective.ts';
-import { layoutBlocks, localDayBounds, localDayKey, monthGridDays, timeRangeFromInput } from '../src/domain/timeblocks.ts';
+import { blockClockRangeForDay, layoutBlocks, localDayBounds, localDayKey, monthGridDays, timeRangeFromInput } from '../src/domain/timeblocks.ts';
 import { formatFocusTime, getFocusDurationMs, getFocusRemainingMs, getFocusElapsedMs } from '../src/domain/focus.ts';
 
 test('all seven horizon keys use independent periods', () => {
@@ -177,6 +177,9 @@ test('overnight blocks preserve local clock and show only the segment visible on
   assert.equal(first.height, 30);
   assert.equal(next.top, 0);
   assert.equal(next.height, 30);
+  assert.equal(blockClockRangeForDay(block, new Date(2026, 9, 14, 12)), '23:30 – 24:00');
+  assert.equal(blockClockRangeForDay(block, new Date(2026, 9, 15, 12)), '00:00 – 00:30');
+  assert.equal(blockClockRangeForDay(block, new Date(2026, 9, 16, 12)), '');
   assert.deepEqual(layoutBlocks([block], 60, new Date(2026, 9, 16, 12)), []);
   assert.throws(() => timeRangeFromInput({
     date: '2026-10-14', start: '23:30', end: '00:30',

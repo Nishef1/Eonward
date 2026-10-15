@@ -8,6 +8,7 @@ interface FocusContextValue {
   session: FocusSession | null;
   loading: boolean;
   busy: boolean;
+  error: string | null;
   refresh: () => Promise<void>;
   begin: (blockId: string, replace?: boolean) => Promise<void>;
   pause: () => Promise<void>;
@@ -21,16 +22,26 @@ export function FocusProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<FocusSession | null>(null);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const blocked = useRef(false);
   const mounted = useRef(true);
   const refreshSequence = useRef(0);
 
   const refresh = useCallback(async () => {
     const sequence = ++refreshSequence.current;
-    const record = await getFocusSession(db);
-    if (mounted.current && sequence === refreshSequence.current) {
-      setSession(record);
-      setLoading(false);
+    try {
+      const record = await getFocusSession(db);
+      if (mounted.current && sequence === refreshSequence.current) {
+        setSession(record);
+        setLoading(false);
+        setError(null);
+      }
+    } catch (reason) {
+      if (mounted.current && sequence === refreshSequence.current) {
+        setError(reason instanceof Error ? reason.message : 'Could not read the focus timer.');
+        setLoading(false);
+      }
+      throw reason;
     }
   }, [db]);
 
@@ -63,8 +74,8 @@ export function FocusProvider({ children }: { children: ReactNode }) {
   const finish = useCallback(() => perform(() => stopFocusSession(db)), [db, perform]);
 
   const value = useMemo<FocusContextValue>(() => ({
-    session, loading, busy, refresh, begin, pause, resume, finish,
-  }), [session, loading, busy, refresh, begin, pause, resume, finish]);
+    session, loading, busy, error, refresh, begin, pause, resume, finish,
+  }), [session, loading, busy, error, refresh, begin, pause, resume, finish]);
 
   return <FocusContext.Provider value={value}>{children}</FocusContext.Provider>;
 }
