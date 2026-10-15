@@ -1,0 +1,71 @@
+import type { SQLiteDatabase } from 'expo-sqlite';
+import type { ReplanMove, ReplanPreview } from '../domain/replan';
+import { localDayBounds } from '../domain/timeblocks';
+
+type Row = { id: string; start_at: string; end_at: string; flexible: number; kind: string; goal_id: string; completed: number };
+async function snapshot(db: Pick<SQLiteDatabase, 'getAllAsync'>, day: string): Promise<Row[]> {
+  const start = new Date(day + 'T12:00:00');
+  const bounds = localDayBounds(start);
+  return db.getAllAsync<Row>(`SELECT tb.id, tb.start_at, tb.end_at, tb.flexible, tb.kind, tb.goal_id,
+    g.completed FROM time_blocks tb JOIN goals g ON g.id = tb.goal_id
+    WHERE g.archived_at IS NULL AND tb.start_at < ? AND tb.end_at > ? ORDER BY tb.id`, [bounds.to, bounds.from]);
+}
+function same(a: Row[], b: Row[]) { return JSON.stringify(a) === JSON.stringify(b); }
+type ReplanCheckpoint = { moves: ReplanMove[] };
+/** Only exact previewed states may be written; active Focus blocks are immutable. */
+export async function applyReplan(db: SQLiteDatabase, preview: ReplanPreview, expected: readonly {
+  id: string; startAt: string; endAt: string; flexible: boolean; kind: string; goalId: string; goalCompleted: boolean;
+}[]): Promise<void> {
+  if (!preview.moves.length) throw new Error('There are no changes to apply.');
+  const ids = new Set(preview.moves.map((m) => m.id));
+  if (ids.size !== preview.moves.length) throw new Error('Duplicate change.');
+  const original: Row[] = [...expected].map((b) =>
+    ({ id: b.id, start_at: b.startAt, end_at: b.endAt, flexible: b.flexible ? 1 : 0,
+      kind: b.kind, goal_id: b.goalId, completed: b.goalCompleted ? 1 : 0 }))
+    .sort((a, b) => a.id.localeCompare(b.id));
+  await db.withExclusiveTransactionAsync(async (tx) => {
+    if (!same(await snapshot(tx, preview.day), original)) throw new Error('Calendar changed. Review a fresh preview.');
+    const running = await tx.getFirstAsync<{ block_id: string }>('SELECT block_id FROM focus_session WHERE id = 1');
+    if (running && ids.has(running.block_id)) throw new Error('End the active Focus session before moving its time.');
+    const changes: ReplanMove[] = [];
+    for (const move of preview.moves) {
+      const from = original.find((row) => row.id === move.id);
+      if (!from || from.flexible !== 1 || from.completed === 1 ||
+        from.start_at !== move.fromStart || from.end_at !== move.fromEnd ||
+        !(Date.parse(move.toEnd) > Date.parse(move.toStart))) throw new Error('Preview no longer matches the source.');
+      const result = await tx.runAsync(`UPDATE time_blocks SET start_at = ?, end_at = ?, updated_at = ?
+        WHERE id = ? AND flexible = 1 AND start_at = ? AND end_at = ?`,
+        [move.toStart, move.toEnd, new Date().toISOString(), move.id, move.fromStart, move.fromEnd]);
+      if (result.changes !== 1) throw new Error('A block changed while replanning.');
+      changes.push(move);
+    }
+    const stamp = new Date().toISOString();
+    await tx.runAsync(`INSERT INTO replan_checkpoint (id, before_json, after_json, created_at)
+      VALUES (1, ?, ?, ?) ON CONFLICT(id) DO UPDATE SET before_json = excluded.before_json,
+      after_json = excluded.after_json, created_at = excluded.created_at`,
+      [JSON.stringify(changes.map((m) => ({ id: m.id, start: m.fromStart, end: m.fromEnd }))),
+        JSON.stringify(changes.map((m) => ({ id: m.id, start: m.toStart, end: m.toEnd }))), stamp]);
+  });
+}
+export async function canUndoReplan(db: SQLiteDatabase): Promise<boolean> {
+  return !!(await db.getFirstAsync('SELECT id FROM replan_checkpoint WHERE id = 1'));
+}
+export async function undoReplan(db: SQLiteDatabase): Promise<void> {
+  await db.withExclusiveTransactionAsync(async (tx) => {
+    const record = await tx.getFirstAsync<{ before_json: string; after_json: string }>(
+      'SELECT before_json, after_json FROM replan_checkpoint WHERE id = 1');
+    if (!record) throw new Error('No replan to undo.');
+    const before = JSON.parse(record.before_json) as { id: string; start: string; end: string }[];
+    const after = JSON.parse(record.after_json) as typeof before;
+    const active = await tx.getFirstAsync<{ block_id: string }>('SELECT block_id FROM focus_session WHERE id = 1');
+    if (active && after.some((row) => row.id === active.block_id)) throw new Error('End Focus before undoing this replan.');
+    for (let i = 0; i < after.length; i++) {
+      const item = after[i], original = before[i];
+      const result = await tx.runAsync(`UPDATE time_blocks SET start_at = ?, end_at = ?, updated_at = ?
+        WHERE id = ? AND flexible = 1 AND start_at = ? AND end_at = ?`,
+        [original.start, original.end, new Date().toISOString(), item.id, item.start, item.end]);
+      if (result.changes !== 1) throw new Error('Calendar changed since replanning. Undo is no longer safe.');
+    }
+    await tx.runAsync('DELETE FROM replan_checkpoint WHERE id = 1');
+  });
+}
