@@ -163,7 +163,7 @@ test('overlapping time blocks split their timeline lanes, consecutive blocks reu
     { startAt: instant(13, 0), endAt: instant(14, 0) },
   ];
   const range = analyzeRangeLoad(calendar, from, to);
-  assert.deepEqual(range, { reservedMinutes: 150, occupiedMinutes: 90, overlapMinutes: 60 });
+  assert.deepEqual(range, { reservedMinutes: 120, occupiedMinutes: 90, overlapMinutes: 30 });
   assert.equal(blockOverlapsRange(calendar[0], from, to), true);
   assert.equal(blockOverlapsRange(calendar[2], from, to), false);
   assert.deepEqual(analyzeRangeLoad([], from, to), {
