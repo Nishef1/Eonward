@@ -8,6 +8,11 @@ import { nextOccurrence } from '../src/domain/planning.ts';
 import { createBoard, addGoalToBoard, listBoardGoals } from '../src/storage/boards.ts';
 import { beginQuickFocus, getFocusSession, pauseFocusSession, resumeFocusSession, stopFocusSession, listFocusHistory } from '../src/storage/focus.ts';
 import { safeNativePath } from '../src/domain/links.ts';
+import { previewReplan } from '../src/domain/replan.ts';
+import { applyReplan, undoReplan } from '../src/storage/replan.ts';
+import { saveBlock, listDayBlocks } from '../src/storage/timeblocks.ts';
+import { setWeeklyCapacity, listWeeklyCapacity } from '../src/storage/capacity.ts';
+import { parseBackup } from '../src/domain/backup.ts';
 
 function realDatabase() {
   const sqlite = new DatabaseSync(':memory:');
@@ -132,6 +137,27 @@ test('offline planning lifecycle preserves identity, recurrence, completion hist
     await assert.rejects(() => editGoal(source.db, parent, { title: 'Cycle', notes: '', horizon: 'year', periodKey: '2026', parentId: step }), /own next steps/);
     const board = await createBoard(source.db, 'Reading', 'A personal project');
     await addGoalToBoard(source.db, board, step);
+    const flexibleGoal = await createGoal(source.db, { title: 'Flexible session', notes: '', horizon: 'day', periodKey: '2026-10-14' });
+    const fixedGoal = await createGoal(source.db, { title: 'Protected meeting', notes: '', horizon: 'day', periodKey: '2026-10-14' });
+    await saveBlock(source.db, { goalId: flexibleGoal, date: '2026-10-14', start: '13:00', end: '13:30',
+      kind: 'block', intention: '', flexible: true });
+    await saveBlock(source.db, { goalId: fixedGoal, date: '2026-10-14', start: '13:30', end: '14:00',
+      kind: 'block', intention: '', flexible: false });
+    await saveBlock(source.db, { goalId: flexibleGoal, date: '2026-10-14', start: '14:00', end: '14:30',
+      kind: 'block', intention: '', flexible: true });
+    const selectedDay = new Date(2026, 9, 14, 12);
+    const beforeRecovery = await listDayBlocks(source.db, selectedDay);
+    const proposal = previewReplan(beforeRecovery, { mode: 'recover', day: selectedDay,
+      now: new Date(2026, 9, 14, 12, 50) });
+    await applyReplan(source.db, proposal, beforeRecovery);
+    await assert.rejects(() => applyReplan(source.db, proposal, beforeRecovery), /Calendar changed/);
+    assert.equal((await listDayBlocks(source.db, selectedDay)).find((b) =>
+      b.id === proposal.moves[0].id).startAt, proposal.moves[0].toStart);
+    await undoReplan(source.db);
+    assert.deepEqual((await listDayBlocks(source.db, selectedDay)).map((b) => [b.id, b.startAt, b.endAt]).sort(),
+      beforeRecovery.map((b) => [b.id, b.startAt, b.endAt]).sort());
+    await setWeeklyCapacity(source.db, parent, 240);
+    assert.equal((await listWeeklyCapacity(source.db, new Date(2026, 9, 12, 12)))[0].weeklyMinutes, 240);
     const quick = await beginQuickFocus(source.db, step, 25);
     assert.equal(quick.durationMs, 25 * 60000);
     const blockCount = source.sqlite.prepare('SELECT count(*) AS n FROM time_blocks').get().n;
@@ -185,6 +211,15 @@ test('offline planning lifecycle preserves identity, recurrence, completion hist
     assert.equal((await getGoal(source.db, step)).dueDate, '2026-02-02');
     await archiveGoal(source.db, parent); await restoreGoal(source.db, parent);
     const snapshot = await exportBackup(source.db), text = JSON.stringify(snapshot);
+    assert.equal(snapshot.version, 2);
+    assert.equal(snapshot.tables.time_budgets.length, 1);
+    assert.equal(snapshot.tables.focus_history.filter((row) => row.goal_id === step).length, 2);
+    const legacy = structuredClone(snapshot);
+    legacy.version = 1; legacy.schemaVersion = 7;
+    delete legacy.tables.time_budgets;
+    for (const row of legacy.tables.time_blocks) delete row.flexible;
+    for (const row of legacy.tables.focus_history) { delete row.goal_id; delete row.block_id; }
+    assert.equal(parseBackup(JSON.stringify(legacy)).tables.time_blocks.every((row) => row.flexible === 0), true);
     assert.ok(await restoreBackup(target.db, text) > 0);
     assert.equal(await restoreBackup(target.db, text), 0);
     const restored = await exportBackup(target.db);
