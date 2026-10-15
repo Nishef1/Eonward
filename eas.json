@@ -1,17 +1,40 @@
 {
-  "cli": { "appVersionSource": "local", "promptToConfigurePushNotifications": false },
+  "cli": {
+    "appVersionSource": "local",
+    "promptToConfigurePushNotifications": false
+  },
   "build": {
     "preview": {
       "distribution": "internal",
-      "env": { "EONWARD_BUILD_VARIANT": "qa" },
-      "android": { "buildType": "apk" }
+      "env": {
+        "EONWARD_BUILD_VARIANT": "qa"
+      },
+      "android": {
+        "buildType": "apk"
+      }
     },
     "simulator": {
       "extends": "preview",
-      "ios": { "simulator": true }
+      "ios": {
+        "simulator": true
+      }
     },
     "production": {
-      "android": { "buildType": "app-bundle" }
+      "android": {
+        "buildType": "app-bundle"
+      }
+    },
+    "e2e-test": {
+      "withoutCredentials": true,
+      "env": {
+        "EONWARD_BUILD_VARIANT": "qa"
+      },
+      "android": {
+        "buildType": "apk"
+      },
+      "ios": {
+        "simulator": true
+      }
     }
   }
 }
