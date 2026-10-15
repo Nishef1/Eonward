@@ -13,6 +13,7 @@ import { colors, depth } from '../../theme/tokens';
 import RefreshCw from 'lucide-react-native/icons/refresh-cw';
 import Sprout from 'lucide-react-native/icons/sprout';
 import { useFocusSession } from '../focus/FocusProvider';
+import { TimeArchitecture } from './TimeArchitecture';
 
 function duration(ms: number): string {
   const minutes = Math.floor(ms / 60000), hours = Math.floor(minutes / 60);
@@ -100,6 +101,7 @@ export function InsightsScreen() {
           <Text style={[styles.muted, { color: palette.muted }]}>Complete a goal or finish a focus session. Your recorded progress will appear here.</Text>
           <Pressable accessibilityRole="button" onPress={() => router.navigate('/')} style={styles.action}><Text style={{ color: palette.accent, fontWeight: '700' }}>Open your plan →</Text></Pressable>
         </View>}
+        <TimeArchitecture palette={palette} history={weekHistory} refreshKey={revision} />
         <View style={styles.section}>
           <Text style={[styles.sectionTitle, { color: palette.foreground }]}>Still open from earlier periods</Text>
           <Text style={[styles.muted, { color: palette.muted }]}>Keep the original plan, move it forward, or archive it. Deadlines and reserved calendar times stay as you set them.</Text>
