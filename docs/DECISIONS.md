@@ -96,3 +96,9 @@ Record significant decisions and reversals here. A future change should cite its
 - Make weekly capacity actionable through direct goal-linked calendar scheduling, not just an analytics chart.
 - Refresh timezone-sensitive calendar queries and memoized layout after app foreground; note this is not proof that live Android theme/font SQLite native SIGSEGV is resolved.
 - Do not add speculative background schedulers: Expo background tasks are deferred by the operating system and are not a reliable exact timer/reminder mechanism. Local Focus remains deadline-based with native notification fallbacks and separate OEM/permissions QA.
+
+## 2026-10-15 — Native SQLite lifetime risk is a release blocker
+
+- Public Expo issue #48999 and #48995 resemble, but do not prove the cause of, Eonward's earlier Android `exsqlite3_step/pthread_mutex_lock` SIGSEGV. Keep issue #2 open pending native replication.
+- A lightweight per-handle JavaScript queue protects native statement lifecycles for all screen and Focus consumers, including exclusive transaction duration, without replacing the Expo SQLite provider or adding a second connection.
+- The source mitigation deliberately does not claim to cure native shared-object GC/teardown races. Do not wholesale upgrade to Expo SDK 58 or invent a Kotlin patch without platform compatibility and physical-device verification.

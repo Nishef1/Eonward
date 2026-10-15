@@ -17,6 +17,14 @@ Smaller-step pass: the previous percentage/content-sized editor moved its header
 - [ ] Recovery preview: try late/expired previews, blocked active Focus, fixed commitments, Undo immediately and Undo after five minutes. Verify no hidden mutations and app restart behavior.
 - [ ] Foreground after switching time zone without changing calendar date: week/month/day reservations and clock labels must be reread without restarting. Repeat with an editor draft and ensure saved data remains intact.
 
+## SQLite native stress gate (P0 · [#2](https://github.com/Nishef1/Eonward/issues/2))
+
+- [ ] Use Android 35 and 36/16 hardware or emulator with saved populated v8 data; leave a dirty editor open, then change font size, theme and rotation repeatedly while backgrounding/foregrounding. Record all `exsqlite3_step`, `pthread_mutex_lock` and Java/Kotlin SQLite failures with logcat/tombstone.
+- [ ] Navigate all four destinations while starting/stopping Focus and editing calendar entries, and try rapid goal creation/movement/restore; check native lifecycle behavior, not merely rendered screens.
+- [ ] Development build runtime reload 10–20 times and repeat SQLite startup probe; capture if cached handles become unusable. Validate Startup Retry works without deleting the database.
+- [ ] Compare saved IDs/relations before and after, perform an exported backup round trip and run `PRAGMA foreign_key_check`/integrity inspection. Never run these destructive tests on the user's main app data.
+- [ ] Mark issue #2 closed only with documented device evidence, or after proving a tested native SDK fix.
+
 **Open native failure:** changing live system font scale/theme while a draft was open caused a native SQLite SIGSEGV on Android 35 (`exsqlite3_step`, `pthread_mutex_lock`). The app restarted and the previously saved child remained. Changing settings while the app is stopped permits static large-text review but does not verify or repair this lifecycle failure; investigate before release.
 
 - [ ] **Native Focus reminder:** Install a fresh native/development build after the notification plugin change (Metro hot reload cannot install new native modules). Grant or deny Android 13+ notifications; grant or deny Android 14+ Alarms & reminders separately. Start a short Timebox, background and lock the device, and verify one native alert. Pause/Resume, Replace, End, delete a Timebox and force-close/relaunch to check stale alerts are canceled. Confirm no private goal title appears on lock screen. Log OS version and whether exact-alarm special access is granted.

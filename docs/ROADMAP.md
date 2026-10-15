@@ -42,7 +42,7 @@ This file is the single source of truth for **planned vs completed** work. It is
 - [ ] Native Android/iOS acceptance for Guided Plans modal, list filters, day ribbon, timezone refresh, overlapping scheduled blocks and focused screen-reader actions.
 - [ ] Test large goal lists/board lists on constrained phone hardware and implement virtualized/grouped lists if profiling warrants it.
 
-**Release blockers, unchanged:** Native Android SQLite SIGSEGV on live theme/font configuration transition needs reproduction and fix; physical-device Focus/notification checks, iOS native build and accessibility validation remain open. Source and JavaScript bundle acceptance cannot replace these gates.
+**Release blockers, unchanged:** Native Android SQLite SIGSEGV on live theme/font configuration transition (issue #2) needs reproduction and fix; physical-device Focus/notification checks, iOS native build and accessibility validation remain open. Source and JavaScript bundle acceptance cannot replace these gates.
 
 **Strategic scope remaining:** complete habits with explicit skip rules, saved user-defined templates, independent persistent Board ordering/sections with a versioned backup contract, RTL/Persian and Jalali display, home widgets and share-to-capture. These require their own schema/platform/QA decisions; do not treat unsaved UI sorting as persistent order or software-only bundling as a widget.
 
@@ -61,7 +61,8 @@ The following items describe code merged into `main`, **not independently accept
 - [ ] Validate iOS native runtime and VoiceOver; do not treat JavaScript export as iOS certification.
 - [ ] Validate daylight-saving transition days, timezone changes, overnight sessions and backup migration from native test data.
 - [x] Regenerate locked Expo 57/Expo Router patch dependencies; clean npm ci, SDK compatibility, TypeScript, 20/20 tests and both JS exports passed in the one-time verification workflow.
-- [ ] Investigate and close the previously reproduced native SQLite configuration-change crash; it remains a separate release blocker.
+- [x] Introduce a per-handle SQLite statement/transaction serialization boundary shared by all seven feature/Focus consumers; maintain 20 tests including a 40-call concurrency assertion. Source-only crash mitigation, not a native fix.
+- [ ] Reproduce, diagnose and close the observed Android native SQLite configuration-change crash. P0 tracked in [issue #2](https://github.com/Nishef1/Eonward/issues/2); SDK 57 native lifetime reports are suspicious but not proven identical.
 
 **Product boundary:** No AI scheduler, automatic task deletion, invisible reshuffle, implicit promotion of existing events to flexible, or cross-midnight move is implemented. The current week budget is a target, not a hard restriction; overlapping planned reservations are not deduplicated. Older Focus entries without goal IDs cannot be retroactively assigned reliably.
 
@@ -91,7 +92,7 @@ This section is the current acceptance summary. Earlier dated slices below prese
 - [ ] Resolve remaining dependency advisories and store permission/privacy requirements. Current audit: 22 affected dependency entries from three root advisories; see ENGINEERING.md for reachability and mitigation boundaries.
 - [ ] Configure store signing and public release metadata when the core app is ready. Publisher/contact details remain deferred at the user's request. No store upload or publication has occurred.
 
-Next three actions: (1) reproduce and fix the native SQLite configuration-change crash, then exercise the full Android Recovery/Guided Plans/Board lens flow; (2) verify native iOS/VoiceOver, Focus permissions and backup restore with real device data; (3) after release blockers close, prioritize Persian/Jalali, native quick capture/widgets, habits, saved templates and independent board ordering through separately scoped design contracts. Widgets, native localization/Jalali, share-to-capture, templates and calendar drag remain unimplemented roadmap work.
+Next three actions: (1) reproduce and fix the native SQLite configuration-change crash (issue #2) despite the per-handle JS serialization mitigation, then exercise the full Android Recovery/Guided Plans/Board lens flow; (2) verify native iOS/VoiceOver, Focus permissions and backup restore with real device data; (3) after release blockers close, prioritize Persian/Jalali, native quick capture/widgets, habits, saved templates and independent board ordering through separately scoped design contracts. Widgets, native localization/Jalali, share-to-capture, templates and calendar drag remain unimplemented roadmap work.
 
 ## M0 — Foundation
 

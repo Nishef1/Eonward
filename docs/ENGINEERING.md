@@ -26,7 +26,7 @@ npm run start
 
 Start Android with `npm run android` once an emulator or real device is configured. Use an Expo development build for native modules not included in Expo Go when needed.
 
-**Current verification:** The last accepted Studio baseline had TypeScript, 20 domain/SQLite cases and Android bundle verification. The new adaptive planning slice requires its own native-device acceptance. Expo SDK 57 patch dependencies (Expo ~57.0.30 and Router ~57.0.28) were realigned with a reproducible npm lockfile and passed SDK compatibility, TypeScript, all 20 domain/SQLite tests and both JS exports in the one-time lock refresh workflow. This does not certify native behavior or store readiness. The debug APK has been built and installed on Android; sampled interaction evidence and remaining acceptance gates are recorded in ROADMAP.md. iOS and physical-device release behavior remain unverified.
+**Current verification:** TypeScript, the fixed 20-case domain/real-SQLite suite, native config generation, Android/iOS JS export and SDK alignment run in GitHub Actions. The remaining native SQLite SIGSEGV is tracked in issue #2 and is not certified by these checks. The last accepted Studio baseline had TypeScript, 20 domain/SQLite cases and Android bundle verification. The new adaptive planning slice requires its own native-device acceptance. Expo SDK 57 patch dependencies (Expo ~57.0.30 and Router ~57.0.28) were realigned with a reproducible npm lockfile and passed SDK compatibility, TypeScript, all 20 domain/SQLite tests and both JS exports in the one-time lock refresh workflow. This does not certify native behavior or store readiness. The debug APK has been built and installed on Android; sampled interaction evidence and remaining acceptance gates are recorded in ROADMAP.md. iOS and physical-device release behavior remain unverified.
 
 ## Dependency workflow
 
@@ -100,3 +100,11 @@ Current `npm audit` reports 22 affected entries (19 high, 3 moderate), rooted in
 - Override only `xcode`'s `uuid` to 11.1.1; the native project UUID generator was exercised successfully. Do not use `npm audit fix --force` to downgrade Expo/RN or introduce incompatible native versions.
 
 Source advisories: https://github.com/advisories/GHSA-vfj7-8cjw-p6xm and https://github.com/advisories/GHSA-86w9-cpqp-85rv. Track upstream SDK-compatible fixes and re-evaluate before store release.
+
+## 2026-10-15 — Android SQLite native-lifetime mitigation (not release acceptance)
+
+Expo issues [#48999](https://github.com/expo/expo/issues/48999) and [#48995](https://github.com/expo/expo/issues/48995) document C++ statement/database lifetime and concurrency hazards, including SIGSEGVs involving `pthread_mutex_lock`. They resemble the earlier Eonward crash but do not establish identical root cause. Eonward uses Expo SQLite 57.0.4; a release-note fix for per-statement locking does not mean runtime teardown has been fully proven safe.
+
+All seven UI/Focus consumers now receive `serializeDatabase(useSQLiteContext())` via `src/storage/use-database.ts`. The pure gate serializes `getFirstAsync`, `getAllAsync`, `runAsync`, `execAsync` and full exclusive transactions per native handle. Each exclusive callback receives an independently gated transaction object, and startup initialization remains on SQLiteProvider's original connection. Do not use the raw provider hook from feature code or call back into the parent database object from inside its own guarded exclusive transaction: that can deadlock the queue.
+
+A JS serialization gate cannot prevent an independent native GC/teardown use-after-free; issue [#2](https://github.com/Nishef1/Eonward/issues/2) remains a **P0 release blocker**. Run physical/emulator lifecycle stress and capture logcat tombstones before considering an SDK upgrade or native patch. Do not silently mask connection errors with destructive database replacement or resets.
