@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Alert, AppState, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { blockClockRangeForDay, layoutBlocks, localClock, localDayKey, type TimeBlock } from '../../domain/timeblocks';
+import { blockClockRangeForDay, layoutBlocks, localClock, localDayBounds, localDayKey, type TimeBlock } from '../../domain/timeblocks';
 import { colors, radius } from '../../theme/tokens';
 import { getFocusElapsedMs, type FocusSession } from '../../domain/focus';
 
@@ -72,6 +72,18 @@ export function DayTimeline({ date, blocks, palette, isDark, onEdit, onQuickAdd,
     setNow(new Date());
   }
 
+  const ribbon = useMemo(() => {
+    const { from, to } = localDayBounds(date);
+    const begin = Date.parse(from), end = Date.parse(to), span = end - begin;
+    if (span !== 86400000) return null; // DST days use exact List mode rather than misleading compression.
+    return blocks.map((block) => {
+      const start = Math.max(begin, Date.parse(block.startAt));
+      const finish = Math.min(end, Date.parse(block.endAt));
+      if (finish <= start) return null;
+      return { id: block.id, left: (start - begin) / span * 100,
+        width: (finish - start) / span * 100, tone: blockTone(block) };
+    }).filter((entry): entry is NonNullable<typeof entry> => entry !== null);
+  }, [blocks, dateKey]);
   const recordedMs = Object.values(actualByBlock).reduce((sum, value) => sum + value, 0) +
     (activeSession && blocks.some((b) => b.id === activeSession.blockId)
       ? getFocusElapsedMs(activeSession, now.getTime()) : 0);
@@ -112,6 +124,20 @@ export function DayTimeline({ date, blocks, palette, isDark, onEdit, onQuickAdd,
         ) : null}
       </View>
 
+      {ribbon ? <View accessible accessibilityRole="summary"
+        accessibilityLabel={`24-hour overview showing ${ribbon.length} scheduled reservations`}
+        style={styles.ribbonRegion}>
+        <View style={styles.ribbonLabels}>
+          <Text style={[styles.ribbonLabel, { color: palette.muted }]}>MIDNIGHT</Text>
+          <Text style={[styles.ribbonLabel, { color: palette.muted }]}>NOON</Text>
+          <Text style={[styles.ribbonLabel, { color: palette.muted }]}>MIDNIGHT</Text>
+        </View>
+        <View pointerEvents="none" style={[styles.ribbonTrack, { backgroundColor: palette.inset }]}>
+          {ribbon.map((item) => <View key={item.id}
+            style={[styles.ribbonBlock, { left: `${item.left}%`, width: `${item.width}%`, backgroundColor: item.tone }]} />)}
+          {isToday ? <View style={[styles.ribbonNow, { left: `${Math.min(100, minOfDay(now) / 1440 * 100)}%` }]} /> : null}
+        </View>
+      </View> : null}
       <View style={[styles.canvasFrame, { borderColor: palette.border, backgroundColor: palette.surface }]}>
         <ScrollView key={dateKey} ref={ref} nestedScrollEnabled showsVerticalScrollIndicator={false}
           contentContainerStyle={[styles.canvasScrollContent, { minHeight: hourHeight * 24 + 10 }]}
@@ -226,6 +252,12 @@ export function DayTimeline({ date, blocks, palette, isDark, onEdit, onQuickAdd,
 
 const styles = StyleSheet.create({
   container: { flex: 1, minHeight: 250 },
+  ribbonRegion: { paddingTop: 3, paddingBottom: 12, gap: 6 },
+  ribbonLabels: { flexDirection: 'row', justifyContent: 'space-between' },
+  ribbonLabel: { fontSize: 9, fontWeight: '700', letterSpacing: 0.7 },
+  ribbonTrack: { height: 13, borderRadius: 6, overflow: 'visible', position: 'relative' },
+  ribbonBlock: { position: 'absolute', top: 0, bottom: 0, borderRadius: 3, opacity: 0.86 },
+  ribbonNow: { position: 'absolute', top: -4, bottom: -4, width: 2, borderRadius: 2, backgroundColor: '#C18457' },
   toolbar: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8, paddingVertical: 11 },
   toolbarCopy: { flex: 1, gap: 4 },
   heading: { fontSize: 17, fontWeight: '700', letterSpacing: -0.4 },
