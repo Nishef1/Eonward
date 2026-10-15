@@ -61,9 +61,12 @@ export async function saveBlock(db: SQLiteDatabase, input: BlockInput, id?: stri
     if (id) {
       const existing = await tx.getFirstAsync<{
         goal_id: string; start_at: string; end_at: string; kind: BlockKind;
-        flexible: number; intention: string; updated_at: string;
-      }>('SELECT goal_id, start_at, end_at, kind, flexible, intention, updated_at FROM time_blocks WHERE id = ?', [id]);
+        flexible: number; intention: string; updated_at: string; completed: number;
+      }>(`SELECT tb.goal_id, tb.start_at, tb.end_at, tb.kind, tb.flexible,
+        tb.intention, tb.updated_at, g.completed FROM time_blocks tb
+        JOIN goals g ON g.id = tb.goal_id WHERE tb.id = ?`, [id]);
       if (!existing) throw new Error('The scheduled block no longer exists.');
+      if (existing.completed === 1) throw new Error('Reopen the completed goal before rescheduling its time.');
       if (expected && (expected.id !== id || existing.goal_id !== expected.goalId ||
         existing.start_at !== expected.startAt || existing.end_at !== expected.endAt ||
         existing.kind !== expected.kind || existing.intention !== expected.intention ||
