@@ -21,6 +21,8 @@ jobs:
         run: npm ci --no-audit --no-fund
       - name: Verify TypeScript
         run: npm run typecheck
+      - name: Validate QA app isolation and native test configuration
+        run: node scripts/check-qa-config.mjs
       - name: Verify Android and iOS native config plugins
         run: |
           EXPO_NO_GIT_STATUS=1 npx expo prebuild --platform all --no-install --clean
