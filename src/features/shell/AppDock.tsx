@@ -200,7 +200,7 @@ export function AppDock() {
 const styles = StyleSheet.create({
   dock: { borderTopWidth: StyleSheet.hairlineWidth, paddingTop: 8 },
   timerIcon: { width: 36, height: 36, borderRadius: 11, alignItems: 'center', justifyContent: 'center' },
-  loadError: { marginHorizontal: 13, marginBottom: 6, borderRadius: radius.md, minHeight: 44,
+  loadError: { marginHorizontal: 13, marginBottom: 6, borderRadius: radius.md, minHeight: 48,
     paddingHorizontal: 13, borderWidth: 1, justifyContent: 'center' },
   loadErrorText: { fontSize: 12, fontWeight: '600' },
   miniTimer: { minHeight: 58, marginHorizontal: 13, marginBottom: 6, paddingHorizontal: 14, borderRadius: radius.lg, borderWidth: 1, flexDirection: 'row', alignItems: 'center', gap: 10 },
@@ -223,7 +223,7 @@ const styles = StyleSheet.create({
   explainer: { fontSize: 13, lineHeight: 21, textAlign: 'center', marginVertical: 21 },
   noticeSection: { alignItems: 'center', marginBottom: 13, gap: 4 },
   warning: { fontSize: 12, lineHeight: 18, textAlign: 'center' },
-  settingsButton: { minHeight: 44, minWidth: 140, borderWidth: 1, borderRadius: radius.full,
+  settingsButton: { minHeight: 48, minWidth: 140, borderWidth: 1, borderRadius: radius.full,
     paddingHorizontal: 14, justifyContent: 'center', alignItems: 'center' },
   settingsText: { fontSize: 12, fontWeight: '700' },
   controls: { flexDirection: 'row', gap: 10 },
