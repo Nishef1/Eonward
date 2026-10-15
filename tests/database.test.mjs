@@ -13,6 +13,7 @@ import { applyReplan, undoReplan } from '../src/storage/replan.ts';
 import { saveBlock, listDayBlocks } from '../src/storage/timeblocks.ts';
 import { setWeeklyCapacity, listWeeklyCapacity } from '../src/storage/capacity.ts';
 import { parseBackup } from '../src/domain/backup.ts';
+import { createGuidedPlan } from '../src/storage/guided-plans.ts';
 
 function realDatabase() {
   const sqlite = new DatabaseSync(':memory:');
@@ -128,6 +129,18 @@ test('offline planning lifecycle preserves identity, recurrence, completion hist
   const source = realDatabase(), target = realDatabase();
   try {
     await migrateDatabase(source.db); await migrateDatabase(target.db);
+    const createdPath = await createGuidedPlan(source.db, 'project', 'Build something useful', new Date(2026, 9, 14, 12));
+    const pathRoot = await getGoal(source.db, createdPath);
+    assert.equal(pathRoot.title, 'Build something useful');
+    assert.equal(pathRoot.horizon, 'quarter');
+    assert.equal(pathRoot.periodKey, '2026-Q4');
+    const pathChildren = source.sqlite.prepare('SELECT id, in_inbox, period_key, parent_id FROM goals WHERE parent_id = ?').all(createdPath);
+    assert.equal(pathChildren.length, 4);
+    assert.ok(pathChildren.every((child) => child.in_inbox === 1 && child.period_key === '' && child.parent_id === createdPath));
+    const beforeInvalidPlan = source.sqlite.prepare('SELECT COUNT(*) AS n FROM goals').get().n;
+    await assert.rejects(() => createGuidedPlan(source.db, 'project', ' '), /needs a title/);
+    await assert.rejects(() => createGuidedPlan(source.db, 'nonexistent', 'Valid'), /unavailable/);
+    assert.equal(source.sqlite.prepare('SELECT COUNT(*) AS n FROM goals').get().n, beforeInvalidPlan);
     const parent = await createGoal(source.db, { title: 'My direction', notes: '', horizon: 'year', periodKey: '2026' });
     const step = await createGoal(source.db, { title: '  Read   a chapter ', notes: 'Keep this note', horizon: 'day',
       periodKey: '2026-01-31', parentId: parent, dueDate: '2026-02-02', repeatRule: 'monthly' });
