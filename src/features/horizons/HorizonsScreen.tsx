@@ -587,6 +587,19 @@ export function HorizonsScreen() {
             <View style={styles.empty}>
               <Text style={[styles.emptyTitle, { color: palette.foreground }]}>{searching ? 'No matching goals.' : view === 'inbox' ? 'A place for your next idea.' : 'A clear space to begin.'}</Text>
               <Text style={[styles.emptyBody, { color: palette.muted }]}>{searching ? 'Try another word from a title or note.' : 'Add one goal below. You can add the details later.'}</Text>
+              {!searching && view === 'focus' ? <Pressable accessibilityRole="button"
+                accessibilityLabel="Choose an editable guided plan to start your goals"
+                onPress={() => setGuidedVisible(true)}
+                style={[styles.guidedPrompt, { backgroundColor: palette.surface, borderColor: palette.border }]}>
+                <BookOpenCheck size={19} color={palette.accent} strokeWidth={1.8} />
+                <View style={{ flex: 1, gap: 3 }}>
+                  <Text style={{ color: palette.foreground, fontWeight: '700', fontSize: 13 }}>Start with a guided plan</Text>
+                  <Text style={{ color: palette.muted, fontSize: 11, lineHeight: 17 }}>
+                    A meaningful goal with flexible steps you can edit or schedule.
+                  </Text>
+                </View>
+                <ChevronRight size={17} color={palette.accent} />
+              </Pressable> : null}
             </View>
           )
         )}
@@ -757,6 +770,8 @@ export function HorizonsScreen() {
 }
 
 const styles = StyleSheet.create({
+  guidedPrompt: { flexDirection: 'row', alignItems: 'center', gap: 12, minHeight: 70,
+    padding: 14, borderRadius: radius.lg, borderWidth: 1, marginTop: 10 },
   organizeOverlay: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(9, 22, 18, 0.43)' },
   organizePanel: { padding: spacing.lg, paddingBottom: 35, borderTopLeftRadius: 28, borderTopRightRadius: 28, gap: 10 },
   grabber: { width: 36, height: 4, borderRadius: 4, alignSelf: 'center', marginBottom: 10 },
