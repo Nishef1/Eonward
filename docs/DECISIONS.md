@@ -86,3 +86,13 @@ Record significant decisions and reversals here. A future change should cite its
 - Attribute new Focus history to both block and goal IDs; retain old history as unattributed. Do not infer identities from titles, which are mutable and non-unique.
 - Use an explicit per-goal weekly minutes budget. Count saved reservations as planned, history as recorded and descendants along today's hierarchy; keep these quantities distinct. Avoid introducing an AI service, account, or new dependency.
 - Export backup v2 while supporting strict v1 legacy import. Exclude active sessions and temporary Undo state. Device-level restore must be tested before calling migration release-safe.
+
+## 2026-10-15 — Cohesive onramp and release-aware scope
+
+- Add a small curated Guided Plans library using the existing canonical goals + Inbox relationships, not a second task model or new table. User-authored custom templates need a separately agreed persistence and versioned-backup contract.
+- Improve Boards with clear computed Open/Scheduled/Done/All lenses without falsely suggesting independent saved sort order. Defer schema-changing board sections/reorder until Android/iOS interactive acceptance is solid.
+- Separate summed reserved durations from unioned calendar occupancy, and show a compact schedule ribbon only on days with 24 actual hours. On 23/25-hour days use the more honest exact-time List view.
+- Keep Undo deliberately short-lived (five minutes); rejecting stale Undo is safer than rewriting historical schedules hours later. No invisible automatic rescheduling.
+- Make weekly capacity actionable through direct goal-linked calendar scheduling, not just an analytics chart.
+- Refresh timezone-sensitive calendar queries and memoized layout after app foreground; note this is not proof that live Android theme/font SQLite native SIGSEGV is resolved.
+- Do not add speculative background schedulers: Expo background tasks are deferred by the operating system and are not a reliable exact timer/reminder mechanism. Local Focus remains deadline-based with native notification fallbacks and separate OEM/permissions QA.

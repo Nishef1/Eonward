@@ -23,9 +23,28 @@ This file is the single source of truth for **planned vs completed** work. It is
 | M1 — Product UX | Information architecture, design tokens, prototypes | Studio direction implemented; Android renders sampled; user aesthetic acceptance open | Approved screen map and verified interactions |
 | M2 — Goals & horizons | Persistent data, hierarchy, seven horizons | SQLite v8; real SQLite integration and sampled native flows pass | Complete device acceptance matrix |
 | M3 — Planning views | Boards, calendar, time blocks, fast capture | Implemented; native keyboard, time editing and cross-view Focus sampled | Full cross-view and device matrix |
-| M4 — Personal systems | Notes, repeating items, habits, templates, reviews | Plain notes, recurrence and weekly Review implemented; habits/templates deferred | Accepted offline workflow scope |
+| M4 — Personal systems | Notes, repeating items, habits, templates, reviews | Plain notes, recurrence, weekly Review and four guided starters; habits/user-saved templates deferred | Accepted offline workflow scope |
 | M5 — Mobile integration | Notifications, widgets, localization, backup | Native picker/backup/reminders implemented; widgets/localization remain open | Physical-device and Apple acceptance |
 | M6 — Quality & release | Performance, accessibility, testing, release build | Isolated Android release QA APK built; iOS JS export passes | Store signing, native iOS, physical-device and accessibility gates |
+
+## Cohesive planning follow-up — source and CI slice (2026-10-15)
+
+**Completed in source / CI checks (not phone acceptance):**
+
+- [x] Four Guided Plans: quarter/week/month canonical parent goal and four genuinely editable, undated Inbox children, created in one SQLite transaction; invalid choices or titles cannot leave partial data.
+- [x] Board lenses for Open, Scheduled, Done and All reference the same goal identities; changing completion from a board still updates Plan and Calendar.
+- [x] Day-level ribbon makes the distribution of reservations visible before scrolling the exact timeline; days with 23/25 actual hours omit this simplified overview rather than hide DST ambiguity.
+- [x] Count reservation duration separately from actual occupied time; expose overlapping scheduled time rather than treating simultaneous blocks as independent elapsed hours.
+- [x] Connect Time Architecture allocations to Calendar's existing goal-aware scheduling route.
+- [x] Bound last-replan Undo to five minutes, with a guarded rollback if the underlying reservations changed.
+- [x] Refresh Calendar and layout when returning after a timezone change, even if the local date still has the same YYYY-MM-DD key.
+- [x] Maintain the existing 20-case test budget; add guided-plan atomicity and overlap math assertions to existing test scenarios.
+- [ ] Native Android/iOS acceptance for Guided Plans modal, list filters, day ribbon, timezone refresh, overlapping scheduled blocks and focused screen-reader actions.
+- [ ] Test large goal lists/board lists on constrained phone hardware and implement virtualized/grouped lists if profiling warrants it.
+
+**Release blockers, unchanged:** Native Android SQLite SIGSEGV on live theme/font configuration transition needs reproduction and fix; physical-device Focus/notification checks, iOS native build and accessibility validation remain open. Source and JavaScript bundle acceptance cannot replace these gates.
+
+**Strategic scope remaining:** complete habits with explicit skip rules, saved user-defined templates, independent persistent Board ordering/sections with a versioned backup contract, RTL/Persian and Jalali display, home widgets and share-to-capture. These require their own schema/platform/QA decisions; do not treat unsaved UI sorting as persistent order or software-only bundling as a widget.
 
 ## Adaptive daily planning — implementation slice (2026-10-15)
 
@@ -72,7 +91,7 @@ This section is the current acceptance summary. Earlier dated slices below prese
 - [ ] Resolve remaining dependency advisories and store permission/privacy requirements. Current audit: 22 affected dependency entries from three root advisories; see ENGINEERING.md for reachability and mitigation boundaries.
 - [ ] Configure store signing and public release metadata when the core app is ready. Publisher/contact details remain deferred at the user's request. No store upload or publication has occurred.
 
-Next three actions: (1) native Android QA for Recovery preview/apply/Undo and the SQLite configuration-change crash; (2) complete native iOS and VoiceOver acceptance, including backup upgrade with real-device data; (3) close physical-device/accessibility, signing and store gates before release. Widgets, native localization/Jalali, share-to-capture, templates and calendar drag remain unimplemented roadmap work.
+Next three actions: (1) reproduce and fix the native SQLite configuration-change crash, then exercise the full Android Recovery/Guided Plans/Board lens flow; (2) verify native iOS/VoiceOver, Focus permissions and backup restore with real device data; (3) after release blockers close, prioritize Persian/Jalali, native quick capture/widgets, habits, saved templates and independent board ordering through separately scoped design contracts. Widgets, native localization/Jalali, share-to-capture, templates and calendar drag remain unimplemented roadmap work.
 
 ## M0 — Foundation
 
