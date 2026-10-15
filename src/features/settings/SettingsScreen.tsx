@@ -87,7 +87,7 @@ export function SettingsScreen() {
   return <SafeAreaView edges={['top', 'left', 'right']} style={{ flex: 1, backgroundColor: palette.background }}>
     <ScrollView contentContainerStyle={styles.content}>
       <View style={styles.header}><Pressable accessibilityRole="button" accessibilityLabel="Back to Plan" onPress={() => router.back()} style={styles.back}><ChevronLeft size={23} color={palette.foreground} strokeWidth={1.8} /></Pressable><Text style={[styles.title, { color: palette.foreground }]}>Your data & settings</Text></View>
-      <Text style={[styles.copy, { color: palette.muted }]}>Your plans live on this device. Keep an exported copy so you can recover them on another device.</Text>
+      <Text style={[styles.copy, { color: palette.muted }]}>Your plans live on this device. Times are stored as fixed instants; travel across time zones changes the displayed local hour. Keep an exported backup to recover them on another device.</Text>
       <View style={[styles.card, { backgroundColor: palette.surface, borderColor: palette.border }]}>
         <Text style={[styles.heading, { color: palette.foreground }]}>Backup & restore</Text>
         <Text style={[styles.copy, { color: palette.muted }]}>Includes goals, notes, deadlines, repeats, boards, schedules, archive and recorded progress. Active focus timers are not copied.</Text>

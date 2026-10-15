@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Alert, AppState, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { blockClockRangeForDay, layoutBlocks, localClock, localDayBounds, localDayKey, type TimeBlock } from '../../domain/timeblocks';
+import { blockClockRangeForDay, layoutBlocks, localClock, localDayBounds, localDayKey, peakOverlap, type TimeBlock } from '../../domain/timeblocks';
 import { colors, radius, semantic, type Palette } from '../../theme/tokens';
 import { getFocusElapsedMs, type FocusSession } from '../../domain/focus';
 import { pixelsToQuarterHours, previewTimelineEdit, type TimelineEditMode, type TimelineEditPreview } from '../../domain/timeline-edit';
@@ -120,6 +120,8 @@ export function DayTimeline({ date, blocks, palette, onEdit, onQuickAdd, onOpenG
         width: (finish - start) / span * 100, lane, tone: blockTone(block) };
     }).filter((entry): entry is NonNullable<typeof entry> => entry !== null);
   }, [blocks, dateKey, offset]);
+  const dayBounds = localDayBounds(date);
+  const ribbonPeak = peakOverlap(blocks, Date.parse(dayBounds.from), Date.parse(dayBounds.to));
   const upcoming = isToday ? [...blocks]
     .filter((block) => Date.parse(block.endAt) > now.getTime())
     .sort((a, b) => a.startAt.localeCompare(b.startAt))[0] : null;
@@ -166,6 +168,10 @@ export function DayTimeline({ date, blocks, palette, onEdit, onQuickAdd, onOpenG
       </View>
 
       {ribbon ? <View style={styles.ribbonRegion}>
+        {ribbonPeak > 3 ? <Text accessibilityRole="summary"
+          style={[styles.ribbonSummary, { color: palette.foreground }]}>
+          Peak: {ribbonPeak} simultaneous plans · strip displays 3 layers. Open the full timeline for every overlap.
+        </Text> : null}
         <Text numberOfLines={1} style={[styles.ribbonSummary, { color: palette.muted }]}>
           {upcoming
             ? `${Date.parse(upcoming.startAt) <= now.getTime() ? 'Happening now' : 'Next up'} · ${upcoming.goalTitle}`

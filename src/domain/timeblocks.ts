@@ -121,6 +121,23 @@ export function monthGridDays(anchor: Date): Date[] {
   return Array.from({ length: cells }, (_, index) => shiftLocalDay(gridStart, index));
 }
 
+/** Peak simultaneous reservations inside an absolute interval. Adjacent end/start
+ * at the same instant are not treated as overlapping. */
+export function peakOverlap(blocks: readonly Pick<TimeBlock, 'startAt' | 'endAt'>[],
+  from: number, to: number): number {
+  const boundaries: { time: number; delta: -1 | 1 }[] = [];
+  for (const block of blocks) {
+    const start = Math.max(from, Date.parse(block.startAt));
+    const end = Math.min(to, Date.parse(block.endAt));
+    if (!Number.isFinite(start) || !Number.isFinite(end) || end <= start) continue;
+    boundaries.push({ time: start, delta: 1 }, { time: end, delta: -1 });
+  }
+  boundaries.sort((a, b) => a.time - b.time || a.delta - b.delta);
+  let active = 0, peak = 0;
+  for (const point of boundaries) { active += point.delta; peak = Math.max(peak, active); }
+  return peak;
+}
+
 /** Shared interval inclusion predicate for query-derived calendar views. */
 export function blockOverlapsRange(block: Pick<TimeBlock, 'startAt' | 'endAt'>, from: number, to: number): boolean {
   return Date.parse(block.startAt) < to && Date.parse(block.endAt) > from;

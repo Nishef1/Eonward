@@ -94,7 +94,7 @@ export function InsightsScreen() {
               <Text style={{ color: palette.foreground, fontSize: 11 }}>{day.getDate()}</Text>
             </Pressable>)}
           </View> : null}
-          <Text style={[styles.caption, { color: palette.muted }]}>Reopened goals are excluded. Completions from before progress recording began may not appear.</Text>
+          <Text style={[styles.caption, { color: palette.muted }]}>Sessions crossing midnight are credited to the day they end, not split between days. Reopened goals are excluded; earlier completions may not appear.</Text>
         </> : <View style={[styles.card, { borderColor: palette.border, backgroundColor: palette.surface, boxShadow: palette === colors.dark ? depth.dark.card : depth.light.card }]}>
           <View style={[styles.emptyEmblem, { backgroundColor: palette.accentSoft }]}><Sprout size={25} color={palette.accent} strokeWidth={1.5} /></View>
           <Text style={[styles.sectionTitle, { color: palette.foreground }]}>Progress starts with one step.</Text>
