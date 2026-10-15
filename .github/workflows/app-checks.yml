@@ -19,8 +19,6 @@ jobs:
           cache: npm
       - name: Install locked dependencies
         run: npm ci --no-audit --no-fund
-      - name: Verify SDK dependency alignment
-        run: npm run deps:check
       - name: Verify TypeScript
         run: npm run typecheck
       - name: Verify Android and iOS native config plugins
@@ -33,3 +31,5 @@ jobs:
         run: npx expo export --platform android --output-dir /tmp/eonward-android-export
       - name: Verify iOS JavaScript bundle
         run: npx expo export --platform ios --output-dir /tmp/eonward-ios-export
+      - name: Verify SDK dependency alignment
+        run: npm run deps:check
