@@ -17,6 +17,10 @@ import Plus from 'lucide-react-native/icons/plus';
 import ArrowUpRight from 'lucide-react-native/icons/arrow-up-right';
 import X from 'lucide-react-native/icons/x';
 import { DayTimeline } from './DayTimeline';
+import { RecoverySheet } from './RecoverySheet';
+import { applyReplan, canUndoReplan, undoReplan } from '../../storage/replan';
+import type { ReplanPreview } from '../../domain/replan';
+import { listFocusHistoryBetween } from '../../storage/focus';
 import { WeekOverview } from './WeekOverview';
 import { MonthOverview } from './MonthOverview';
 import { useFocusSession } from '../focus/FocusProvider';
@@ -51,6 +55,9 @@ export function CalendarScreen() {
   const palette: Palette = useColorScheme() === 'dark' ? colors.dark : colors.light;
   const [day, setDay] = useState(() => new Date());
   const [blocks, setBlocks] = useState<TimeBlock[]>([]);
+  const [actualByBlock, setActualByBlock] = useState<Record<string, number>>({});
+  const [recoveryOpen, setRecoveryOpen] = useState(false);
+  const [hasUndo, setHasUndo] = useState(false);
   const [weekBlocks, setWeekBlocks] = useState<TimeBlock[]>([]);
   const [monthBlocks, setMonthBlocks] = useState<TimeBlock[]>([]);
   const [goals, setGoals] = useState<Goal[]>([]);
@@ -89,10 +96,18 @@ export function CalendarScreen() {
     const monthFrom = localDayBounds(grid[0]).from;
     const monthTo = localDayBounds(grid[grid.length - 1]).to;
     void Promise.all([listDayBlocks(db, day), listRangeBlocks(db, weekFrom, weekTo),
-      listRangeBlocks(db, monthFrom, monthTo), listAllGoals(db)])
-      .then(([saved, weekSaved, monthSaved, all]) => {
+      listRangeBlocks(db, monthFrom, monthTo), listAllGoals(db),
+      listFocusHistoryBetween(db, Date.parse(localDayBounds(day).from), Date.parse(localDayBounds(day).to)),
+      canUndoReplan(db)])
+      .then(([saved, weekSaved, monthSaved, all, sessions, undo]) => {
       if (!active) return;
       setBlocks(saved);
+      const totals: Record<string, number> = {};
+      for (const session of sessions) if (session.blockId) {
+        totals[session.blockId] = (totals[session.blockId] ?? 0) + session.focusedMs;
+      }
+      setActualByBlock(totals);
+      setHasUndo(undo);
       setWeekBlocks(weekSaved);
       setMonthBlocks(monthSaved);
       setGoals(all);
@@ -101,7 +116,7 @@ export function CalendarScreen() {
       if (active) setFailure(error instanceof Error ? error.message : 'Could not load your schedule.');
     }).finally(() => { if (active) setLoading(false); });
     return () => { active = false; };
-  }, [db, key, revision]);
+  }, [db, key, revision, focus.session?.blockId, focus.session?.status]);
 
   useEffect(() => {
     if (!goalId) { usedGoalParam.current = null; return; }
@@ -234,6 +249,10 @@ export function CalendarScreen() {
       ]);
     } else begin();
   }
+  function applyPreview(preview: ReplanPreview) {
+    return write(async () => { await applyReplan(db, preview, blocks); setRecoveryOpen(false); });
+  }
+  function undoPreview() { return write(async () => { await undoReplan(db); }); }
   const foreground = palette.foreground;
   return (
     <SafeAreaView edges={['top', 'left', 'right']}
@@ -326,6 +345,17 @@ export function CalendarScreen() {
             ))}
           </View>
         </View>
+        {mode === 'timeline' && key === todayKey ? <View
+          style={{ flexDirection: 'row', gap: 10, alignItems: 'center' }}>
+          <Pressable accessibilityRole="button" onPress={() => setRecoveryOpen(true)}
+            style={{ minHeight: 48, justifyContent: 'center', flex: 1 }}>
+            <Text style={{ color: palette.accent, fontWeight: '700', fontSize: 13 }}>↝  Preview day recovery</Text>
+          </Pressable>
+          {hasUndo ? <Pressable accessibilityRole="button" disabled={busy}
+            onPress={() => { void undoPreview(); }} style={{ minHeight: 48, justifyContent: 'center' }}>
+            <Text style={{ color: palette.foreground, fontSize: 13 }}>Undo replan ↶</Text>
+          </Pressable> : null}
+        </View> : null}
         {untimed.length > 0 && (mode === 'timeline' || mode === 'list') ? <Pressable accessibilityRole="button"
           accessibilityLabel="View goals without a time" onPress={() => setMode('list')} style={{ minHeight: 48, justifyContent: 'center' }}>
           <Text style={{ color: palette.accent, fontSize: 12 }}>{untimed.length} goal{untimed.length === 1 ? '' : 's'} without a time · Plan when ready →</Text>
@@ -352,6 +382,7 @@ export function CalendarScreen() {
             </Pressable>
           ) : null}
           <DayTimeline date={day} blocks={ordered} palette={palette}
+            actualByBlock={actualByBlock} activeSession={focus.session}
             isDark={palette === colors.dark} onEdit={edit} onQuickAdd={(hour) => createAt(hour)}
             onOpenGoal={(id) => router.push({ pathname: '/', params: { goalId: id } })} />
         </View>
@@ -397,7 +428,7 @@ export function CalendarScreen() {
                 </Text>
                 {block.intention ? <Text numberOfLines={2} style={[styles.listIntention, { color: palette.muted }]}>{block.intention}</Text> : null}
                 <Text style={[styles.listType, { color: palette.muted }]}>
-                  {block.kind === 'box' ? 'TIMEBOX' : 'TIME BLOCK'}{block.goalCompleted ? '  ·  COMPLETE' : ''}
+                  {block.kind === 'box' ? 'TIMEBOX' : 'TIME BLOCK'} · {block.flexible ? 'FLEXIBLE' : 'PROTECTED'}{block.goalCompleted ? '  ·  COMPLETE' : ''}
                   {localDayKey(new Date(block.startAt)) !== key ? '  ·  CONTINUED FROM PREVIOUS DAY' : ''}
                 </Text>
               </Pressable>
@@ -421,6 +452,9 @@ export function CalendarScreen() {
           ))}
         </ScrollView>
       )}
+      <RecoverySheet visible={recoveryOpen} day={day} blocks={ordered} palette={palette}
+        busy={busy} onClose={() => { if (!busy) setRecoveryOpen(false); }}
+        onApply={(preview) => { void applyPreview(preview); }} />
       <GoalEditor visible={newGoalOpen} initial={null} parent={null} parentOptions={goals}
         defaultHorizon="day" anchorDate={day} palette={palette} saving={busy}
         onDismiss={() => { if (!busy) setNewGoalOpen(false); }} onSave={saveNewGoal} />
