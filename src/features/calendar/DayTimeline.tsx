@@ -122,7 +122,7 @@ export function DayTimeline({ date, blocks, palette, onEdit, onQuickAdd, onOpenG
     (activeSession && blocks.some((b) => b.id === activeSession.blockId)
       ? getFocusElapsedMs(activeSession, now.getTime()) : 0);
   const shade = palette === colors.dark ? 'rgba(130,180,159,0.055)' : 'rgba(88,122,109,0.055)';
-  const gridLine = isDark ? 'rgba(174,191,179,0.12)' : 'rgba(100,121,111,0.13)';
+  const gridLine = palette === colors.dark ? 'rgba(174,191,179,0.12)' : 'rgba(100,121,111,0.13)';
   return (
     <View style={styles.container}>
       <View style={styles.toolbar}>
