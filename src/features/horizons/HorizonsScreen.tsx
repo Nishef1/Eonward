@@ -139,9 +139,10 @@ export function HorizonsScreen() {
   const [editorVisible, setEditorVisible] = useState(false);
   const [editing, setEditing] = useState<Goal | null>(null);
   const [editorDraftTitle, setEditorDraftTitle] = useState('');
+  const editorReturnPath = useRef<Goal[]>([]);
   const [parent, setParent] = useState<Goal | null>(null);
-  const [editorContext, setEditorContext] = useState<{ horizon: Horizon; anchor: Date }>(
-    () => ({ horizon: 'week', anchor: new Date() }),
+  const [editorContext, setEditorContext] = useState<{ horizon: Horizon; anchor: Date; inbox: boolean }>(
+    () => ({ horizon: 'week', anchor: new Date(), inbox: false }),
   );
   const key = periodKey(horizon, anchor);
   const caption = periodLabel(horizon, anchor);
@@ -240,7 +241,9 @@ export function HorizonsScreen() {
       setEditing(initial);
       setEditorDraftTitle(draftTitle);
       setParent(selectedParent);
-      setEditorContext({ horizon: selectedParent ? 'day' : targetHorizon, anchor: new Date(anchor.getTime()) });
+      editorReturnPath.current = initial || selectedParent ? [...detailStack] : [];
+      setEditorContext({ horizon: selectedParent ? 'day' : targetHorizon,
+        anchor: selectedParent ? new Date() : new Date(anchor.getTime()), inbox: selectedParent ? true : view === 'inbox' });
       detailRequest.current++;
       setDetailStack([]);
       setEditorVisible(true);
@@ -264,7 +267,7 @@ export function HorizonsScreen() {
     setSearching(false);
   }
 
-  async function openDetails(goal: Goal, nested = false) {
+  async function openDetails(goal: Goal, nested = false, returnPath?: Goal[]) {
     const request = ++detailRequest.current;
     try {
       const [latest, nextSteps, parentPath] = await Promise.all([
@@ -277,7 +280,7 @@ export function HorizonsScreen() {
         Alert.alert('Goal unavailable', 'This goal may have been deleted.');
         return;
       }
-      setDetailStack((current) => nested ? [...current, latest] : [latest]);
+      setDetailStack((current) => returnPath ? [...returnPath, latest] : nested ? [...current, latest] : [latest]);
       setChildren(nextSteps);
       setAncestors(parentPath);
     } catch (error) {
@@ -357,18 +360,24 @@ export function HorizonsScreen() {
         await createGoal(db, input);
         setQuickTitle((current) => current === editorDraftTitle ? '' : current);
       }
-      // When a goal moves to a different period, show its destination
-      // instead of leaving the user with an apparently missing goal.
-      if (input.inbox) setView('inbox');
-      else if (view === 'inbox' || (view === 'focus' && (input.horizon !== horizon || input.periodKey !== key))) {
-        setView('focus');
-        setAnchor(dateFromPeriodKey(input.horizon, input.periodKey, anchor));
-        setHorizon(input.horizon);
+      // Detail editing returns to its original path. Standalone capture shows its destination.
+      if (editorReturnPath.current.length === 0) {
+        if (input.inbox) setView('inbox');
+        else if (view === 'inbox' || (view === 'focus' && (input.horizon !== horizon || input.periodKey !== key))) {
+          setView('focus');
+          setAnchor(dateFromPeriodKey(input.horizon, input.periodKey, anchor));
+          setHorizon(input.horizon);
+        }
       }
-      setEditorVisible(false);
-      setEditing(null);
-      setParent(null);
+      closeEditor();
     });
+  }
+
+  function closeEditor() {
+    const path = editorReturnPath.current;
+    editorReturnPath.current = [];
+    setEditorVisible(false);
+    if (path.length) void openDetails(path[path.length - 1], false, path.slice(0, -1));
   }
 
   function editSelected() {
@@ -711,12 +720,12 @@ export function HorizonsScreen() {
         draftTitle={editorDraftTitle}
         parent={parent}
         parentOptions={parentOptions}
-        defaultInbox={view === 'inbox'}
+        defaultInbox={editorContext.inbox}
         defaultHorizon={editorContext.horizon}
         anchorDate={editorContext.anchor}
         palette={palette}
         saving={working}
-        onDismiss={() => { if (!working) setEditorVisible(false); }}
+        onDismiss={() => { if (!writeLock.current) closeEditor(); }}
         onSave={saveGoal}
       />
     </SafeAreaView>

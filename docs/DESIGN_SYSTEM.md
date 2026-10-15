@@ -47,7 +47,9 @@ Use `onAccent` for filled primary controls, not hard-coded white. Completion mus
 - Title and planning period precede supporting context. Ancestor links remain directly navigable.
 - Quick Focus offers 15/25/50 minutes on an existing open goal. Starting Focus creates a real Timebox and session. Completion remains an explicit, independent decision.
 - The organization sheet also offers a labeled 25-minute Focus shortcut. It uses the same existing-session replacement confirmation as detail.
-- Notes, deadlines, repeats and parent selection use progressive disclosure in the editor. Native date/time pickers preserve civil-date semantics.
+- The editor uses a stable frame with a fixed header and save area. Title and bounded, internally scrolling notes precede a collapsible planning summary; changing note length or expanding planning must not resize the sheet. Android form scrolling keeps the keyboard open; the title's Next key moves directly to notes.
+- Creating a smaller step shows its parent in a context card and keeps that connection fixed during creation. The new step starts in Inbox without an invented date; optional planning remains available. Save and cancel return to the original detail path, with saved children reloaded. Reparenting remains available through ordinary goal editing.
+- Planning dates, deadlines, repeats and optional reparenting use progressive disclosure. Horizon/repeat choices wrap rather than hide offscreen, and controls use consistent vector icons. Native date/time pickers preserve civil-date semantics.
 - Save stays above the bottom safe area. Dirty drafts require an explicit discard choice on close/back/backdrop.
 - Archive is reversible. Destructive or replacement decisions must explain the affected state before confirmation.
 

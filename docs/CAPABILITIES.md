@@ -5,6 +5,7 @@ Last reviewed: 2026-10-15. This document records implementation and its evidence
 | Area | Current implementation | Verification boundary / remaining work |
 | --- | --- | --- |
 | Seven horizons and hierarchy | Day through Life, editable parent path, period navigation, archive/restore | Native populated hierarchy and large-text acceptance still needed |
+| Smaller steps | Parent context, undated child capture, title/notes first, collapsible planning, return to original detail after save/cancel | Shared editor has a stable frame and bounded note field; full keyboard/platform matrix remains open |
 | Plan and horizons | Studio surfaces and depth, compact horizon picker, seven-scale rail, labeled segmented views and vector dock | Populated Android renders and 130% Plan/horizon picker sampled; user aesthetic acceptance and physical-device accessibility remain open |
 | Fast capture | Inline title-only capture, draft continuity into Details, matching-draft clear after save; synchronous duplicate-write guard | Keyboard and rapid-input device checks recorded in ROADMAP |
 | Inbox / replanning | Explicit unscheduled state; organizer shortcuts for Today, Tomorrow, This week and Inbox with destination navigation | Atomic planning-only update preserves deadline, reservations and recurrence anchor; repeating goals expose daily shortcuts only |
