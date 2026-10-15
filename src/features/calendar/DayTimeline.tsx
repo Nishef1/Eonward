@@ -92,6 +92,9 @@ export function DayTimeline({ date, blocks, palette, isDark, onEdit, onQuickAdd,
     ? Math.max(0, Math.floor(Math.min(...positioned.map((item) => item.top / hourHeight)) - 1))
     : isToday ? Math.max(0, Math.floor(minOfDay(now) / 60) - 2) : 8;
 
+  function jumpToHour(hour: number) {
+    ref.current?.scrollTo({ y: Math.max(0, (hour - 0.5) * hourHeight), animated: true });
+  }
   function jumpToNow() {
     const minute = minOfDay(new Date());
     ref.current?.scrollTo({ y: Math.max(0, (minute / 60 - 1.25) * hourHeight), animated: true });
@@ -102,14 +105,21 @@ export function DayTimeline({ date, blocks, palette, isDark, onEdit, onQuickAdd,
     const { from, to } = localDayBounds(date);
     const begin = Date.parse(from), end = Date.parse(to), span = end - begin;
     if (span !== 86400000) return null; // DST days use exact List mode rather than misleading compression.
-    return blocks.map((block) => {
+    const laneEnds = [begin, begin, begin];
+    return [...blocks].sort((a, b) => a.startAt.localeCompare(b.startAt)).map((block) => {
       const start = Math.max(begin, Date.parse(block.startAt));
       const finish = Math.min(end, Date.parse(block.endAt));
       if (finish <= start) return null;
+      let lane = laneEnds.findIndex((laneEnd) => laneEnd <= start);
+      if (lane === -1) lane = laneEnds.indexOf(Math.min(...laneEnds));
+      laneEnds[lane] = finish;
       return { id: block.id, left: (start - begin) / span * 100,
-        width: (finish - start) / span * 100, tone: blockTone(block) };
+        width: (finish - start) / span * 100, lane, tone: blockTone(block) };
     }).filter((entry): entry is NonNullable<typeof entry> => entry !== null);
   }, [blocks, dateKey, offset]);
+  const upcoming = isToday ? [...blocks]
+    .filter((block) => Date.parse(block.endAt) > now.getTime())
+    .sort((a, b) => a.startAt.localeCompare(b.startAt))[0] : null;
   const recordedMs = Object.values(actualByBlock).reduce((sum, value) => sum + value, 0) +
     (activeSession && blocks.some((b) => b.id === activeSession.blockId)
       ? getFocusElapsedMs(activeSession, now.getTime()) : 0);
@@ -152,18 +162,30 @@ export function DayTimeline({ date, blocks, palette, isDark, onEdit, onQuickAdd,
         ) : null}
       </View>
 
-      {ribbon ? <View accessible accessibilityRole="summary"
-        accessibilityLabel={`24-hour overview showing ${ribbon.length} scheduled reservations`}
-        style={styles.ribbonRegion}>
+      {ribbon ? <View style={styles.ribbonRegion}>
+        <Text numberOfLines={1} style={[styles.ribbonSummary, { color: palette.muted }]}>
+          {upcoming
+            ? `${Date.parse(upcoming.startAt) <= now.getTime() ? 'Happening now' : 'Next up'} · ${upcoming.goalTitle}`
+            : ribbon.length ? 'Day at a glance · Tap a time range to jump' : 'An open day · Tap a time range to begin'}
+        </Text>
         <View style={styles.ribbonLabels}>
           <Text style={[styles.ribbonLabel, { color: palette.muted }]}>MIDNIGHT</Text>
           <Text style={[styles.ribbonLabel, { color: palette.muted }]}>NOON</Text>
           <Text style={[styles.ribbonLabel, { color: palette.muted }]}>MIDNIGHT</Text>
         </View>
-        <View pointerEvents="none" style={[styles.ribbonTrack, { backgroundColor: palette.inset }]}>
-          {ribbon.map((item) => <View key={item.id}
-            style={[styles.ribbonBlock, { left: `${item.left}%`, width: `${item.width}%`, backgroundColor: item.tone }]} />)}
-          {isToday ? <View style={[styles.ribbonNow, { left: `${Math.min(100, minOfDay(now) / 1440 * 100)}%` }]} /> : null}
+        <View style={[styles.ribbonTrack, { backgroundColor: palette.inset }]}>
+          {ribbon.map((item) => <View pointerEvents="none" key={item.id}
+            style={[styles.ribbonBlock, {
+              left: `${item.left}%`, width: `${item.width}%`,
+              top: 2 + item.lane * 8, backgroundColor: item.tone,
+            }]} />)}
+          {isToday ? <View pointerEvents="none" style={[styles.ribbonNow, {
+            left: `${Math.min(100, minOfDay(now) / 1440 * 100)}%`,
+          }]} /> : null}
+          {[0, 6, 12, 18].map((hour) => <Pressable key={hour} accessibilityRole="button"
+            accessibilityLabel={`Jump to ${String(hour).padStart(2, '0')}:00 in the day timeline`}
+            onPress={() => jumpToHour(hour)}
+            style={[styles.ribbonJump, { left: `${hour / 24 * 100}%` }]} />)}
         </View>
       </View> : null}
       {draft ? <View style={[styles.adjustPanel, { backgroundColor: palette.surface, borderColor: palette.border }]}>
@@ -384,12 +406,14 @@ export function DayTimeline({ date, blocks, palette, isDark, onEdit, onQuickAdd,
 
 const styles = StyleSheet.create({
   container: { flex: 1, minHeight: 250 },
-  ribbonRegion: { paddingTop: 3, paddingBottom: 12, gap: 6 },
+  ribbonRegion: { paddingTop: 3, paddingBottom: 13, gap: 7 },
+  ribbonSummary: { fontSize: 12, fontWeight: '600' },
   ribbonLabels: { flexDirection: 'row', justifyContent: 'space-between' },
   ribbonLabel: { fontSize: 9, fontWeight: '700', letterSpacing: 0.7 },
-  ribbonTrack: { height: 13, borderRadius: 6, overflow: 'visible', position: 'relative' },
-  ribbonBlock: { position: 'absolute', top: 0, bottom: 0, borderRadius: 3, opacity: 0.86 },
+  ribbonTrack: { height: 25, borderRadius: 7, overflow: 'visible', position: 'relative' },
+  ribbonBlock: { position: 'absolute', height: 6, borderRadius: 3, opacity: 0.95 },
   ribbonNow: { position: 'absolute', top: -4, bottom: -4, width: 2, borderRadius: 2, backgroundColor: '#C18457' },
+  ribbonJump: { position: 'absolute', width: '25%', top: -11, height: 48 },
   toolbar: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8, paddingVertical: 11, flexWrap: 'wrap' },
   toolbarCopy: { flex: 1, gap: 4 },
   heading: { fontSize: 17, fontWeight: '700', letterSpacing: -0.4 },
