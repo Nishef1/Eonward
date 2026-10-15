@@ -214,6 +214,12 @@ test('offline planning lifecycle preserves identity, recurrence, completion hist
     const beforeRecovery = await listDayBlocks(source.db, selectedDay);
     const proposal = previewReplan(beforeRecovery, { mode: 'recover', day: selectedDay,
       now: new Date(2026, 9, 14, 12, 50) });
+    // A once-valid preview must be rejected if it expires while waiting for the DB lock.
+    let clockReads = 0;
+    await assert.rejects(() => applyReplan(source.db, proposal, beforeRecovery, () =>
+      clockReads++ === 0 ? proposal.atMs : proposal.atMs + 120001), /expired while waiting/);
+    assert.deepEqual((await listDayBlocks(source.db, selectedDay)).map((block) => block.startAt),
+      beforeRecovery.map((block) => block.startAt));
     await applyReplan(source.db, proposal, beforeRecovery, new Date(2026, 9, 14, 12, 50).getTime());
     await assert.rejects(() => applyReplan(source.db, proposal, beforeRecovery, new Date(2026, 9, 14, 12, 50).getTime()), /Calendar changed/);
     assert.equal((await listDayBlocks(source.db, selectedDay)).find((b) =>

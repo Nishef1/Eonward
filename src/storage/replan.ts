@@ -20,11 +20,11 @@ const UNDO_WINDOW_MS = 5 * 60 * 1000;
 /** Only exact previewed states may be written; active Focus blocks are immutable. */
 export async function applyReplan(db: SQLiteDatabase, preview: ReplanPreview, expected: readonly {
   id: string; startAt: string; endAt: string; flexible: boolean; kind: string; intention: string; goalId: string; goalCompleted: boolean;
-}[], nowMs?: number): Promise<void> {
+}[], nowMs?: number | (() => number)): Promise<void> {
   const previewIsCurrent = () => {
     // Only automated fixtures inject a fixed timestamp. Production evaluates the
     // actual clock again after entering SQLite's exclusive transaction.
-    const current = nowMs ?? Date.now();
+    const current = typeof nowMs === 'function' ? nowMs() : nowMs ?? Date.now();
     return current >= preview.atMs - 2000 && current - preview.atMs <= 120000 &&
       localDayKey(new Date(current)) === preview.day;
   };
